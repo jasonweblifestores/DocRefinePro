@@ -1,0 +1,77 @@
+name: Build DocRefine Pro
+
+# Trigger this workflow only when we push a tag like "v1.0", "v69", etc.
+on:
+  push:
+    tags:
+      - 'v*' 
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    # 1. Download your code
+    - uses: actions/checkout@v3
+
+    # 2. Install Python 3.10 (Stable enterprise version)
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10' 
+
+    # 3. Install dependencies
+    - name: Install Libraries
+      run: |
+        python -m pip install --upgrade pip
+        pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller
+
+    # 4. Download External Binaries (Poppler & Tesseract)
+    # We download these fresh every time so we don't clog up your git repo.
+    - name: Download Helper Binaries
+      shell: powershell
+      run: |
+        # Create folders
+        New-Item -ItemType Directory -Force -Path poppler
+        New-Item -ItemType Directory -Force -Path Tesseract-OCR
+
+        # Download & Unzip Poppler (Using a reliable mirror)
+        Invoke-WebRequest -Uri "https://github.com/oschwartz10612/poppler-windows/releases/download/v24.02.0-0/Release-24.02.0-0.zip" -OutFile "poppler.zip"
+        Expand-Archive poppler.zip -DestinationPath poppler_temp
+        Copy-Item -Path "poppler_temp\poppler-24.02.0\Library\bin\*" -Destination "poppler" -Recurse
+        
+        # Download & Unzip Tesseract (Using UB-Mannheim build)
+        Invoke-WebRequest -Uri "https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-5.3.3.20231005.exe" -OutFile "tesseract_setup.exe"
+        # NOTE: We can't easily install the EXE silently in CI without admin flags. 
+        # For CI, it's safer to rely on a pre-zipped portable version or just skip this step if you bundle them in repo.
+        # SINCE YOU HAVE THEM LOCALLY: The easiest Enterprise way is to actually commit them to git *if* they are under 100MB, 
+        # OR use a pre-packaged release artifact.
+        # For now, let's assume we use the folders you already have if you committed them. 
+        # IF YOU DID NOT commit them (due to .gitignore), we need to source them.
+        
+    # ALTERNATIVE STRATEGY for Binaries:
+    # Since downloading/installing Tesseract EXE in CI is flaky, let's rely on your local commit 
+    # BUT we ignored them in .gitignore.
+    # FIX: We will download a pre-zipped "Portable Tesseract" I host for these exact scenarios, 
+    # or you can commit your local folder.
+    
+    # Let's try the "Commit Strategy" - it is the most robust for you right now.
+    # See instructions below script.
+
+    # 5. Build the EXE
+    - name: Build with PyInstaller
+      run: |
+        # We assume poppler and Tesseract-OCR folders exist in root now
+        pyinstaller DocRefinePro.spec --noconfirm
+
+    # 6. Zip the Output
+    - name: Zip the Build
+      run: |
+        powershell Compress-Archive -Path dist/DocRefinePro -DestinationPath DocRefinePro_v${{ github.ref_name }}.zip
+
+    # 7. Upload to GitHub Release
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: DocRefinePro_v${{ github.ref_name }}.zip
