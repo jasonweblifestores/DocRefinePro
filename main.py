@@ -15,12 +15,13 @@ import glob
 import gc
 import uuid
 import logging
+import urllib.request
+import webbrowser
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from datetime import datetime, timedelta
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import tkinter as tk
-# ... existing imports ...
 from PIL import Image, ImageFile
 
 # ==============================================================================
@@ -32,25 +33,17 @@ if os.name == 'nt':
         _original_popen = subprocess.Popen
 
         def safe_popen(*args, **kwargs):
-            # If the caller didn't specify STARTUPINFO, create one that hides the window
             if 'startupinfo' not in kwargs:
                 si = subprocess.STARTUPINFO()
                 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 si.wShowWindow = subprocess.SW_HIDE
                 kwargs['startupinfo'] = si
-                
-                # Also force CREATE_NO_WINDOW flag
                 if 'creationflags' not in kwargs:
                     kwargs['creationflags'] = 0x08000000 # CREATE_NO_WINDOW
-            
             return _original_popen(*args, **kwargs)
-
-        # Override the standard library function
         subprocess.Popen = safe_popen
     except Exception as e:
         print(f"Warning: Could not patch subprocess: {e}")
-
-# ... rest of the code (SystemUtils, etc.) ...
 
 # Increase PIL limit & allow truncated images
 Image.MAX_IMAGE_PIXELS = None
@@ -64,13 +57,14 @@ except ImportError:
     HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v69 (STATE ENGINE & ROBUSTNESS)
+#   DOCREFINE PRO v74 (UPDATE CHECKER)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
+    CURRENT_VERSION = "v74" # Update this to match your git tag
 
     @staticmethod
     def get_base_dir():
@@ -98,6 +92,10 @@ class SystemUtils:
         return None
 
 class Config:
+    # --- CONFIGURE YOUR REPO HERE ---
+    GITHUB_REPO = "jasonweblifestores/DocRefinePro" 
+    # --------------------------------
+    
     DEFAULTS = {
         "ram_warning_mb": 1024,
         "resize_width": 1920,
@@ -144,7 +142,7 @@ def log_app(msg, level="INFO"):
     elif level == "WARN": logger.warning(msg)
     else: logger.info(msg)
 
-log_app(f"=== APP STARTUP v69 ({platform.system()}) ===")
+log_app(f"=== APP STARTUP {SystemUtils.CURRENT_VERSION} ({platform.system()}) ===")
 if HAS_PSUTIL: log_app(f"Memory Monitor: ACTIVE (Threshold: {CFG.get('ram_warning_mb')}MB)")
 else: log_app("Memory Monitor: UNAVAILABLE (psutil missing)", "WARN")
 
@@ -339,7 +337,6 @@ class Worker:
 
     # --- STATE MANAGER ---
     def set_job_status(self, ws, stage, details=""):
-        """Writes the official state to status.json"""
         try:
             data = {
                 "stage": stage,
@@ -478,10 +475,7 @@ class Worker:
             
             update_stats_time(ws, "batch_time", time.time() - start_time)
             
-            # Update Final Status
             self.set_job_status(ws, "PROCESSED", f"Complete: {', '.join(active_modes)}")
-            
-            # Explicitly refresh UI to show new status
             self.q.put(("job", str(ws))) 
             
             self.prog_main(100, "Done"); self.prog_sub(0, ""); self.q.put(("done",)); SystemUtils.open_file(dst)
@@ -530,7 +524,6 @@ class Worker:
 
             update_stats_time(ws, "dist_time", time.time() - start_time)
             
-            # Update Final Status
             self.set_job_status(ws, "DISTRIBUTED", "Delivered to Final folder")
             self.q.put(("job", str(ws))) 
             
@@ -558,11 +551,12 @@ class Worker:
 # --- 8. UI ---
 class App:
     def __init__(self, root):
-        self.root = root; self.root.title(f"DocRefine Pro v69 ({platform.system()})")
+        self.root = root; self.root.title(f"DocRefine Pro {SystemUtils.CURRENT_VERSION} ({platform.system()})")
         self.root.geometry("1150x900")
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
         
+        # --- UI LAYOUT ---
         left = tk.Frame(root, width=350); left.pack(side="left", fill="both", padx=10, pady=10)
         tk.Label(left, text="Workspace Dashboard", font=("Segoe UI", 12, "bold")).pack(pady=5)
         self.btn_new = tk.Button(left, text="+ New Ingest Job", command=self.ask_ingest_mode, bg="#e3f2fd", height=2); self.btn_new.pack(fill="x")
@@ -603,6 +597,31 @@ class App:
         self.p_sub = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_sub).pack(fill="x", pady=2)
         self.log_box = scrolledtext.ScrolledText(mon, height=8); self.log_box.pack(fill="both", expand=True)
         self.load_jobs(); self.root.after(100, self.poll)
+        
+        # --- AUTO-CHECK UPDATES ---
+        threading.Thread(target=self.check_updates, daemon=True).start()
+
+    def check_updates(self):
+        """Secure, notification-only update check using standard lib."""
+        repo = CFG.get("GITHUB_REPO")
+        if not repo or "username" in repo: return # Skip if not configured
+        
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+        try:
+            # Use urllib to avoid dependency on requests
+            with urllib.request.urlopen(url, timeout=5) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode())
+                    remote_ver = data.get("tag_name", "").strip().lower()
+                    local_ver = SystemUtils.CURRENT_VERSION.strip().lower()
+                    
+                    # Simple string comparison (v74 vs v73)
+                    # For robust semver, we'd need a parser, but this works for basic tags
+                    if remote_ver > local_ver:
+                        self.q.put(("update_avail", remote_ver, data.get("html_url")))
+        except:
+            # Silent fail for firewall/offline
+            pass
 
     def _build_process(self):
         tk.Label(self.tab_process, text="Step 2: Batch Processing", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
@@ -705,6 +724,9 @@ class App:
                 elif m[0]=='job': self.load_jobs(m[1])
                 elif m[0]=='auto_open': SystemUtils.open_file(m[1])
                 elif m[0]=='error': messagebox.showerror("Error", m[1])
+                elif m[0]=='update_avail':
+                    if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"):
+                        webbrowser.open(m[2])
                 elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0)
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
@@ -716,14 +738,12 @@ class App:
         except: items = []
         for d in items:
             if d.is_dir():
-                # STATE ENGINE LOGIC: Read status.json first
                 s = "Empty"
                 stat_file = d / "status.json"
                 if stat_file.exists():
                     try:
                         with open(stat_file, 'r') as f: s = json.load(f).get("stage", "Unknown")
                     except: pass
-                # Fallback to older folder-check logic
                 elif (d/"Final_Delivery").exists(): s = "DISTRIBUTED"
                 elif (d/"02_Ready_For_Redistribution").exists(): s = "PROCESSED"
                 elif (d/"01_Master_Files").exists(): s = "INGESTED"
