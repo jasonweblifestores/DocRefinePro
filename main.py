@@ -20,7 +20,37 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import tkinter as tk
+# ... existing imports ...
 from PIL import Image, ImageFile
+
+# ==============================================================================
+#   WINDOWS GHOST WINDOW FIX (CRITICAL FOR PDF2IMAGE/TESSERACT)
+# ==============================================================================
+if os.name == 'nt':
+    try:
+        import subprocess
+        _original_popen = subprocess.Popen
+
+        def safe_popen(*args, **kwargs):
+            # If the caller didn't specify STARTUPINFO, create one that hides the window
+            if 'startupinfo' not in kwargs:
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                si.wShowWindow = subprocess.SW_HIDE
+                kwargs['startupinfo'] = si
+                
+                # Also force CREATE_NO_WINDOW flag
+                if 'creationflags' not in kwargs:
+                    kwargs['creationflags'] = 0x08000000 # CREATE_NO_WINDOW
+            
+            return _original_popen(*args, **kwargs)
+
+        # Override the standard library function
+        subprocess.Popen = safe_popen
+    except Exception as e:
+        print(f"Warning: Could not patch subprocess: {e}")
+
+# ... rest of the code (SystemUtils, etc.) ...
 
 # Increase PIL limit & allow truncated images
 Image.MAX_IMAGE_PIXELS = None
