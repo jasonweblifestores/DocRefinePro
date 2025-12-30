@@ -1,0 +1,19 @@
+# --- Python Basics ---
+__pycache__/
+*.py[cod]
+*.spec
+
+# --- User Data (NEVER UPLOAD) ---
+Workspaces/
+*.log
+config.json
+status.json
+
+# --- Huge Binaries (We will handle these in the Build Pipeline) ---
+poppler/
+Tesseract-OCR/
+OCR_Cache/
+
+# --- OS Junk ---
+.DS_Store
+Thumbs.db
