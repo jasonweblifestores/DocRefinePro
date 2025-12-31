@@ -11,6 +11,7 @@ Works natively on **Windows 10/11** and **macOS (Intel & Apple Silicon)**.
 ## 🚀 Key Features
 
 * **Smart Ingestion:** Automatically scans folders, detects duplicates using hashing (Binary or Smart Text), and quarantines corrupt files.
+* **Organization & Deduplication:** dedicated mode to sort unique master files and generate detailed duplicate reports without modifying the original files.
 * **PDF Flattening:** Converts searchable PDFs into flattened images to remove hidden layers or metadata.
 * **Batch OCR:** Bulk-converts scanned images or flat PDFs into searchable text documents using Tesseract 5.
 * **Sanitization:** Removes metadata (Authors, Edit Time) from Microsoft Office documents (.docx, .xlsx).
@@ -20,7 +21,7 @@ Works natively on **Windows 10/11** and **macOS (Intel & Apple Silicon)**.
 
 ## 📥 Download & Installation
 
-Go to the [Releases Page](https://github.com/jasonweblifestores/DocRefinePro/releases) to download the latest version.
+Go to the [**Releases Page**](https://github.com/jasonweblifestores/DocRefinePro/releases) to download the latest version.
 
 ### 🪟 Windows
 1.  Download `DocRefinePro_Win_vXX.zip`.
@@ -54,13 +55,24 @@ Since this is an open-source tool signed with a community certificate, macOS wil
     * **Lightning:** Fastest (Strict binary hashing only).
     * **Deep Scan:** Slowest but most accurate (Full text scan).
 
-### 2. Process
-* Select your job from the dashboard.
-* Go to the **Process** tab.
-* Check the actions you want (e.g., **Flatten PDFs**, **Resize Images**).
+### 2. Process (Choose Option A or B)
+Select your job from the dashboard and go to the **Process** tab.
+
+#### **Option A: Batch Processing (Modify Files)**
+* Use this if you need to **Flatten**, **OCR**, **Resize**, or **Sanitize** files.
+* Check the actions you want (e.g., *Flatten PDFs*).
 * Click **Run Actions**.
+* Output goes to: `02_Ready_For_Redistribution`.
+
+#### **Option B: Organization (Deduplication Only)**
+* Use this if you only want to **clean up a messy drive** without altering the files.
+* Click **Run Dedupe & Sort**.
+* Output goes to: `03_Organized_Output`.
+    * **Unique_Masters:** Contains one clean copy of every file.
+    * **Duplicates:** Contains text reports listing where duplicates were found.
 
 ### 3. Distribute
+*(Only applicable if you used Option A)*
 * Go to the **Distribute** tab.
 * Choose if you want to output searchable (OCR) copies or flat copies.
 * Click **Run Distribution** to generate the final "Clean" folder structure.
@@ -77,7 +89,6 @@ If you prefer to run the raw Python code or build it yourself:
 * **macOS:** Install via Homebrew: `brew install poppler tesseract tesseract-lang`.
 
 **Setup:**
-
 ```bash
 # Clone the repo
 git clone [https://github.com/jasonweblifestores/DocRefinePro.git](https://github.com/jasonweblifestores/DocRefinePro.git)
