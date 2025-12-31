@@ -1,4 +1,4 @@
-name: Build DocRefine Pro
+name: Build DocRefine Pro (Multi-OS)
 
 permissions:
   contents: write
@@ -9,7 +9,11 @@ on:
       - 'v*'
 
 jobs:
+  # ====================================================
+  # JOB 1: WINDOWS BUILD (Preserves your current logic)
+  # ====================================================
   build-windows:
+    name: Windows Build
     runs-on: windows-latest
     
     steps:
@@ -25,17 +29,92 @@ jobs:
         python -m pip install --upgrade pip
         pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller
 
-    # Note: We rely on poppler/ and Tesseract-OCR/ being in the repo now
+    # Uses your existing .spec file which handles local Windows paths
     - name: Build with PyInstaller
       run: |
         pyinstaller DocRefinePro.spec --noconfirm
 
     - name: Zip the Build
       run: |
-        powershell Compress-Archive -Path dist/DocRefinePro -DestinationPath DocRefinePro_v${{ github.ref_name }}.zip
+        powershell Compress-Archive -Path dist/DocRefinePro -DestinationPath DocRefinePro_Win_v${{ github.ref_name }}.zip
 
-    - name: Create Release
+    - name: Release Windows Artifact
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: DocRefinePro_v${{ github.ref_name }}.zip
+        files: DocRefinePro_Win_v${{ github.ref_name }}.zip
+
+  # ====================================================
+  # JOB 2: MAC BUILD (New dynamic setup)
+  # ====================================================
+  build-mac:
+    name: macOS Build
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # Install Mac versions of your dependencies via Homebrew
+    - name: Install Mac System Deps
+      run: |
+        brew update
+        brew install poppler tesseract tesseract-lang create-dmg
+
+    - name: Install Python Libs
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    # We use CLI flags here instead of the .spec file because
+    # the paths to Poppler/Tesseract on Mac are dynamic (Homebrew).
+    - name: Build Mac App
+      run: |
+        # 1. Find dynamic Homebrew paths
+        POPPLER_PATH=$(brew --prefix poppler)
+        TESS_PATH=$(brew --prefix tesseract)
+        TESSDATA_DIR="$TESS_PATH/share/tessdata"
+        
+        echo "Found Poppler at: $POPPLER_PATH"
+        echo "Found Tesseract at: $TESS_PATH"
+
+        # 2. Run PyInstaller
+        # --add-binary bundles the exe files
+        # --add-data bundles the language files for OCR
+        pyinstaller --noconfirm --onedir --windowed --clean \
+          --name "DocRefinePro" \
+          --add-binary "$POPPLER_PATH/bin/pdfinfo:." \
+          --add-binary "$POPPLER_PATH/bin/pdftoppm:." \
+          --add-binary "$TESS_PATH/bin/tesseract:." \
+          --add-data "$TESSDATA_DIR:tessdata" \
+          main.py
+          
+        # NOTE: If you have a Mac icon, add: --icon "assets/icon.icns" \ above
+
+    # Create the clickable .dmg installer
+    - name: Create DMG Installer
+      run: |
+        mkdir -p dist/dmg_content
+        cp -r "dist/DocRefinePro.app" dist/dmg_content
+        
+        create-dmg \
+          --volname "DocRefinePro Installer" \
+          --window-pos 200 120 \
+          --window-size 800 400 \
+          --icon-size 100 \
+          --icon "DocRefinePro.app" 200 190 \
+          --hide-extension "DocRefinePro.app" \
+          --app-drop-link 600 185 \
+          "dist/DocRefinePro_Mac_v${{ github.ref_name }}.dmg" \
+          "dist/dmg_content"
+
+    - name: Release Mac Artifact
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: dist/DocRefinePro_Mac_v${{ github.ref_name }}.dmg

@@ -57,18 +57,34 @@ except ImportError:
     HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v74 (UPDATE CHECKER)
+#   DOCREFINE PRO v74 (MAC PORT)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v74" # Update this to match your git tag
+    CURRENT_VERSION = "v74" 
 
     @staticmethod
-    def get_base_dir():
-        if getattr(sys, 'frozen', False): return Path(sys.executable).parent
+    def get_resource_dir():
+        """Returns the path to bundled resources (binaries/icons)."""
+        # PyInstaller unpacks data to sys._MEIPASS
+        if getattr(sys, 'frozen', False):
+            return Path(sys._MEIPASS)
+        return Path(__file__).parent
+
+    @staticmethod
+    def get_user_data_dir():
+        """Returns the path where Workspaces and Configs should be stored."""
+        if getattr(sys, 'frozen', False):
+            if SystemUtils.IS_MAC:
+                # On Mac, sys.executable is inside /Content/MacOS. 
+                # We want the folder containing the .app bundle.
+                # Structure: /Path/To/App/DocRefinePro.app/Contents/MacOS/DocRefinePro
+                return Path(sys.executable).parents[3] 
+            # On Windows, just the folder containing the exe
+            return Path(sys.executable).parent
         return Path(__file__).parent
 
     @staticmethod
@@ -81,14 +97,31 @@ class SystemUtils:
         except Exception as e: print(f"Error opening file: {e}")
 
     @staticmethod
-    def find_binary(portable_dir, bin_name):
-        base = SystemUtils.get_base_dir()
-        tgt = base / portable_dir
-        if tgt.exists():
-            if (tgt / bin_name).exists(): return str(tgt)
-            if (tgt / "bin" / bin_name).exists(): return str(tgt / "bin")
+    def find_binary(bin_name):
+        """Locates external binaries (Poppler/Tesseract)"""
+        # 1. Look in PyInstaller Bundle (sys._MEIPASS)
+        res_dir = SystemUtils.get_resource_dir()
+        if (res_dir / bin_name).exists(): return str(res_dir / bin_name)
+        if (res_dir / "bin" / bin_name).exists(): return str(res_dir / "bin" / bin_name)
+
+        # 2. Look in Local Portable Folder (Dev Mode)
+        portable_target = res_dir / "DocRefine_Portable"
+        if portable_target.exists():
+             if (portable_target / bin_name).exists(): return str(portable_target)
+             if (portable_target / "bin" / bin_name).exists(): return str(portable_target / "bin")
+
+        # 3. System PATH check
         sys_path = shutil.which(bin_name)
-        if sys_path: return str(Path(sys_path).parent)
+        if sys_path: 
+            # On Mac, we might get a symlink, so we resolve it to find the real bin folder
+            return str(Path(sys_path).resolve())
+
+        # 4. Mac Homebrew Default Fallback (Common locations)
+        if SystemUtils.IS_MAC:
+            for loc in ["/opt/homebrew/bin", "/usr/local/bin"]:
+                brew_path = Path(loc) / bin_name
+                if brew_path.exists(): return str(brew_path)
+
         return None
 
 class Config:
@@ -105,7 +138,8 @@ class Config:
     }
     def __init__(self):
         self.data = self.DEFAULTS.copy()
-        p = SystemUtils.get_base_dir() / "config.json"
+        # Load config from User Data Dir (outside the frozen bundle)
+        p = SystemUtils.get_user_data_dir() / "config.json"
         if p.exists():
             try:
                 with open(p, 'r') as f: self.data.update(json.load(f))
@@ -115,11 +149,12 @@ class Config:
 
 CFG = Config()
 
-# --- 2. LOGGING SETUP ---
-BASE_DIR = SystemUtils.get_base_dir()
-LOG_PATH = BASE_DIR / "app_debug.log"
-WORKSPACES_ROOT = BASE_DIR / "Workspaces"
-WORKSPACES_ROOT.mkdir(exist_ok=True)
+# --- 2. LOGGING & PATHS SETUP ---
+# Important: Write logs and workspaces to User Data Dir, not Resource Dir
+USER_DIR = SystemUtils.get_user_data_dir()
+LOG_PATH = USER_DIR / "app_debug.log"
+WORKSPACES_ROOT = USER_DIR / "Workspaces"
+WORKSPACES_ROOT.mkdir(parents=True, exist_ok=True)
 
 SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.png', '.xls', '.xlsx', '.csv', '.jpeg'}
 
@@ -143,6 +178,9 @@ def log_app(msg, level="INFO"):
     else: logger.info(msg)
 
 log_app(f"=== APP STARTUP {SystemUtils.CURRENT_VERSION} ({platform.system()}) ===")
+log_app(f"Resources: {SystemUtils.get_resource_dir()}")
+log_app(f"User Data: {USER_DIR}")
+
 if HAS_PSUTIL: log_app(f"Memory Monitor: ACTIVE (Threshold: {CFG.get('ram_warning_mb')}MB)")
 else: log_app("Memory Monitor: UNAVAILABLE (psutil missing)", "WARN")
 
@@ -160,13 +198,32 @@ def clean_temp_files():
 clean_temp_files()
 
 # --- 4. DEPENDENCIES ---
-POPPLER_BIN = SystemUtils.find_binary("poppler", "pdfinfo" + (".exe" if SystemUtils.IS_WIN else ""))
-TESSERACT_BIN = SystemUtils.find_binary("Tesseract-OCR", "tesseract" + (".exe" if SystemUtils.IS_WIN else ""))
-HAS_TESSERACT = bool(TESSERACT_BIN)
-if TESSERACT_BIN:
+# Determine binary extension based on OS
+bin_ext = ".exe" if SystemUtils.IS_WIN else ""
+
+# -- Poppler --
+# pdf2image requires the FOLDER containing the binary, not the binary itself
+poppler_bin_file = SystemUtils.find_binary("pdfinfo" + bin_ext)
+POPPLER_BIN = str(Path(poppler_bin_file).parent) if poppler_bin_file else None
+if not POPPLER_BIN: log_app("CRITICAL: Poppler not found.", "ERROR")
+
+# -- Tesseract --
+tesseract_bin_file = SystemUtils.find_binary("tesseract" + bin_ext)
+HAS_TESSERACT = bool(tesseract_bin_file)
+
+if HAS_TESSERACT:
     import pytesseract
-    exe_name = "tesseract.exe" if SystemUtils.IS_WIN else "tesseract"
-    pytesseract.pytesseract.tesseract_cmd = str(Path(TESSERACT_BIN) / exe_name)
+    pytesseract.pytesseract.tesseract_cmd = tesseract_bin_file
+    
+    # CRITICAL MAC FIX: Set TESSDATA_PREFIX if frozen
+    # We will bundle tessdata into a 'tessdata' folder inside the app bundle
+    if getattr(sys, 'frozen', False) and SystemUtils.IS_MAC:
+        tessdata_path = SystemUtils.get_resource_dir() / "tessdata"
+        if tessdata_path.exists():
+            os.environ["TESSDATA_PREFIX"] = str(tessdata_path)
+            log_app(f"Mac Tesseract Data: {tessdata_path}")
+else:
+    log_app("Tesseract not found. OCR disabled.", "WARN")
 
 from pdf2image import convert_from_path, pdfinfo_from_path
 import pypdf
@@ -615,8 +672,6 @@ class App:
                     remote_ver = data.get("tag_name", "").strip().lower()
                     local_ver = SystemUtils.CURRENT_VERSION.strip().lower()
                     
-                    # Simple string comparison (v74 vs v73)
-                    # For robust semver, we'd need a parser, but this works for basic tags
                     if remote_ver > local_ver:
                         self.q.put(("update_avail", remote_ver, data.get("html_url")))
         except:

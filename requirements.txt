@@ -1,4 +1,6 @@
-pypdf
-pdf2image
+pillow
 pytesseract
-Pillow
+pdf2image
+pypdf
+psutil
+pyinstaller
