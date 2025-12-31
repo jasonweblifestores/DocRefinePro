@@ -57,14 +57,14 @@ except ImportError:
     HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v74 (MAC PORT)
+#   DOCREFINE PRO v75 (MAC PORT + DEDUPE MODE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v74" 
+    CURRENT_VERSION = "v75" 
 
     @staticmethod
     def get_resource_dir():
@@ -587,6 +587,68 @@ class Worker:
             self.prog_main(100, "Done"); self.prog_sub(0, ""); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
+    def run_organize(self, ws_p):
+        try:
+            ws = Path(ws_p); self.current_ws = str(ws)
+            if not (ws/"manifest.json").exists():
+                 self.q.put(("error", "Manifest missing. Run Ingest first.")); self.q.put(("done",)); return
+
+            start_time = time.time()
+            out_dir = ws / "03_Organized_Output"
+            m_dir = out_dir / "Unique_Masters"
+            d_dir = out_dir / "Duplicates"
+            q_dir = out_dir / "Quarantine"
+            
+            for p in [m_dir, d_dir, q_dir]: p.mkdir(parents=True, exist_ok=True)
+
+            self.log("Organization Start: Separating Masters and Duplicates...")
+            self.set_job_status(ws, "ORGANIZING", "Sorting files...")
+            
+            with open(ws/"manifest.json") as f: man = json.load(f)
+            total_ops = len(man)
+            
+            # Helper to copy with safe filenames
+            def safe_copy(src, dst_folder, name):
+                try:
+                    shutil.copy2(src, dst_folder / name)
+                except Exception as e: self.log(f"Copy Error {name}: {e}", True)
+
+            for i, (h, data) in enumerate(man.items()):
+                if self.stop_sig: break
+                if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                
+                self.prog_main((i/total_ops)*100, f"Sorting {i+1}/{total_ops}")
+                
+                # Handle Quarantine
+                if data.get("status") == "QUARANTINE":
+                    q_src = ws / "00_Quarantine"
+                    for f in (ws/"00_Quarantine").glob("*"):
+                        if data.get("orig_name") in f.name or data.get("name") in f.name:
+                            safe_copy(f, q_dir, f.name)
+                    continue
+
+                # Handle Masters
+                master_src = ws / "01_Master_Files" / data['uid']
+                if master_src.exists():
+                    safe_copy(master_src, m_dir, data['uid'])
+                
+                # Handle Duplicates (Report only)
+                if len(data.get('copies', [])) > 1:
+                    report = d_dir / f"{data['uid']}_Duplicate_Locations.txt"
+                    with open(report, "w", encoding="utf-8") as f:
+                        f.write(f"Original Master: {data['master']}\n")
+                        f.write("Duplicate instances found at:\n")
+                        for c in data['copies']:
+                            f.write(f"- {c}\n")
+
+            update_stats_time(ws, "organize_time", time.time() - start_time)
+            self.set_job_status(ws, "ORGANIZED", "Masters sorted & Dupes reported")
+            self.q.put(("job", str(ws))) 
+            
+            self.prog_main(100, "Done"); self.prog_sub(0, ""); self.q.put(("done",)); SystemUtils.open_file(out_dir)
+
+        except Exception as e: self.log(f"Org Err: {e}", True); self.q.put(("done",))
+
     def run_preview(self, ws_p, dpi):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
@@ -679,15 +741,30 @@ class App:
             pass
 
     def _build_process(self):
-        tk.Label(self.tab_process, text="Step 2: Batch Processing", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
+        # --- Standard Batch Processing Section ---
+        tk.Label(self.tab_process, text="Option A: Batch Processing (OCR/Flatten)", font=("Segoe UI",10,"bold"), fg="#333").pack(anchor="w",pady=(10,5),padx=10)
+        
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
-        ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=10,padx=10)
+        
+        ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=5,padx=10)
         tk.Label(ctrl, text="Quality (DPI):").pack(side="left")
         self.dpi_var = tk.StringVar(value="300")
         self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["150","300","600"], width=5, state="readonly"); self.cb_dpi.pack(side="left",padx=5)
         self.btn_prev = tk.Button(ctrl, text="Generate Preview", command=self.safe_preview, state="disabled"); self.btn_prev.pack(side="left",padx=15)
-        self.btn_run = tk.Button(ctrl, text="Run Actions", command=self.safe_start_batch, bg="#e8f5e9", height=2, state="disabled"); self.btn_run.pack(side="right")
+        self.btn_run = tk.Button(ctrl, text="Run Actions", command=self.safe_start_batch, bg="#e8f5e9", height=1, state="disabled"); self.btn_run.pack(side="right")
+
+        # --- SEPARATOR ---
+        ttk.Separator(self.tab_process, orient='horizontal').pack(fill='x', pady=15, padx=10)
+
+        # --- NEW: Deduplication Section ---
+        tk.Label(self.tab_process, text="Option B: Organization (No Processing)", font=("Segoe UI",10,"bold"), fg="#333").pack(anchor="w",pady=(0,5),padx=10)
+        
+        d_frame = tk.Frame(self.tab_process); d_frame.pack(fill="x", padx=10)
+        tk.Label(d_frame, text="Extract unique 'Master' files and generate duplicate reports.\nDoes not alter file contents.", justify="left", fg="#666").pack(anchor="w", side="left")
+        
+        self.btn_org = tk.Button(d_frame, text="Run Dedupe & Sort", command=self.safe_start_organize, bg="#fff8e1", height=2, state="disabled")
+        self.btn_org.pack(side="right")
 
     def _build_dist(self):
         tk.Label(self.tab_dist, text="Step 3: Distribution", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
@@ -751,6 +828,9 @@ class App:
     def safe_start_dist(self):
         ws=self.get_ws(); src=filedialog.askdirectory() if self.var_ext.get() else None
         if ws and (not self.var_ext.get() or src): self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src, self.var_ocr.get()), daemon=True).start()
+    def safe_start_organize(self):
+        ws = self.get_ws()
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws)), daemon=True).start()
     def safe_preview(self):
         ws=self.get_ws()
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_preview, str(ws), self.cb_dpi.get()), daemon=True).start()
@@ -800,6 +880,7 @@ class App:
                         with open(stat_file, 'r') as f: s = json.load(f).get("stage", "Unknown")
                     except: pass
                 elif (d/"Final_Delivery").exists(): s = "DISTRIBUTED"
+                elif (d/"03_Organized_Output").exists(): s = "ORGANIZED"
                 elif (d/"02_Ready_For_Redistribution").exists(): s = "PROCESSED"
                 elif (d/"01_Master_Files").exists(): s = "INGESTED"
                 
@@ -851,7 +932,7 @@ class App:
         if not enable: self.start_t = time.time(); self.paused = False; self.btn_pause.config(text="PAUSE", bg="SystemButtonFace")
         self.tree.config(selectmode="browse" if enable else "none")
         for b in [self.btn_new, self.btn_refresh, self.btn_del, self.cb_dpi]: b.config(state="readonly" if b==self.cb_dpi and enable else s)
-        for c in self.chk_frame.winfo_children() + [self.btn_dist, self.btn_prev, self.btn_open]: 
+        for c in self.chk_frame.winfo_children() + [self.btn_dist, self.btn_prev, self.btn_open, self.btn_org]: 
             try: c.configure(state=s) 
             except: pass
         if enable: self.check_run_btn() 
