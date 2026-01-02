@@ -51,16 +51,16 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v81 (PERSISTENT SELECTION & CLEAN UI)
+#   DOCREFINE PRO v82 (DIST BUGFIX & GIST URL)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v81"
-    # PASTE YOUR RAW GIST URL HERE:
-    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/2a206a6a00c6309fb1dd46ee1ee3846a56d5fb28/docrefine_version.json"
+    CURRENT_VERSION = "v82"
+    # UPDATED GIST URL (Cleaned to always point to latest)
+    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
     def get_resource_dir():
@@ -511,7 +511,9 @@ class Worker:
             
             q_src = ws / "00_Quarantine"
             if q_src.exists():
-                q_dst = dst / "_QUARANTINED_FILES"; q_dst.mkdir(exist_ok=True)
+                # BUGFIX: Ensure parent folder exists!
+                q_dst = dst / "_QUARANTINED_FILES"; 
+                q_dst.mkdir(parents=True, exist_ok=True) 
                 for qf in q_src.iterdir(): shutil.copy2(qf, q_dst / qf.name)
 
             update_stats_time(ws, "dist_time", time.time() - start_time)
@@ -782,6 +784,9 @@ class App:
         self.cb_dpi.config(state="disabled")
         self.lbl_stats.config(text="Stats: Select a job...")
         
+        # FIX: Button State Bug - Reset Distribute button
+        self.btn_dist.config(state="disabled")
+
         if self.running: return
         ws = self.get_ws()
         
@@ -793,6 +798,9 @@ class App:
         
         # 3. IF SELECTION EXISTS, POPULATE UI
         self.btn_open.config(state="normal")
+        # FIX: Re-enable Distribute button if job is selected
+        self.btn_dist.config(state="normal")
+
         try:
             with open(ws/"stats.json") as f: s = json.load(f)
             self.lbl_stats.config(text=f"Files: {s.get('total_scanned',0)} | Masters: {s.get('masters',0)} | Time: {str(timedelta(seconds=int(s.get('ingest_time',0)+s.get('batch_time',0)+s.get('dist_time',0))))}")
