@@ -51,16 +51,16 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v80 (CACHE BUSTER & SPLIT MONITOR)
+#   DOCREFINE PRO v81 (PERSISTENT SELECTION & CLEAN UI)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v80"
+    CURRENT_VERSION = "v81"
     # PASTE YOUR RAW GIST URL HERE:
-    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/YOUR_GIST_ID/raw/docrefine_version.json"
+    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/2a206a6a00c6309fb1dd46ee1ee3846a56d5fb28/docrefine_version.json"
 
     @staticmethod
     def get_resource_dir():
@@ -244,7 +244,6 @@ class PdfProcessor(BaseProcessor):
             imgs = []
             for i in range(1, pages + 1):
                 self.check_state() 
-                # Send detail progress, NOT generic status
                 self.progress((i/pages)*100, f"Page {i}/{pages}")
                 gc.collect() 
                 res = convert_from_path(str(src), dpi=dpi, first_page=i, last_page=i, poppler_path=POPPLER_BIN)
@@ -745,7 +744,12 @@ class App:
                 elif (d/"02_Ready_For_Redistribution").exists(): s = "PROCESSED"
                 elif (d/"01_Master_Files").exists(): s = "INGESTED"
                 
-                self.tree.insert("", "end", values=(d.name, s, datetime.fromtimestamp(d.stat().st_mtime).strftime('%Y-%m-%d %H:%M')))
+                item_id = self.tree.insert("", "end", values=(d.name, s, datetime.fromtimestamp(d.stat().st_mtime).strftime('%Y-%m-%d %H:%M')))
+                
+                # RE-SELECT LOGIC
+                if sel and str(d) == str(Path(sel)):
+                     self.tree.selection_set(item_id)
+                     self.tree.see(item_id)
 
     def safe_start_batch(self):
         ws = self.get_ws()
@@ -770,26 +774,45 @@ class App:
             threading.Thread(target=_del, daemon=True).start()
 
     def on_sel(self, e):
+        # 1. ALWAYS RESET UI STATE FIRST
+        for w in self.chk_frame.winfo_children(): w.destroy()
+        self.chk_vars.clear()
+        self.btn_run.config(state="disabled")
+        self.btn_prev.config(state="disabled")
+        self.cb_dpi.config(state="disabled")
+        self.lbl_stats.config(text="Stats: Select a job...")
+        
         if self.running: return
         ws = self.get_ws()
-        if not ws: self.btn_open.config(state="disabled"); self.insp_tree.delete(*self.insp_tree.get_children()); return
+        
+        # 2. IF NO SELECTION, STOP HERE (Clean State)
+        if not ws: 
+            self.btn_open.config(state="disabled")
+            self.insp_tree.delete(*self.insp_tree.get_children())
+            return
+        
+        # 3. IF SELECTION EXISTS, POPULATE UI
         self.btn_open.config(state="normal")
         try:
             with open(ws/"stats.json") as f: s = json.load(f)
             self.lbl_stats.config(text=f"Files: {s.get('total_scanned',0)} | Masters: {s.get('masters',0)} | Time: {str(timedelta(seconds=int(s.get('ingest_time',0)+s.get('batch_time',0)+s.get('dist_time',0))))}")
         except: self.lbl_stats.config(text="Stats: N/A")
         
-        for w in self.chk_frame.winfo_children(): w.destroy()
-        self.chk_vars.clear(); types = set()
+        types = set()
         if (ws/"01_Master_Files").exists(): types = {f.suffix.lower() for f in (ws/"01_Master_Files").rglob('*') if f.is_file()}
         
         def ac(l,k,t): 
             v=tk.BooleanVar(); v.trace_add("write", self.check_run_btn)
             c=tk.Checkbutton(self.chk_frame,text=l,variable=v); c.pack(side="left",padx=10); self.chk_vars[k]=v; ToolTip(c,t)
+        
         if '.pdf' in types: ac("Flatten PDFs","flatten","Convert pages to images.")
         if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px."); ac("Images to PDF","img2pdf","Bundle images.")
         if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove metadata.")
-        self.btn_run.config(state="disabled"); self.btn_prev.config(state="normal" if '.pdf' in types else "disabled")
+        
+        # Enable controls only if options exist
+        if types:
+             self.cb_dpi.config(state="readonly")
+             if '.pdf' in types: self.btn_prev.config(state="normal")
         
         self.log_box.delete(1.0, tk.END)
         if (ws/"session_log.txt").exists(): self.log_box.insert(tk.END, (ws/"session_log.txt").read_text(encoding="utf-8"))
@@ -835,7 +858,7 @@ class App:
                 elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_sub_stats.config(text=m[2]) # Update DETAIL label
                 elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue") # EXPLICIT BLUE UPDATE
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
-                elif m[0]=='job': self.load_jobs(m[1])
+                elif m[0]=='job': self.load_jobs(m[1]) # Pass ID for reselection
                 elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0)
                 elif m[0]=='update_avail':
                     if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"): webbrowser.open(m[2])
