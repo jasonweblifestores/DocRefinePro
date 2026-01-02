@@ -17,6 +17,7 @@ import uuid
 import logging
 import urllib.request
 import webbrowser
+import csv
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -49,14 +50,16 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v78 (CRASH FIX + UI RESTORE)
+#   DOCREFINE PRO v79 (ENTERPRISE POLISH)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v78" 
+    CURRENT_VERSION = "v79"
+    # PASTE YOUR RAW GIST URL HERE:
+    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/9bb8149ef13e3b990660c5d4916c683b1145ca89/docrefine_version.json"
 
     @staticmethod
     def get_resource_dir():
@@ -428,26 +431,46 @@ class Worker:
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time()
-            out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; d = out/"Duplicates"; q = out/"Quarantine"
-            for p in [m,d,q]: p.mkdir(parents=True, exist_ok=True)
+            out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; q = out/"Quarantine"
+            for p in [m,q]: p.mkdir(parents=True, exist_ok=True)
             
             self.log("Organize Start")
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
-            for i, (h, data) in enumerate(man.items()):
-                if self.stop_sig: break
-                self.prog_main((i/total)*100, "Sorting...")
-                if data.get("status") == "QUARANTINE": 
-                    # Attempt to find quarantine file
-                    for f in (ws/"00_Quarantine").glob("*"):
-                        if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
-                else:
-                    src = ws / "01_Master_Files" / data['uid']
-                    if src.exists(): shutil.copy2(src, m/data['uid'])
-                    if len(data.get('copies', [])) > 1:
-                        with open(d/f"{data['uid']}_Report.txt", "w") as f:
-                            f.write(f"Master: {data['master']}\nDuplicates:\n" + "\n".join(data['copies']))
             
+            # CSV Setup
+            dup_csv = out / "duplicates_report.csv"
+            
+            with open(dup_csv, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["Master_Filename", "Duplicate_Location"])
+                
+                for i, (h, data) in enumerate(man.items()):
+                    if self.stop_sig: break
+                    self.prog_main((i/total)*100, "Sorting...")
+                    
+                    if data.get("status") == "QUARANTINE": 
+                        for f in (ws/"00_Quarantine").glob("*"):
+                            if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
+                    else:
+                        # CLEAN COPY LOGIC
+                        src = ws / "01_Master_Files" / data['uid']
+                        if src.exists():
+                            clean_name = data['name'] # Original name without ID
+                            # Collision Check
+                            tgt = m / clean_name
+                            ctr = 1
+                            while tgt.exists():
+                                tgt = m / f"{Path(clean_name).stem}_{ctr}{Path(clean_name).suffix}"
+                                ctr += 1
+                            shutil.copy2(src, tgt)
+
+                        # CSV REPORT LOGIC
+                        if len(data.get('copies', [])) > 1:
+                            for c in data['copies']:
+                                if c != data.get('master'):
+                                    writer.writerow([data['name'], c])
+
             update_stats_time(ws, "organize_time", time.time() - start_time)
             self.set_job_status(ws, "ORGANIZED", "Done")
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(out)
@@ -536,6 +559,10 @@ class App:
         kw_del = {"bg": "#ffcdd2"} if not self.is_mac else {}
         self.btn_del = self.Btn(btn_row, text="🗑 Delete", command=self.safe_delete_job, **kw_del); self.btn_del.pack(side="right")
         
+        # UPDATE BUTTON
+        self.btn_upd = self.Btn(left, text="Check Updates", command=lambda: threading.Thread(target=self.check_updates, args=(True,), daemon=True).start())
+        self.btn_upd.pack(anchor="w", pady=2)
+
         self.btn_log = self.Btn(left, text="View App Log", command=self.open_app_log); self.btn_log.pack(anchor="w", pady=5)
         self.btn_open = self.Btn(left, text="Open Folder", command=self.open_f, state="disabled"); self.btn_open.pack(fill="x", pady=5)
         
@@ -571,7 +598,8 @@ class App:
         self.log_box = scrolledtext.ScrolledText(mon, height=8); self.log_box.pack(fill="both", expand=True)
         self.load_jobs(); self.root.after(100, self.poll)
         
-        threading.Thread(target=self.check_updates, daemon=True).start()
+        # Auto-check on load (silent)
+        threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
     def _build_process(self):
         tk.Label(self.tab_process, text="Option A: Batch Processing", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
@@ -615,15 +643,23 @@ class App:
         any_checked = any(v.get() for v in self.chk_vars.values())
         self.btn_run.config(state="normal" if any_checked else "disabled")
 
-    def check_updates(self):
+    def check_updates(self, manual=False):
         try:
-            url = f"https://api.github.com/repos/{CFG.get('GITHUB_REPO')}/releases/latest"
+            url = SystemUtils.UPDATE_MANIFEST_URL
+            if "REPLACE" in url:
+                if manual: messagebox.showinfo("Update Check", "Update URL not configured.")
+                return
+
             with urllib.request.urlopen(url, timeout=5) as r:
                 if r.status == 200:
                     data = json.loads(r.read().decode())
-                    if data.get("tag_name","") > SystemUtils.CURRENT_VERSION:
-                        self.q.put(("update_avail", data.get("tag_name"), data.get("html_url")))
-        except Exception as e: log_app(f"Update Check Fail: {e}", "WARN")
+                    rem_ver = data.get("latest_version", "v0")
+                    if rem_ver > SystemUtils.CURRENT_VERSION:
+                        self.q.put(("update_avail", rem_ver, data.get("download_url")))
+                    elif manual:
+                         messagebox.showinfo("Update Check", f"You are up to date ({SystemUtils.CURRENT_VERSION}).")
+        except Exception as e: 
+            if manual: messagebox.showerror("Update Check Failed", str(e))
 
     def ask_ingest_mode(self):
         top = tk.Toplevel(self.root)
@@ -631,11 +667,15 @@ class App:
         top.geometry("450x500") 
         tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
         mode = tk.StringVar(value="Standard")
-        modes = [("Standard", "Smart Text Hash"), ("Lightning", "Binary Hash Only"), ("Deep Scan", "Full Text Scan")]
+        modes = [
+            ("Standard (Recommended)", "Smart Text Hash (PDFs).\nStrict Binary Hash (Others)."),
+            ("Lightning (Fastest)", "Strict Binary Hash (All Files).\nExact digital copies only."),
+            ("Deep Scan (Slowest)", "Full Text Scan (PDFs).\nStrict Binary Hash (Others).")
+        ]
         for m, desc in modes:
             f = tk.Frame(top, pady=10, relief="groove", bd=1); f.pack(fill="x", padx=20, pady=5)
-            tk.Radiobutton(f, text=m, variable=mode, value=m.split(" ")[0]).pack(anchor="w", padx=5)
-            tk.Label(f, text=desc, fg="#555").pack(anchor="w", padx=25)
+            tk.Radiobutton(f, text=m, variable=mode, value=m.split(" ")[0], font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=5)
+            tk.Label(f, text=desc, fg="#555", justify="left").pack(anchor="w", padx=25)
         
         def go():
             top.destroy(); d = filedialog.askdirectory()
@@ -656,7 +696,6 @@ class App:
         self.btn_pause.config(state="normal" if not enable else "disabled")
         if enable: self.on_sel(None)
 
-    # --- RESTORED CONTROL METHODS ---
     def stop(self):
         self.worker.stop()
         self.btn_stop.config(state="disabled")
@@ -775,7 +814,7 @@ class App:
                 m = self.q.get_nowait()
                 if m[0]=='log': self.log_box.insert(tk.END, m[1]+"\n"); self.log_box.see(tk.END)
                 elif m[0]=='main_p': self.p_main.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
-                elif m[0]=='sub_p': self.p_sub.set(m[1])
+                elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
                 elif m[0]=='job': self.load_jobs(m[1])
                 elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0)
