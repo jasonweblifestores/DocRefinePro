@@ -18,6 +18,7 @@ import logging
 import urllib.request
 import webbrowser
 import csv
+import random 
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -50,16 +51,16 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v79 (ENTERPRISE POLISH)
+#   DOCREFINE PRO v80 (CACHE BUSTER & SPLIT MONITOR)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v79"
+    CURRENT_VERSION = "v80"
     # PASTE YOUR RAW GIST URL HERE:
-    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/9bb8149ef13e3b990660c5d4916c683b1145ca89/docrefine_version.json"
+    UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/YOUR_GIST_ID/raw/docrefine_version.json"
 
     @staticmethod
     def get_resource_dir():
@@ -144,7 +145,6 @@ def log_app(msg, level="INFO", structured_data=None):
     if level == "ERROR": logger.error(msg)
     elif level == "WARN": logger.warning(msg)
     else: logger.info(msg)
-    
     try:
         entry = {
             "timestamp": datetime.now().isoformat(),
@@ -244,6 +244,7 @@ class PdfProcessor(BaseProcessor):
             imgs = []
             for i in range(1, pages + 1):
                 self.check_state() 
+                # Send detail progress, NOT generic status
                 self.progress((i/pages)*100, f"Page {i}/{pages}")
                 gc.collect() 
                 res = convert_from_path(str(src), dpi=dpi, first_page=i, last_page=i, poppler_path=POPPLER_BIN)
@@ -331,7 +332,7 @@ class Worker:
 
     def prog_main(self, v, t): self.q.put(("main_p", v, t))
     def prog_sub(self, v, t, status_only=False): 
-        if status_only: self.q.put(("status", t))
+        if status_only: self.q.put(("status_blue", t)) # Special handler for blue text
         else: self.q.put(("sub_p", v, t))
     
     def get_hash(self, path, mode):
@@ -413,6 +414,10 @@ class Worker:
                 if self.stop_sig: break
                 self.log(f"Processing: {f.name}") 
                 self.prog_main((i/len(fs))*100, f"File {i+1}/{len(fs)}")
+                # CRITICAL: Send Blue Text Status
+                self.q.put(("status_blue", f"Active: {f.name}"))
+                self.q.put(("sub_p", 0, "Starting..."))
+                
                 ok = False
                 ext = f.suffix.lower()
                 if 'flatten' in active_modes and ext == '.pdf': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, dpi=int(val))
@@ -424,6 +429,7 @@ class Worker:
             
             update_stats_time(ws, "batch_time", time.time() - start_time)
             self.set_job_status(ws, "PROCESSED", "Complete")
+            self.q.put(("job", str(ws))) 
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
@@ -438,9 +444,7 @@ class Worker:
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
-            # CSV Setup
             dup_csv = out / "duplicates_report.csv"
-            
             with open(dup_csv, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(["Master_Filename", "Duplicate_Location"])
@@ -448,16 +452,15 @@ class Worker:
                 for i, (h, data) in enumerate(man.items()):
                     if self.stop_sig: break
                     self.prog_main((i/total)*100, "Sorting...")
+                    self.q.put(("status_blue", f"Sorting: {data['name']}"))
                     
                     if data.get("status") == "QUARANTINE": 
                         for f in (ws/"00_Quarantine").glob("*"):
                             if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
                     else:
-                        # CLEAN COPY LOGIC
                         src = ws / "01_Master_Files" / data['uid']
                         if src.exists():
-                            clean_name = data['name'] # Original name without ID
-                            # Collision Check
+                            clean_name = data['name'] 
                             tgt = m / clean_name
                             ctr = 1
                             while tgt.exists():
@@ -465,7 +468,6 @@ class Worker:
                                 ctr += 1
                             shutil.copy2(src, tgt)
 
-                        # CSV REPORT LOGIC
                         if len(data.get('copies', [])) > 1:
                             for c in data['copies']:
                                 if c != data.get('master'):
@@ -473,6 +475,7 @@ class Worker:
 
             update_stats_time(ws, "organize_time", time.time() - start_time)
             self.set_job_status(ws, "ORGANIZED", "Done")
+            self.q.put(("job", str(ws))) 
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(out)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
@@ -494,6 +497,8 @@ class Worker:
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
                 self.prog_main((i/len(man))*100, f"Dist {i+1}")
+                self.q.put(("status_blue", f"Distributing: {d['name']}"))
+                
                 if d.get("status") == "QUARANTINE": continue
                 src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
                 if not src: continue
@@ -512,6 +517,7 @@ class Worker:
 
             update_stats_time(ws, "dist_time", time.time() - start_time)
             self.set_job_status(ws, "DISTRIBUTED", "Done")
+            self.q.put(("job", str(ws))) 
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
@@ -586,15 +592,23 @@ class App:
         
         mon = tk.LabelFrame(right, text="Process Monitor", padx=10, pady=10); mon.pack(fill="x", pady=10)
         head = tk.Frame(mon); head.pack(fill="x")
-        self.lbl_status = tk.Label(head, text="Ready", fg="blue", anchor="w"); self.lbl_status.pack(side="left", fill="x", expand=True)
+        # Blue text is ONLY for Filename now
+        self.lbl_status = tk.Label(head, text="Ready", fg="blue", anchor="w", font=("Segoe UI", 9, "bold")); 
+        self.lbl_status.pack(side="left", fill="x", expand=True)
         self.lbl_timer = tk.Label(head, text="00:00:00", font=("Consolas", 10)); self.lbl_timer.pack(side="right", padx=10)
         
         kw_stop = {"bg": "red", "fg": "white"} if not self.is_mac else {}
         self.btn_stop = self.Btn(head, text="STOP", command=self.stop, state="disabled", **kw_stop); self.btn_stop.pack(side="right")
         self.btn_pause = self.Btn(head, text="PAUSE", command=self.toggle_pause, state="disabled", width=8); self.btn_pause.pack(side="right", padx=5)
 
+        tk.Label(mon, text="Overall Batch:", font=("Segoe UI", 8), anchor="w").pack(fill="x", pady=(5,0))
         self.p_main = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_main).pack(fill="x", pady=2)
+        
+        # New detail label above the detail bar
+        self.lbl_sub_stats = tk.Label(mon, text="Waiting...", font=("Segoe UI", 8), anchor="w", fg="#666")
+        self.lbl_sub_stats.pack(fill="x", pady=(5,0))
         self.p_sub = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_sub).pack(fill="x", pady=2)
+        
         self.log_box = scrolledtext.ScrolledText(mon, height=8); self.log_box.pack(fill="both", expand=True)
         self.load_jobs(); self.root.after(100, self.poll)
         
@@ -645,10 +659,14 @@ class App:
 
     def check_updates(self, manual=False):
         try:
-            url = SystemUtils.UPDATE_MANIFEST_URL
-            if "REPLACE" in url:
+            # CACHE BUSTER FIX
+            base_url = SystemUtils.UPDATE_MANIFEST_URL
+            if "REPLACE" in base_url:
                 if manual: messagebox.showinfo("Update Check", "Update URL not configured.")
                 return
+
+            # Append timestamp to bypass caching
+            url = f"{base_url}?t={int(time.time())}" if "?" not in base_url else f"{base_url}&t={int(time.time())}"
 
             with urllib.request.urlopen(url, timeout=5) as r:
                 if r.status == 200:
@@ -814,7 +832,8 @@ class App:
                 m = self.q.get_nowait()
                 if m[0]=='log': self.log_box.insert(tk.END, m[1]+"\n"); self.log_box.see(tk.END)
                 elif m[0]=='main_p': self.p_main.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
-                elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
+                elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_sub_stats.config(text=m[2]) # Update DETAIL label
+                elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue") # EXPLICIT BLUE UPDATE
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
                 elif m[0]=='job': self.load_jobs(m[1])
                 elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0)
