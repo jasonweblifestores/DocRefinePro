@@ -49,14 +49,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v77 (FULL RESTORED LOGIC)
+#   DOCREFINE PRO v78 (CRASH FIX + UI RESTORE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v77" 
+    CURRENT_VERSION = "v78" 
 
     @staticmethod
     def get_resource_dir():
@@ -65,19 +65,11 @@ class SystemUtils:
 
     @staticmethod
     def get_user_data_dir():
-        """
-        Determines where to store Workspaces and Logs.
-        CRITICAL MAC FIX: Writes to ~/Documents instead of App Bundle.
-        """
         if SystemUtils.IS_MAC:
-            # Use user's Documents folder to guarantee write permissions
             p = Path.home() / "Documents" / "DocRefinePro_Data"
             p.mkdir(parents=True, exist_ok=True)
             return p
-        
-        # Windows/Linux: Keep portable if possible, or use standard paths
-        if getattr(sys, 'frozen', False):
-            return Path(sys.executable).parent
+        if getattr(sys, 'frozen', False): return Path(sys.executable).parent
         return Path(__file__).parent
 
     @staticmethod
@@ -124,10 +116,10 @@ class Config:
 
 CFG = Config()
 
-# --- 2. LOGGING (STRUCTURED + HUMAN) ---
+# --- 2. LOGGING ---
 USER_DIR = SystemUtils.get_user_data_dir()
 LOG_PATH = USER_DIR / "app_debug.log"
-JSON_LOG_PATH = USER_DIR / "app_events.jsonl" # Machine readable log
+JSON_LOG_PATH = USER_DIR / "app_events.jsonl"
 WORKSPACES_ROOT = USER_DIR / "Workspaces"
 WORKSPACES_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -146,15 +138,10 @@ try:
 except: pass
 
 def log_app(msg, level="INFO", structured_data=None):
-    """
-    Dual logging: Human text to .log, JSON structure to .jsonl
-    """
-    # 1. Human Log
     if level == "ERROR": logger.error(msg)
     elif level == "WARN": logger.warning(msg)
     else: logger.info(msg)
     
-    # 2. Machine Log (JSONL)
     try:
         entry = {
             "timestamp": datetime.now().isoformat(),
@@ -164,7 +151,6 @@ def log_app(msg, level="INFO", structured_data=None):
             "version": SystemUtils.CURRENT_VERSION
         }
         if structured_data: entry.update(structured_data)
-        
         with open(JSON_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
     except: pass
@@ -199,7 +185,6 @@ if HAS_TESSERACT:
         tessdata_path = SystemUtils.get_resource_dir() / "tessdata"
         if tessdata_path.exists():
             os.environ["TESSDATA_PREFIX"] = str(tessdata_path)
-            log_app(f"Mac Tesseract Data Linked: {tessdata_path}")
 
 from pdf2image import convert_from_path, pdfinfo_from_path
 import pypdf
@@ -472,14 +457,12 @@ class Worker:
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists():
-                 self.log("CRITICAL: Manifest missing. Cannot distribute.", True)
-                 self.q.put(("error", "Manifest missing. Re-run Ingest.")); self.q.put(("done",)); return
+                 self.log("CRITICAL: Manifest missing.", True)
+                 self.q.put(("error", "Manifest missing.")); self.q.put(("done",)); return
 
             start_time = time.time(); src_dir = Path(ext_src) if ext_src else ws/"02_Ready_For_Redistribution"; dst = ws/"Final_Delivery"
-            self.log("Distribute Start"); 
-            self.set_job_status(ws, "DISTRIBUTING", "Copying files...")
-
-            if ocr and not check_memory(): self.log("⚠️ LOW MEMORY - OCR Warning", True)
+            self.log("Distribute Start")
+            self.set_job_status(ws, "DISTRIBUTING", "Copying...")
             
             with open(ws/"manifest.json") as f: man = json.load(f)
             orphans = {f.name: f for f in src_dir.iterdir()}
@@ -487,19 +470,14 @@ class Worker:
             
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
-                if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
-                
                 self.prog_main((i/len(man))*100, f"Dist {i+1}")
                 if d.get("status") == "QUARANTINE": continue
-                
                 src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
                 if not src: continue
-                
                 if ocr and src.suffix=='.pdf':
                     c = ws/"OCR_Cache"; c.mkdir(exist_ok=True); f = c/src.name
                     if not f.exists(): bot.flatten_or_ocr(src, f, 'ocr')
                     src = f
-                
                 for c in d['copies']:
                     t = dst / c; t.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, t.with_suffix(src.suffix))
@@ -510,11 +488,8 @@ class Worker:
                 for qf in q_src.iterdir(): shutil.copy2(qf, q_dst / qf.name)
 
             update_stats_time(ws, "dist_time", time.time() - start_time)
-            
-            self.set_job_status(ws, "DISTRIBUTED", "Delivered to Final folder")
-            self.q.put(("job", str(ws))) 
-            
-            self.prog_main(100, "Done"); self.prog_sub(0, ""); self.q.put(("done",)); SystemUtils.open_file(dst)
+            self.set_job_status(ws, "DISTRIBUTED", "Done")
+            self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
     def run_preview(self, ws_p, dpi):
@@ -522,11 +497,9 @@ class Worker:
             ws = Path(ws_p); self.current_ws = str(ws)
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
             if not pdf: self.q.put(("done",)); return
-            
             for old in ws.glob("PREVIEW_*.pdf"): 
                 try: os.remove(old)
                 except: pass
-            
             out = ws / f"PREVIEW_{int(time.time())}.pdf"
             imgs = convert_from_path(str(pdf), dpi=int(dpi), first_page=1, last_page=1, poppler_path=POPPLER_BIN)
             if imgs: 
@@ -639,12 +612,10 @@ class App:
 
     # --- ACTIONS ---
     def check_run_btn(self, *args):
-        # DEBUG: Log this to see if checkboxes are registering
         any_checked = any(v.get() for v in self.chk_vars.values())
         self.btn_run.config(state="normal" if any_checked else "disabled")
 
     def check_updates(self):
-        # DEBUG ENABLED
         try:
             url = f"https://api.github.com/repos/{CFG.get('GITHUB_REPO')}/releases/latest"
             with urllib.request.urlopen(url, timeout=5) as r:
@@ -684,6 +655,24 @@ class App:
         self.btn_stop.config(state="normal" if not enable else "disabled")
         self.btn_pause.config(state="normal" if not enable else "disabled")
         if enable: self.on_sel(None)
+
+    # --- RESTORED CONTROL METHODS ---
+    def stop(self):
+        self.worker.stop()
+        self.btn_stop.config(state="disabled")
+        self.btn_pause.config(state="disabled")
+
+    def toggle_pause(self):
+        if self.paused:
+            self.worker.resume()
+            if not self.is_mac: self.btn_pause.config(text="PAUSE", bg="SystemButtonFace")
+            else: self.btn_pause.config(text="PAUSE")
+            self.lbl_status.config(text="Resuming...", fg="blue")
+        else:
+            self.worker.pause()
+            if not self.is_mac: self.btn_pause.config(text="RESUME", bg="yellow")
+            else: self.btn_pause.config(text="RESUME")
+        self.paused = not self.paused
 
     def load_jobs(self, sel=None):
         self.tree.delete(*self.tree.get_children())
