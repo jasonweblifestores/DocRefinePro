@@ -58,7 +58,7 @@ except ImportError: HAS_PSUTIL = False
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v82"
+    CURRENT_VERSION = "v83"
     # UPDATED GIST URL (Cleaned to always point to latest)
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
