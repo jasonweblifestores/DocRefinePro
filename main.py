@@ -19,6 +19,7 @@ import urllib.request
 import webbrowser
 import csv
 import random 
+import concurrent.futures
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -31,7 +32,6 @@ from PIL import Image, ImageFile
 # ==============================================================================
 if os.name == 'nt':
     try:
-        # v84 Optimization: Removed redundant import
         _original_popen = subprocess.Popen
         def safe_popen(*args, **kwargs):
             if 'startupinfo' not in kwargs:
@@ -45,21 +45,21 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
-Image.MAX_IMAGE_PIXELS = None
+# v87: Memory Safety Cap (500MP) to prevent decompression bombs
+Image.MAX_IMAGE_PIXELS = 500000000 
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v86 (PIPELINE ARCHITECTURE REFACTOR)
+#   DOCREFINE PRO v87 (MULTITHREADING & UX LOGIC UPDATE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v86"
-    # UPDATED GIST URL (Cleaned to always point to latest)
+    CURRENT_VERSION = "v87"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -244,7 +244,9 @@ class PdfProcessor(BaseProcessor):
             imgs = []
             for i in range(1, pages + 1):
                 self.check_state() 
-                self.progress((i/pages)*100, f"Page {i}/{pages}")
+                # Reduced granularity for multithreading
+                if i % 5 == 0 or i == pages: 
+                     self.progress((i/pages)*100, f"Page {i}/{pages}")
                 gc.collect() 
                 res = convert_from_path(str(src), dpi=dpi, first_page=i, last_page=i, poppler_path=POPPLER_BIN)
                 if not res: continue
@@ -350,21 +352,15 @@ class Worker:
         try:
             h = hashlib.md5()
             with open(path, 'rb') as f:
-                # v84 Optimization: 64KB chunks for better I/O speed
                 for chunk in iter(lambda: f.read(65536), b""): h.update(chunk)
             return h.hexdigest(), "Binary"
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
-    # v86 HELPER: Smart Source Selection
     def get_best_source(self, ws, file_uid):
-        """Checks if a refined version exists in 02, otherwise returns 01 master."""
         processed = ws / "02_Ready_For_Redistribution" / file_uid
         master = ws / "01_Master_Files" / file_uid
-        # Also check if the processed file might have a different extension (e.g. .jpg -> .pdf)
         if processed.parent.exists():
-            # simple check for exact match
             if processed.exists(): return processed
-            # check for stem match (for img2pdf cases)
             p_match = next((f for f in processed.parent.iterdir() if f.stem == Path(file_uid).stem), None)
             if p_match: return p_match
         return master if master.exists() else None
@@ -416,11 +412,40 @@ class Worker:
             self.log(f"Done. Masters: {total}"); self.q.put(("job", str(ws))); self.q.put(("done",))
         except Exception as e: self.log(f"Error: {e}", True); self.q.put(("done",))
 
-    def run_batch(self, ws_p, active_modes, val):
+    # v87: Process Single File (Helper for ThreadPool)
+    def process_file_task(self, f, bots, options, dst):
+        if self.stop_sig: return
+        try:
+            # Thread-safe logging requires simplified messages
+            self.q.put(("status_blue", f"Refining: {f.name}"))
+            
+            ext = f.suffix.lower()
+            ok = False
+            
+            # v87: Logic Mapped from UI Dropdowns
+            dpi_val = int(options.get('dpi', 300))
+            
+            if ext == '.pdf':
+                mode = options.get('pdf_mode', 'none')
+                if mode == 'flatten': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'flatten', dpi=dpi_val)
+                elif mode == 'ocr': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'ocr', dpi=dpi_val)
+            
+            elif ext in {'.jpg','.png'}:
+                if options.get('resize'): ok = bots['img'].resize(f, dst/f.name, CFG.get('resize_width'))
+                if options.get('img2pdf'): ok = bots['img'].convert_to_pdf(f, dst/f"{f.stem}.pdf")
+            
+            elif ext in {'.docx','.xlsx'}:
+                if options.get('sanitize'): ok = bots['office'].sanitize(f, dst/f.name)
+
+            if not ok and not (dst/f.name).exists(): shutil.copy2(f, dst/f.name)
+        except Exception as e:
+            self.log(f"Err {f.name}: {e}", True)
+
+    def run_batch(self, ws_p, options):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time(); src = ws/"01_Master_Files"; dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
-            self.log(f"Refinement Start: {active_modes}")
+            self.log(f"Refinement Start. Opts: {options}")
             self.set_job_status(ws, "PROCESSING", "Refining...")
 
             bots = {
@@ -429,24 +454,20 @@ class Worker:
                 'office': OfficeProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event)
             }
             fs = list(src.iterdir())
-            for i, f in enumerate(fs):
-                if self.stop_sig: break
-                self.log(f"Processing: {f.name}") 
-                self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
-                self.q.put(("status_blue", f"Active: {f.name}"))
-                self.q.put(("sub_p", 0, "Starting..."))
-                
-                ok = False
-                ext = f.suffix.lower()
-                # v86: Added OCR here
-                if 'ocr' in active_modes and ext == '.pdf': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'ocr', dpi=int(val))
-                elif 'flatten' in active_modes and ext == '.pdf': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, dpi=int(val))
-                elif 'resize' in active_modes and ext in {'.jpg','.png'}: ok = bots['img'].resize(f, dst/f.name, CFG.get('resize_width')) 
-                elif 'img2pdf' in active_modes and ext in {'.jpg','.png'}: ok = bots['img'].convert_to_pdf(f, dst/f"{f.stem}.pdf")
-                elif 'sanitize' in active_modes and ext in {'.docx','.xlsx'}: ok = bots['office'].sanitize(f, dst/f.name)
-                
-                if not ok and not (dst/f.name).exists(): shutil.copy2(f, dst/f.name)
             
+            # v87: Multithreading Implementation
+            # Limit workers to 4 to prevent UI freeze on dual-core machines
+            max_workers = min(4, os.cpu_count() or 2)
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
+                
+                for i, future in enumerate(concurrent.futures.as_completed(futures)):
+                    if self.stop_sig: break
+                    self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
+                    try: future.result()
+                    except Exception as e: self.log(f"Thread Err: {e}", True)
+
             update_stats_time(ws, "batch_time", time.time() - start_time)
             self.set_job_status(ws, "PROCESSED", "Complete")
             self.q.put(("job", str(ws))) 
@@ -478,11 +499,9 @@ class Worker:
                         for f in (ws/"00_Quarantine").glob("*"):
                             if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
                     else:
-                        # v86: Smart Source Selection
                         src = self.get_best_source(ws, data['uid'])
                         if src and src.exists():
                             clean_name = data['name']
-                            # Handle extension change (e.g. img2pdf)
                             if src.suffix != Path(clean_name).suffix:
                                 clean_name = Path(clean_name).stem + src.suffix
 
@@ -512,14 +531,12 @@ class Worker:
                  self.q.put(("error", "Manifest missing.")); self.q.put(("done",)); return
 
             start_time = time.time(); 
-            # v86: If ext_src is None, we don't set a hard src_dir because we rely on get_best_source logic
             dst = ws / "Final_Delivery"
             self.log("Reconstruction Start")
             self.set_job_status(ws, "DISTRIBUTING", "Reconstructing...")
             
             with open(ws/"manifest.json") as f: man = json.load(f)
             
-            # If external source, we use legacy logic
             orphans = {}
             if ext_src:
                  orphans = {f.name: f for f in Path(ext_src).iterdir()}
@@ -535,7 +552,6 @@ class Worker:
                 if ext_src:
                     src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
                 else:
-                    # v86: Smart Source
                     src = self.get_best_source(ws, d['uid'])
                 
                 if not src: continue
@@ -581,7 +597,6 @@ class App:
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
         
-        # --- MAC UI OPTIMIZATION ---
         self.is_mac = SystemUtils.IS_MAC
         self.Btn = ttk.Button if self.is_mac else tk.Button
         self.style = ttk.Style()
@@ -600,7 +615,6 @@ class App:
         kw_del = {"bg": "#ffcdd2"} if not self.is_mac else {}
         self.btn_del = self.Btn(btn_row, text="🗑 Delete", command=self.safe_delete_job, **kw_del); self.btn_del.pack(side="right")
         
-        # UPDATE BUTTON
         self.btn_upd = self.Btn(left, text="Check Updates", command=lambda: threading.Thread(target=self.check_updates, args=(True,), daemon=True).start())
         self.btn_upd.pack(anchor="w", pady=2)
 
@@ -618,7 +632,6 @@ class App:
         right = tk.Frame(root); right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
         self.nb = ttk.Notebook(right); self.nb.pack(fill="both", expand=True)
         
-        # v86: Renamed tabs to reflect new workflow
         self.tab_process = tk.Frame(self.nb); self.nb.add(self.tab_process, text=" 1. Refine ")
         self._build_refine()
         self.tab_dist = tk.Frame(self.nb); self.nb.add(self.tab_dist, text=" 2. Export ")
@@ -649,18 +662,26 @@ class App:
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
     def _build_refine(self):
-        # v86: Consolidated Refinement Tools
+        # v87: Logic Refactor for Dropdowns
         tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
         
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
         
-        # New Control Row: DPI + Preview + Run
+        # New: PDF Mode Dropdown
+        tk.Label(self.tab_process, text="PDF Action:", font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(10,0))
+        self.pdf_mode_var = tk.StringVar(value="No Action")
+        self.cb_pdf = ttk.Combobox(self.tab_process, textvariable=self.pdf_mode_var, values=["No Action", "Flatten Only (Fast)", "Flatten + OCR (Slow)"], state="readonly")
+        self.cb_pdf.pack(fill="x", padx=10, pady=2)
+        
+        # New Control Row: Quality + Preview + Run
         ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=15,padx=10)
         
-        tk.Label(ctrl, text="Quality (DPI):").pack(side="left")
-        self.dpi_var = tk.StringVar(value="300")
-        self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["150","300","600"], width=5, state="readonly"); self.cb_dpi.pack(side="left",padx=5)
+        tk.Label(ctrl, text="Quality:").pack(side="left")
+        self.dpi_var = tk.StringVar(value="Medium (Standard)")
+        # v87: Semantic Quality Labels
+        self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["Low (Fast)", "Medium (Standard)", "High (Slow)"], width=18, state="readonly")
+        self.cb_dpi.pack(side="left",padx=5)
         
         self.btn_prev = self.Btn(ctrl, text="Generate Preview", command=self.safe_preview, state="disabled"); self.btn_prev.pack(side="left",padx=15)
         
@@ -668,20 +689,16 @@ class App:
         self.btn_run = self.Btn(ctrl, text="Run Refinement", command=self.safe_start_batch, state="disabled", **kw_run); self.btn_run.pack(side="right")
 
     def _build_export(self):
-        # v86: New Export Hub
         tk.Label(self.tab_dist, text="Final Export Strategies", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
-        
         f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
         self.var_ext = tk.BooleanVar(); tk.Checkbutton(f, text="Override Source: External Folder", variable=self.var_ext).pack(anchor="w")
         
-        # Option A: Unique Export
         f_a = tk.LabelFrame(self.tab_dist, text="Option A: Unique Masters", padx=10, pady=10)
         f_a.pack(fill="x", padx=10, pady=5)
         tk.Label(f_a, text="Export a clean folder containing one copy of every unique file.\n(Uses refined versions if available).", justify="left", fg="#555").pack(anchor="w")
         kw_org = {"bg": "#fff8e1"} if not self.is_mac else {}
         self.btn_org = self.Btn(f_a, text="Export Unique Files", command=self.safe_start_organize, state="disabled", **kw_org); self.btn_org.pack(anchor="e", pady=5)
 
-        # Option B: Reconstruction
         f_b = tk.LabelFrame(self.tab_dist, text="Option B: Reconstruct Original Structure", padx=10, pady=10)
         f_b.pack(fill="x", padx=10, pady=5)
         tk.Label(f_b, text="Re-create the original folder structure using refined files.", justify="left", fg="#555").pack(anchor="w")
@@ -698,8 +715,10 @@ class App:
 
     # --- ACTIONS ---
     def check_run_btn(self, *args):
+        # v87: Enable button if any checkbox OR PDF mode is active
         any_checked = any(v.get() for v in self.chk_vars.values())
-        self.btn_run.config(state="normal" if any_checked else "disabled")
+        pdf_active = self.pdf_mode_var.get() != "No Action"
+        self.btn_run.config(state="normal" if (any_checked or pdf_active) else "disabled")
 
     def check_updates(self, manual=False):
         try:
@@ -794,7 +813,23 @@ class App:
 
     def safe_start_batch(self):
         ws = self.get_ws()
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_batch, str(ws), [k for k,v in self.chk_vars.items() if v.get()], self.cb_dpi.get()), daemon=True).start()
+        # v87: Build Options Dictionary
+        opts = {k: v.get() for k,v in self.chk_vars.items()}
+        
+        # Parse PDF Mode
+        p_mode = self.pdf_mode_var.get()
+        if "OCR" in p_mode: opts['pdf_mode'] = 'ocr'
+        elif "Flatten" in p_mode: opts['pdf_mode'] = 'flatten'
+        else: opts['pdf_mode'] = 'none'
+        
+        # Parse DPI
+        d_raw = self.dpi_var.get()
+        if "Low" in d_raw: opts['dpi'] = 150
+        elif "High" in d_raw: opts['dpi'] = 600
+        else: opts['dpi'] = 300
+        
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_batch, str(ws), opts), daemon=True).start()
+
     def safe_start_organize(self):
         ws = self.get_ws()
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws)), daemon=True).start()
@@ -803,7 +838,10 @@ class App:
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src), daemon=True).start()
     def safe_preview(self):
         ws=self.get_ws()
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_preview, str(ws), self.cb_dpi.get()), daemon=True).start()
+        # Parse DPI for preview
+        d_raw = self.dpi_var.get()
+        dpi = 150 if "Low" in d_raw else (600 if "High" in d_raw else 300)
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_preview, str(ws), dpi), daemon=True).start()
     
     def safe_delete_job(self):
         ws = self.get_ws()
@@ -815,30 +853,28 @@ class App:
             threading.Thread(target=_del, daemon=True).start()
 
     def on_sel(self, e):
-        # 1. ALWAYS RESET UI STATE FIRST
         for w in self.chk_frame.winfo_children(): w.destroy()
         self.chk_vars.clear()
         self.btn_run.config(state="disabled")
         self.btn_prev.config(state="disabled")
         self.cb_dpi.config(state="disabled")
+        self.cb_pdf.config(state="disabled")
         self.lbl_stats.config(text="Stats: Select a job...")
         
-        # Reset DPI to default to avoid confusion
-        self.dpi_var.set("300")
+        self.dpi_var.set("Medium (Standard)")
+        self.pdf_mode_var.set("No Action")
         
         self.btn_dist.config(state="disabled")
-        self.btn_org.config(state="disabled") # Reset Option A button
+        self.btn_org.config(state="disabled")
 
         if self.running: return
         ws = self.get_ws()
         
-        # 2. IF NO SELECTION, STOP HERE (Clean State)
         if not ws: 
             self.btn_open.config(state="disabled")
             self.insp_tree.delete(*self.insp_tree.get_children())
             return
         
-        # 3. IF SELECTION EXISTS, POPULATE UI
         self.btn_open.config(state="normal")
         self.btn_dist.config(state="normal")
         self.btn_org.config(state="normal")
@@ -861,14 +897,17 @@ class App:
             v=tk.BooleanVar(); v.trace_add("write", self.check_run_btn)
             c=tk.Checkbutton(self.chk_frame,text=l,variable=v); c.pack(side="left",padx=10); self.chk_vars[k]=v; ToolTip(c,t)
         
-        if '.pdf' in types: ac("Flatten PDFs","flatten","Convert pages to images."); ac("OCR (Searchable PDF)", "ocr", "Make text selectable.")
+        # v87: UI Control Enabling
+        if '.pdf' in types: 
+             self.cb_pdf.config(state="readonly")
+             self.pdf_mode_var.trace_add("write", self.check_run_btn)
+             self.btn_prev.config(state="normal")
+
         if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px."); ac("Images to PDF","img2pdf","Bundle images.")
         if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove metadata.")
         
-        # Enable controls only if options exist
         if types:
              self.cb_dpi.config(state="readonly")
-             if '.pdf' in types: self.btn_prev.config(state="normal")
         
         self.log_box.delete(1.0, tk.END)
         if (ws/"session_log.txt").exists(): self.log_box.insert(tk.END, (ws/"session_log.txt").read_text(encoding="utf-8"))
@@ -893,11 +932,8 @@ class App:
         t.heading(c, command=lambda: self.sort_tree(t,c,not r))
     
     def warn_ocr(self): 
-        if self.var_ocr.get():
-            m = "Warning: OCR flattens pages.\n"
-            if not HAS_PSUTIL: m += "NOTE: Low memory detection is unavailable.\n"
-            elif not check_memory(): m += "CRITICAL: System memory is low!\n"
-            if not messagebox.askyesno("Confirm", m+"Continue?"): self.var_ocr.set(False)
+        # v87: Deprecated in favor of dropdown logic, keeping for safety if reused
+        pass
 
     def open_app_log(self): SystemUtils.open_file(LOG_PATH)
     def open_f(self): SystemUtils.open_file(self.get_ws())
