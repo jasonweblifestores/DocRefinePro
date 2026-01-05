@@ -31,7 +31,7 @@ from PIL import Image, ImageFile
 # ==============================================================================
 if os.name == 'nt':
     try:
-        import subprocess
+        # REMOVED: import subprocess (Already imported globally)
         _original_popen = subprocess.Popen
         def safe_popen(*args, **kwargs):
             if 'startupinfo' not in kwargs:
@@ -44,7 +44,7 @@ if os.name == 'nt':
             return _original_popen(*args, **kwargs)
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
-
+    
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
@@ -350,7 +350,8 @@ class Worker:
         try:
             h = hashlib.md5()
             with open(path, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""): h.update(chunk)
+                # CHANGED: 4096 -> 65536 for better I/O performance on modern SSDs
+                for chunk in iter(lambda: f.read(65536), b""): h.update(chunk)
             return h.hexdigest(), "Binary"
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
