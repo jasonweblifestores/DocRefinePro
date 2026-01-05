@@ -31,7 +31,7 @@ from PIL import Image, ImageFile
 # ==============================================================================
 if os.name == 'nt':
     try:
-        # REMOVED: import subprocess (Already imported globally)
+        # v84 Optimization: Removed redundant import
         _original_popen = subprocess.Popen
         def safe_popen(*args, **kwargs):
             if 'startupinfo' not in kwargs:
@@ -44,21 +44,21 @@ if os.name == 'nt':
             return _original_popen(*args, **kwargs)
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
-    
+
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v82 (DIST BUGFIX & GIST URL)
+#   DOCREFINE PRO v85 (STATS BUGFIX & OPTIMIZATIONS)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v83"
+    CURRENT_VERSION = "v85"
     # UPDATED GIST URL (Cleaned to always point to latest)
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
@@ -350,7 +350,7 @@ class Worker:
         try:
             h = hashlib.md5()
             with open(path, 'rb') as f:
-                # CHANGED: 4096 -> 65536 for better I/O performance on modern SSDs
+                # v84 Optimization: 64KB chunks for better I/O speed
                 for chunk in iter(lambda: f.read(65536), b""): h.update(chunk)
             return h.hexdigest(), "Binary"
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
@@ -390,7 +390,13 @@ class Worker:
                 shutil.copy2(d / data['master'], m_dir / safe_name)
                 data['uid'] = safe_name; data['id'] = f"[{i+1:04d}]"
             
-            stats = {"ingest_time": time.time()-start_time, "masters": total, "quarantined": quarantined}
+            # v85 BUGFIX: Added "total_scanned" to stats
+            stats = {
+                "ingest_time": time.time()-start_time, 
+                "masters": total, 
+                "quarantined": quarantined,
+                "total_scanned": len(files)
+            }
             with open(ws/"manifest.json", 'w') as f: json.dump(seen, f, indent=4)
             with open(ws/"stats.json", 'w') as f: json.dump(stats, f)
             self.set_job_status(ws, "INGESTED", f"Masters: {total}")
@@ -804,7 +810,14 @@ class App:
 
         try:
             with open(ws/"stats.json") as f: s = json.load(f)
-            self.lbl_stats.config(text=f"Files: {s.get('total_scanned',0)} | Masters: {s.get('masters',0)} | Time: {str(timedelta(seconds=int(s.get('ingest_time',0)+s.get('batch_time',0)+s.get('dist_time',0))))}")
+            # v85 BUGFIX: Added "organize_time" to total and displayed "quarantined"
+            total_seconds = int(
+                s.get('ingest_time',0) + 
+                s.get('batch_time',0) + 
+                s.get('dist_time',0) + 
+                s.get('organize_time',0)
+            )
+            self.lbl_stats.config(text=f"Files: {s.get('total_scanned',0)} | Masters: {s.get('masters',0)} | Q: {s.get('quarantined',0)} | Time: {str(timedelta(seconds=total_seconds))}")
         except: self.lbl_stats.config(text="Stats: N/A")
         
         types = set()
