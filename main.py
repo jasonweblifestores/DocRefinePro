@@ -51,14 +51,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v85 (STATS BUGFIX & OPTIMIZATIONS)
+#   DOCREFINE PRO v86 (PIPELINE ARCHITECTURE REFACTOR)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v85"
+    CURRENT_VERSION = "v86"
     # UPDATED GIST URL (Cleaned to always point to latest)
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
@@ -355,6 +355,20 @@ class Worker:
             return h.hexdigest(), "Binary"
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
+    # v86 HELPER: Smart Source Selection
+    def get_best_source(self, ws, file_uid):
+        """Checks if a refined version exists in 02, otherwise returns 01 master."""
+        processed = ws / "02_Ready_For_Redistribution" / file_uid
+        master = ws / "01_Master_Files" / file_uid
+        # Also check if the processed file might have a different extension (e.g. .jpg -> .pdf)
+        if processed.parent.exists():
+            # simple check for exact match
+            if processed.exists(): return processed
+            # check for stem match (for img2pdf cases)
+            p_match = next((f for f in processed.parent.iterdir() if f.stem == Path(file_uid).stem), None)
+            if p_match: return p_match
+        return master if master.exists() else None
+
     def run_inventory(self, d_str, ingest_mode):
         try:
             d = Path(d_str); start_time = time.time()
@@ -390,7 +404,6 @@ class Worker:
                 shutil.copy2(d / data['master'], m_dir / safe_name)
                 data['uid'] = safe_name; data['id'] = f"[{i+1:04d}]"
             
-            # v85 BUGFIX: Added "total_scanned" to stats
             stats = {
                 "ingest_time": time.time()-start_time, 
                 "masters": total, 
@@ -407,8 +420,8 @@ class Worker:
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time(); src = ws/"01_Master_Files"; dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
-            self.log(f"Batch Start: {active_modes}")
-            self.set_job_status(ws, "PROCESSING", "Running...")
+            self.log(f"Refinement Start: {active_modes}")
+            self.set_job_status(ws, "PROCESSING", "Refining...")
 
             bots = {
                 'pdf': PdfProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event),
@@ -419,14 +432,15 @@ class Worker:
             for i, f in enumerate(fs):
                 if self.stop_sig: break
                 self.log(f"Processing: {f.name}") 
-                self.prog_main((i/len(fs))*100, f"File {i+1}/{len(fs)}")
-                # CRITICAL: Send Blue Text Status
+                self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
                 self.q.put(("status_blue", f"Active: {f.name}"))
                 self.q.put(("sub_p", 0, "Starting..."))
                 
                 ok = False
                 ext = f.suffix.lower()
-                if 'flatten' in active_modes and ext == '.pdf': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, dpi=int(val))
+                # v86: Added OCR here
+                if 'ocr' in active_modes and ext == '.pdf': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'ocr', dpi=int(val))
+                elif 'flatten' in active_modes and ext == '.pdf': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, dpi=int(val))
                 elif 'resize' in active_modes and ext in {'.jpg','.png'}: ok = bots['img'].resize(f, dst/f.name, CFG.get('resize_width')) 
                 elif 'img2pdf' in active_modes and ext in {'.jpg','.png'}: ok = bots['img'].convert_to_pdf(f, dst/f"{f.stem}.pdf")
                 elif 'sanitize' in active_modes and ext in {'.docx','.xlsx'}: ok = bots['office'].sanitize(f, dst/f.name)
@@ -446,7 +460,7 @@ class Worker:
             out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; q = out/"Quarantine"
             for p in [m,q]: p.mkdir(parents=True, exist_ok=True)
             
-            self.log("Organize Start")
+            self.log("Unique Export Start")
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
@@ -457,16 +471,21 @@ class Worker:
                 
                 for i, (h, data) in enumerate(man.items()):
                     if self.stop_sig: break
-                    self.prog_main((i/total)*100, "Sorting...")
-                    self.q.put(("status_blue", f"Sorting: {data['name']}"))
+                    self.prog_main((i/total)*100, "Exporting Unique...")
+                    self.q.put(("status_blue", f"Exporting: {data['name']}"))
                     
                     if data.get("status") == "QUARANTINE": 
                         for f in (ws/"00_Quarantine").glob("*"):
                             if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
                     else:
-                        src = ws / "01_Master_Files" / data['uid']
-                        if src.exists():
-                            clean_name = data['name'] 
+                        # v86: Smart Source Selection
+                        src = self.get_best_source(ws, data['uid'])
+                        if src and src.exists():
+                            clean_name = data['name']
+                            # Handle extension change (e.g. img2pdf)
+                            if src.suffix != Path(clean_name).suffix:
+                                clean_name = Path(clean_name).stem + src.suffix
+
                             tgt = m / clean_name
                             ctr = 1
                             while tgt.exists():
@@ -485,40 +504,48 @@ class Worker:
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(out)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
-    def run_distribute(self, ws_p, ext_src, ocr):
+    def run_distribute(self, ws_p, ext_src):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists():
                  self.log("CRITICAL: Manifest missing.", True)
                  self.q.put(("error", "Manifest missing.")); self.q.put(("done",)); return
 
-            start_time = time.time(); src_dir = Path(ext_src) if ext_src else ws/"02_Ready_For_Redistribution"; dst = ws/"Final_Delivery"
-            self.log("Distribute Start")
-            self.set_job_status(ws, "DISTRIBUTING", "Copying...")
+            start_time = time.time(); 
+            # v86: If ext_src is None, we don't set a hard src_dir because we rely on get_best_source logic
+            dst = ws / "Final_Delivery"
+            self.log("Reconstruction Start")
+            self.set_job_status(ws, "DISTRIBUTING", "Reconstructing...")
             
             with open(ws/"manifest.json") as f: man = json.load(f)
-            orphans = {f.name: f for f in src_dir.iterdir()}
-            bot = PdfProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event)
             
+            # If external source, we use legacy logic
+            orphans = {}
+            if ext_src:
+                 orphans = {f.name: f for f in Path(ext_src).iterdir()}
+
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
-                self.prog_main((i/len(man))*100, f"Dist {i+1}")
-                self.q.put(("status_blue", f"Distributing: {d['name']}"))
+                self.prog_main((i/len(man))*100, f"Recon {i+1}")
+                self.q.put(("status_blue", f"Copying: {d['name']}"))
                 
                 if d.get("status") == "QUARANTINE": continue
-                src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
+                
+                src = None
+                if ext_src:
+                    src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
+                else:
+                    # v86: Smart Source
+                    src = self.get_best_source(ws, d['uid'])
+                
                 if not src: continue
-                if ocr and src.suffix=='.pdf':
-                    c = ws/"OCR_Cache"; c.mkdir(exist_ok=True); f = c/src.name
-                    if not f.exists(): bot.flatten_or_ocr(src, f, 'ocr')
-                    src = f
+                
                 for c in d['copies']:
                     t = dst / c; t.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, t.with_suffix(src.suffix))
             
             q_src = ws / "00_Quarantine"
             if q_src.exists():
-                # BUGFIX: Ensure parent folder exists!
                 q_dst = dst / "_QUARANTINED_FILES"; 
                 q_dst.mkdir(parents=True, exist_ok=True) 
                 for qf in q_src.iterdir(): shutil.copy2(qf, q_dst / qf.name)
@@ -591,16 +618,16 @@ class App:
         right = tk.Frame(root); right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
         self.nb = ttk.Notebook(right); self.nb.pack(fill="both", expand=True)
         
-        self.tab_process = tk.Frame(self.nb); self.nb.add(self.tab_process, text=" ⚙️ Process ")
-        self._build_process()
-        self.tab_dist = tk.Frame(self.nb); self.nb.add(self.tab_dist, text=" 🚀 Distribute ")
-        self._build_dist() 
+        # v86: Renamed tabs to reflect new workflow
+        self.tab_process = tk.Frame(self.nb); self.nb.add(self.tab_process, text=" 1. Refine ")
+        self._build_refine()
+        self.tab_dist = tk.Frame(self.nb); self.nb.add(self.tab_dist, text=" 2. Export ")
+        self._build_export() 
         self.tab_inspect = tk.Frame(self.nb); self.nb.add(self.tab_inspect, text=" 🔍 Inspector ")
         self._build_inspect()
         
         mon = tk.LabelFrame(right, text="Process Monitor", padx=10, pady=10); mon.pack(fill="x", pady=10)
         head = tk.Frame(mon); head.pack(fill="x")
-        # Blue text is ONLY for Filename now
         self.lbl_status = tk.Label(head, text="Ready", fg="blue", anchor="w", font=("Segoe UI", 9, "bold")); 
         self.lbl_status.pack(side="left", fill="x", expand=True)
         self.lbl_timer = tk.Label(head, text="00:00:00", font=("Consolas", 10)); self.lbl_timer.pack(side="right", padx=10)
@@ -612,7 +639,6 @@ class App:
         tk.Label(mon, text="Overall Batch:", font=("Segoe UI", 8), anchor="w").pack(fill="x", pady=(5,0))
         self.p_main = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_main).pack(fill="x", pady=2)
         
-        # New detail label above the detail bar
         self.lbl_sub_stats = tk.Label(mon, text="Waiting...", font=("Segoe UI", 8), anchor="w", fg="#666")
         self.lbl_sub_stats.pack(fill="x", pady=(5,0))
         self.p_sub = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_sub).pack(fill="x", pady=2)
@@ -620,37 +646,47 @@ class App:
         self.log_box = scrolledtext.ScrolledText(mon, height=8); self.log_box.pack(fill="both", expand=True)
         self.load_jobs(); self.root.after(100, self.poll)
         
-        # Auto-check on load (silent)
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
-    def _build_process(self):
-        tk.Label(self.tab_process, text="Option A: Batch Processing", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
+    def _build_refine(self):
+        # v86: Consolidated Refinement Tools
+        tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
+        
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
-        ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=5,padx=10)
+        
+        # New Control Row: DPI + Preview + Run
+        ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=15,padx=10)
+        
         tk.Label(ctrl, text="Quality (DPI):").pack(side="left")
         self.dpi_var = tk.StringVar(value="300")
         self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["150","300","600"], width=5, state="readonly"); self.cb_dpi.pack(side="left",padx=5)
+        
         self.btn_prev = self.Btn(ctrl, text="Generate Preview", command=self.safe_preview, state="disabled"); self.btn_prev.pack(side="left",padx=15)
         
         kw_run = {"bg": "#e8f5e9"} if not self.is_mac else {}
-        self.btn_run = self.Btn(ctrl, text="Run Actions", command=self.safe_start_batch, state="disabled", **kw_run); self.btn_run.pack(side="right")
+        self.btn_run = self.Btn(ctrl, text="Run Refinement", command=self.safe_start_batch, state="disabled", **kw_run); self.btn_run.pack(side="right")
 
-        ttk.Separator(self.tab_process, orient='horizontal').pack(fill='x', pady=15, padx=10)
-        tk.Label(self.tab_process, text="Option B: Organization", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(0,5),padx=10)
-        d_frame = tk.Frame(self.tab_process); d_frame.pack(fill="x", padx=10)
-        tk.Label(d_frame, text="Extract Unique Masters & Report Duplicates.", justify="left").pack(anchor="w", side="left")
-        kw_org = {"bg": "#fff8e1"} if not self.is_mac else {}
-        self.btn_org = self.Btn(d_frame, text="Run Dedupe & Sort", command=self.safe_start_organize, state="disabled", **kw_org); self.btn_org.pack(side="right")
-
-    def _build_dist(self):
-        tk.Label(self.tab_dist, text="Step 3: Distribution", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
-        f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
-        self.var_ext = tk.BooleanVar(); tk.Checkbutton(f, text="Source: External Folder", variable=self.var_ext).pack(anchor="w")
-        self.var_ocr = tk.BooleanVar(); tk.Checkbutton(f, text="OCR (Searchable)", variable=self.var_ocr, command=self.warn_ocr).pack(anchor="w")
+    def _build_export(self):
+        # v86: New Export Hub
+        tk.Label(self.tab_dist, text="Final Export Strategies", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
         
+        f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
+        self.var_ext = tk.BooleanVar(); tk.Checkbutton(f, text="Override Source: External Folder", variable=self.var_ext).pack(anchor="w")
+        
+        # Option A: Unique Export
+        f_a = tk.LabelFrame(self.tab_dist, text="Option A: Unique Masters", padx=10, pady=10)
+        f_a.pack(fill="x", padx=10, pady=5)
+        tk.Label(f_a, text="Export a clean folder containing one copy of every unique file.\n(Uses refined versions if available).", justify="left", fg="#555").pack(anchor="w")
+        kw_org = {"bg": "#fff8e1"} if not self.is_mac else {}
+        self.btn_org = self.Btn(f_a, text="Export Unique Files", command=self.safe_start_organize, state="disabled", **kw_org); self.btn_org.pack(anchor="e", pady=5)
+
+        # Option B: Reconstruction
+        f_b = tk.LabelFrame(self.tab_dist, text="Option B: Reconstruct Original Structure", padx=10, pady=10)
+        f_b.pack(fill="x", padx=10, pady=5)
+        tk.Label(f_b, text="Re-create the original folder structure using refined files.", justify="left", fg="#555").pack(anchor="w")
         kw_dist = {"bg": "#fff3e0"} if not self.is_mac else {}
-        self.btn_dist = self.Btn(self.tab_dist, text="Run Distribution", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(fill="x",padx=10,pady=20)
+        self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
 
     def _build_inspect(self):
         f = tk.Frame(self.tab_inspect); f.pack(fill="both",expand=True,padx=5,pady=5)
@@ -667,15 +703,11 @@ class App:
 
     def check_updates(self, manual=False):
         try:
-            # CACHE BUSTER FIX
             base_url = SystemUtils.UPDATE_MANIFEST_URL
             if "REPLACE" in base_url:
                 if manual: messagebox.showinfo("Update Check", "Update URL not configured.")
                 return
-
-            # Append timestamp to bypass caching
             url = f"{base_url}?t={int(time.time())}" if "?" not in base_url else f"{base_url}&t={int(time.time())}"
-
             with urllib.request.urlopen(url, timeout=5) as r:
                 if r.status == 200:
                     data = json.loads(r.read().decode())
@@ -768,7 +800,7 @@ class App:
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws)), daemon=True).start()
     def safe_start_dist(self):
         ws=self.get_ws(); src=filedialog.askdirectory() if self.var_ext.get() else None
-        if ws and (not self.var_ext.get() or src): self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src, self.var_ocr.get()), daemon=True).start()
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src), daemon=True).start()
     def safe_preview(self):
         ws=self.get_ws()
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_preview, str(ws), self.cb_dpi.get()), daemon=True).start()
@@ -791,8 +823,11 @@ class App:
         self.cb_dpi.config(state="disabled")
         self.lbl_stats.config(text="Stats: Select a job...")
         
-        # FIX: Button State Bug - Reset Distribute button
+        # Reset DPI to default to avoid confusion
+        self.dpi_var.set("300")
+        
         self.btn_dist.config(state="disabled")
+        self.btn_org.config(state="disabled") # Reset Option A button
 
         if self.running: return
         ws = self.get_ws()
@@ -805,12 +840,11 @@ class App:
         
         # 3. IF SELECTION EXISTS, POPULATE UI
         self.btn_open.config(state="normal")
-        # FIX: Re-enable Distribute button if job is selected
         self.btn_dist.config(state="normal")
+        self.btn_org.config(state="normal")
 
         try:
             with open(ws/"stats.json") as f: s = json.load(f)
-            # v85 BUGFIX: Added "organize_time" to total and displayed "quarantined"
             total_seconds = int(
                 s.get('ingest_time',0) + 
                 s.get('batch_time',0) + 
@@ -827,7 +861,7 @@ class App:
             v=tk.BooleanVar(); v.trace_add("write", self.check_run_btn)
             c=tk.Checkbutton(self.chk_frame,text=l,variable=v); c.pack(side="left",padx=10); self.chk_vars[k]=v; ToolTip(c,t)
         
-        if '.pdf' in types: ac("Flatten PDFs","flatten","Convert pages to images.")
+        if '.pdf' in types: ac("Flatten PDFs","flatten","Convert pages to images."); ac("OCR (Searchable PDF)", "ocr", "Make text selectable.")
         if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px."); ac("Images to PDF","img2pdf","Bundle images.")
         if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove metadata.")
         
