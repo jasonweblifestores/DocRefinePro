@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v97 (LINKAGE UPDATE)
+#   DOCREFINE PRO v98 (FORENSIC COMPARATOR)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v97"
+    CURRENT_VERSION = "v98"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -568,7 +568,7 @@ class Worker:
                 
                 rel = str(f.relative_to(d))
                 if h in seen: seen[h]['copies'].append(rel)
-                else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)} # v97: Store Root
+                else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)}
 
             self.log("Tagging..."); total = len(seen)
             for i, (h, data) in enumerate(seen.items()):
@@ -819,51 +819,173 @@ class Worker:
         except: self.q.put(("done",))
 
 # --- 8. UI ---
-class VisualComparator:
-    def __init__(self, root, master_path, dup_path):
+class ForensicComparator:
+    def __init__(self, root, master_path, dup_candidates):
         self.win = tk.Toplevel(root)
-        self.win.title("Duplicate Verification")
-        self.win.geometry("900x500")
+        self.win.title("Forensic Verification (Sync View)")
+        self.win.geometry("1400x800")
         
-        main = tk.Frame(self.win, padx=20, pady=20)
-        main.pack(fill="both", expand=True)
+        self.master_path = master_path
+        self.dups = dup_candidates
+        self.dup_idx = 0
+        self.page = 1
+        self.total_pages = 1
+        self.zoom = 1.0
         
-        f_left = tk.LabelFrame(main, text="Original Master (Safe)", fg="green", padx=10, pady=10)
-        f_left.pack(side="left", fill="both", expand=True, padx=5)
+        # UI Structure
+        self.top = tk.Frame(self.win, bg="#eee", pady=5)
+        self.top.pack(fill="x")
         
-        f_right = tk.LabelFrame(main, text="Duplicate Candidate (To Be Deleted)", fg="red", padx=10, pady=10)
-        f_right.pack(side="right", fill="both", expand=True, padx=5)
+        self.mid = tk.Frame(self.win)
+        self.mid.pack(fill="both", expand=True)
         
-        self.render_file(f_left, master_path)
-        self.render_file(f_right, dup_path)
+        self.c1 = tk.Canvas(self.mid, bg="#444", scrollregion=(0,0,1000,1000))
+        self.c1.pack(side="left", fill="both", expand=True)
         
-        btn_fr = tk.Frame(self.win, pady=10)
-        btn_fr.pack(side="bottom", fill="x")
-        ttk.Button(btn_fr, text="Close", command=self.win.destroy).pack()
+        self.sep = ttk.Separator(self.mid, orient="vertical")
+        self.sep.pack(side="left", fill="y", padx=5)
+        
+        self.c2 = tk.Canvas(self.mid, bg="#444", scrollregion=(0,0,1000,1000))
+        self.c2.pack(side="left", fill="both", expand=True)
+        
+        self._build_toolbar()
+        
+        # Init
+        self.is_pdf = self.master_path.suffix.lower() == '.pdf'
+        if self.is_pdf:
+            try: self.total_pages = pdfinfo_from_path(str(self.master_path), poppler_path=POPPLER_BIN).get('Pages', 1)
+            except: self.total_pages = 1
+            
+        self.load_images()
+        self.bind_events()
 
-    def render_file(self, parent, path):
+    def _build_toolbar(self):
+        # Page Nav
+        f_page = tk.Frame(self.top); f_page.pack(side="left", padx=10)
+        tk.Button(f_page, text="< Prev Page", command=self.prev_page).pack(side="left")
+        self.lbl_page = tk.Label(f_page, text="Page 1/1", width=10)
+        self.lbl_page.pack(side="left", padx=5)
+        tk.Button(f_page, text="Next Page >", command=self.next_page).pack(side="left")
+        
+        # Zoom
+        f_zoom = tk.Frame(self.top); f_zoom.pack(side="left", padx=20)
+        tk.Button(f_zoom, text="- Zoom", command=lambda: self.do_zoom(0.8)).pack(side="left")
+        self.lbl_zoom = tk.Label(f_zoom, text="100%", width=6)
+        self.lbl_zoom.pack(side="left")
+        tk.Button(f_zoom, text="Zoom +", command=lambda: self.do_zoom(1.2)).pack(side="left")
+        
+        # Duplicate Nav
+        f_dup = tk.Frame(self.top); f_dup.pack(side="right", padx=10)
+        tk.Button(f_dup, text="< Prev Copy", command=self.prev_dup).pack(side="left")
+        self.lbl_dup = tk.Label(f_dup, text="Copy 1/1", width=15)
+        self.lbl_dup.pack(side="left", padx=5)
+        tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
+        tk.Button(f_dup, text="DELETE COPY", bg="red", fg="white", command=self.delete_current_dup).pack(side="left", padx=10)
+
+    def load_images(self):
+        # Update Labels
+        self.lbl_page.config(text=f"Page {self.page}/{self.total_pages}")
+        self.lbl_zoom.config(text=f"{int(self.zoom*100)}%")
+        self.lbl_dup.config(text=f"Copy {self.dup_idx+1}/{len(self.dups)}")
+        
+        # Render Master
+        self.img1 = self._render(self.master_path)
+        self.show_img(self.c1, self.img1)
+        
+        # Render Duplicate
+        dup_path = self.dups[self.dup_idx]
+        self.img2 = self._render(dup_path)
+        self.show_img(self.c2, self.img2)
+
+    def _render(self, path):
         try:
-            p = Path(path)
-            info = f"{p.name}\nSize: {p.stat().st_size/1024:.1f} KB\nDate: {datetime.fromtimestamp(p.stat().st_mtime)}"
-            tk.Label(parent, text=info, font=("Consolas", 9)).pack(side="top", pady=5)
-            
+            if not Path(path).exists(): return None
             img = None
-            if p.suffix.lower() == '.pdf':
-                imgs = convert_from_path(str(p), dpi=72, first_page=1, last_page=1, poppler_path=POPPLER_BIN)
+            if Path(path).suffix.lower() == '.pdf':
+                imgs = convert_from_path(str(path), dpi=int(72*self.zoom), first_page=self.page, last_page=self.page, poppler_path=POPPLER_BIN)
                 if imgs: img = imgs[0]
-            elif p.suffix.lower() in {'.jpg','.png','.jpeg'}:
-                img = Image.open(str(p))
-            
-            if img:
-                img.thumbnail((350, 350))
-                photo = ImageTk.PhotoImage(img)
-                lbl = tk.Label(parent, image=photo)
-                lbl.image = photo 
-                lbl.pack(expand=True)
             else:
-                tk.Label(parent, text="(No Preview Available)", fg="#999").pack(expand=True)
-        except Exception as e:
-            tk.Label(parent, text=f"Error: {str(e)}", fg="red").pack(expand=True)
+                img = Image.open(str(path))
+                w, h = img.size
+                img = img.resize((int(w*self.zoom), int(h*self.zoom)))
+            
+            return ImageTk.PhotoImage(img) if img else None
+        except: return None
+
+    def show_img(self, cv, photo):
+        cv.delete("all")
+        if photo:
+            cv.create_image(0,0, image=photo, anchor="nw")
+            cv.config(scrollregion=cv.bbox("all"))
+
+    def bind_events(self):
+        # Sync Scroll (Linux/Win/Mac handling)
+        self.c1.bind("<MouseWheel>", self.on_scroll)
+        self.c2.bind("<MouseWheel>", self.on_scroll)
+        self.c1.bind("<Button-4>", self.on_scroll) # Linux
+        self.c1.bind("<Button-5>", self.on_scroll)
+        
+        # Pan
+        self.c1.bind("<ButtonPress-1>", self.scroll_start)
+        self.c1.bind("<B1-Motion>", self.scroll_move)
+        self.c2.bind("<ButtonPress-1>", self.scroll_start)
+        self.c2.bind("<B1-Motion>", self.scroll_move)
+
+    def on_scroll(self, event):
+        # Cross-platform scroll delta
+        d = 0
+        if event.num == 5 or event.delta < 0: d = 1
+        elif event.num == 4 or event.delta > 0: d = -1
+        
+        self.c1.yview_scroll(d, "units")
+        self.c2.yview_scroll(d, "units")
+
+    def scroll_start(self, event):
+        self.scan_mark_x = event.x
+        self.scan_mark_y = event.y
+
+    def scroll_move(self, event):
+        self.c1.scan_dragto(event.x, event.y, gain=1)
+        self.c2.scan_dragto(event.x, event.y, gain=1)
+
+    def do_zoom(self, factor):
+        self.zoom *= factor
+        self.load_images()
+
+    def next_page(self):
+        if self.page < self.total_pages:
+            self.page += 1
+            self.load_images()
+
+    def prev_page(self):
+        if self.page > 1:
+            self.page -= 1
+            self.load_images()
+
+    def next_dup(self):
+        if self.dup_idx < len(self.dups)-1:
+            self.dup_idx += 1
+            self.load_images()
+
+    def prev_dup(self):
+        if self.dup_idx > 0:
+            self.dup_idx -= 1
+            self.load_images()
+
+    def delete_current_dup(self):
+        if messagebox.askyesno("Confirm", "Permanently delete this file?"):
+            try:
+                p = self.dups[self.dup_idx]
+                os.remove(p)
+                del self.dups[self.dup_idx]
+                if not self.dups:
+                    messagebox.showinfo("Done", "All duplicates deleted.")
+                    self.win.destroy()
+                else:
+                    if self.dup_idx >= len(self.dups): self.dup_idx -= 1
+                    self.load_images()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
 
 class App:
     def __init__(self, root):
@@ -1029,7 +1151,7 @@ class App:
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
         
         self.context_menu = Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Open File", command=lambda: self.on_inspect_click(None))
+        self.context_menu.add_command(label="Open File", command=self.open_selected_file) # v98: Fixed
         self.context_menu.add_command(label="Reveal in Folder", command=self.reveal_in_folder)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Compare Duplicates...", command=self.on_compare_click)
@@ -1048,6 +1170,12 @@ class App:
                 self.context_menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.context_menu.grab_release()
+
+    # v98: Decoupled Logic
+    def open_selected_file(self):
+        item_id = self.insp_tree.selection()
+        if not item_id: return
+        self.on_inspect_click(None)
 
     def reveal_in_folder(self):
         ws = self.get_ws()
@@ -1074,25 +1202,21 @@ class App:
             
         master_file = ws/"01_Master_Files"/data['uid']
         
-        # v97: Try to resolve root path
         root = data.get('root')
-        
-        # Fallback for old jobs
         if not root or not Path(root).exists():
             root = filedialog.askdirectory(title=f"Locate Source Folder for {name}")
             if not root: return
         
-        # Try to find duplicate
-        # Copies list has relative paths
-        dup_rel = next((c for c in data['copies'] if c != data['master']), None)
-        if dup_rel:
-            dup_file = Path(root) / dup_rel
-            if dup_file.exists():
-                VisualComparator(self.root, master_file, dup_file)
-            else:
-                messagebox.showerror("Error", f"Could not find duplicate at:\n{dup_file}")
+        duplicates = []
+        for c in data['copies']:
+            if c != data['master']:
+                path = Path(root) / c
+                if path.exists(): duplicates.append(path)
+        
+        if duplicates:
+            ForensicComparator(self.root, master_file, duplicates)
         else:
-            messagebox.showerror("Error", "Could not identify duplicate path.")
+            messagebox.showerror("Error", "Could not locate any duplicate files.")
 
     def open_settings(self):
         win = tk.Toplevel(self.root)
@@ -1245,8 +1369,7 @@ class App:
             q_file = next((f for f in (ws/"00_Quarantine").iterdir() if name in f.name), None)
             if q_file: SystemUtils.open_file(q_file.parent)
         else:
-            # v96: Only double click opens Master
-            if event: # If triggered by event
+            if event: # If triggered by double click event
                 SystemUtils.open_file(ws/"01_Master_Files"/data['uid'])
 
     def check_run_btn(self, *args):
