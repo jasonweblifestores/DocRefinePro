@@ -45,21 +45,20 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
-# v87: Memory Safety Cap (500MP)
 Image.MAX_IMAGE_PIXELS = 500000000 
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v88 (STABILITY & PERSISTENCE)
+#   DOCREFINE PRO v89 (VERSIONED CACHE & UX POLISH)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v88"
+    CURRENT_VERSION = "v89"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -69,18 +68,11 @@ class SystemUtils:
 
     @staticmethod
     def get_user_data_dir():
-        # v88: Persistent Data Path for BOTH Windows and Mac
-        if SystemUtils.IS_MAC:
+        # Persistent Data Path
+        if SystemUtils.IS_MAC or SystemUtils.IS_WIN:
             p = Path.home() / "Documents" / "DocRefinePro_Data"
             p.mkdir(parents=True, exist_ok=True)
             return p
-        elif SystemUtils.IS_WIN:
-            # v88 Change: Save to My Documents instead of .exe folder
-            p = Path.home() / "Documents" / "DocRefinePro_Data"
-            p.mkdir(parents=True, exist_ok=True)
-            return p
-        
-        # Linux / Portable Fallback
         if getattr(sys, 'frozen', False): return Path(sys.executable).parent
         return Path(__file__).parent
 
@@ -98,7 +90,7 @@ class SystemUtils:
         res_dir = SystemUtils.get_resource_dir()
         if (res_dir / bin_name).exists(): return str(res_dir / bin_name)
         if (res_dir / "bin" / bin_name).exists(): return str(res_dir / "bin" / bin_name)
-
+        
         portable_target = res_dir / "DocRefine_Portable"
         if portable_target.exists():
              if (portable_target / bin_name).exists(): return str(portable_target)
@@ -340,9 +332,14 @@ class Worker:
 
     def prog_main(self, v, t): self.q.put(("main_p", v, t))
     def prog_sub(self, v, t, status_only=False): 
-        if status_only: self.q.put(("status_blue", t)) # Special handler for blue text
+        if status_only: self.q.put(("status_blue", t)) 
         else: self.q.put(("sub_p", v, t))
     
+    # v89: Indeterminate Mode Control
+    def set_sub_determinate(self, is_det):
+        mode = "determinate" if is_det else "indeterminate"
+        self.q.put(("sub_p_mode", mode))
+
     def get_hash(self, path, mode):
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
         if path.suffix.lower() == '.pdf' and mode != "Lightning":
@@ -363,14 +360,43 @@ class Worker:
             return h.hexdigest(), "Binary"
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
-    def get_best_source(self, ws, file_uid):
-        processed = ws / "02_Ready_For_Redistribution" / file_uid
+    # v89: Enhanced Source Selection with Priority
+    def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
         master = ws / "01_Master_Files" / file_uid
-        if processed.parent.exists():
-            if processed.exists(): return processed
-            p_match = next((f for f in processed.parent.iterdir() if f.stem == Path(file_uid).stem), None)
-            if p_match: return p_match
-        return master if master.exists() else None
+        base_cache = ws / "02_Ready_For_Redistribution"
+        
+        # Sub-folder lookups
+        p_ocr = base_cache / "OCR" / file_uid
+        p_flat = base_cache / "Flattened" / file_uid
+        p_std = base_cache / "Standard" / file_uid # For Resized/Sanitized if not split
+        
+        # Helper to find file even if ext changed (e.g. img2pdf)
+        def find_in_dir(d, stem):
+            if d.exists():
+                if (d / file_uid).exists(): return d / file_uid
+                match = next((f for f in d.iterdir() if f.stem == stem), None)
+                if match: return match
+            return None
+
+        stem = Path(file_uid).stem
+        
+        if "Force: OCR" in priority_mode:
+            f = find_in_dir(base_cache/"OCR", stem)
+            return f if f else master
+            
+        elif "Force: Flattened" in priority_mode:
+            f = find_in_dir(base_cache/"Flattened", stem)
+            return f if f else master
+            
+        elif "Force: Original" in priority_mode:
+            return master
+            
+        else: # Auto
+            # Order: OCR -> Flattened -> Standard/Resized -> Master
+            for sub in ["OCR", "Flattened", "Resized", "Sanitized", "Standard"]:
+                f = find_in_dir(base_cache/sub, stem)
+                if f: return f
+            return master if master.exists() else None
 
     def run_inventory(self, d_str, ingest_mode):
         try:
@@ -419,7 +445,8 @@ class Worker:
             self.log(f"Done. Masters: {total}"); self.q.put(("job", str(ws))); self.q.put(("done",))
         except Exception as e: self.log(f"Error: {e}", True); self.q.put(("done",))
 
-    def process_file_task(self, f, bots, options, dst):
+    # v89: Versioned Task Handling
+    def process_file_task(self, f, bots, options, base_dst):
         if self.stop_sig: return
         try:
             self.q.put(("status_blue", f"Refining: {f.name}"))
@@ -427,17 +454,37 @@ class Worker:
             ok = False
             dpi_val = int(options.get('dpi', 300))
             
+            # Destination Routing
+            target_folder = "Standard"
+            
             if ext == '.pdf':
                 mode = options.get('pdf_mode', 'none')
-                if mode == 'flatten': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'flatten', dpi=dpi_val)
-                elif mode == 'ocr': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'ocr', dpi=dpi_val)
+                if mode == 'flatten': target_folder = "Flattened"
+                elif mode == 'ocr': target_folder = "OCR"
             elif ext in {'.jpg','.png'}:
-                if options.get('resize'): ok = bots['img'].resize(f, dst/f.name, CFG.get('resize_width'))
-                if options.get('img2pdf'): ok = bots['img'].convert_to_pdf(f, dst/f"{f.stem}.pdf")
+                if options.get('resize'): target_folder = "Resized"
+                if options.get('img2pdf'): target_folder = "Resized" # Bundled
             elif ext in {'.docx','.xlsx'}:
-                if options.get('sanitize'): ok = bots['office'].sanitize(f, dst/f.name)
+                if options.get('sanitize'): target_folder = "Sanitized"
+            
+            final_dst_dir = base_dst / target_folder
+            final_dst_dir.mkdir(parents=True, exist_ok=True)
+            
+            dst_file = final_dst_dir / f.name
 
-            if not ok and not (dst/f.name).exists(): shutil.copy2(f, dst/f.name)
+            if ext == '.pdf':
+                mode = options.get('pdf_mode', 'none')
+                if mode == 'flatten': ok = bots['pdf'].flatten_or_ocr(f, dst_file, 'flatten', dpi=dpi_val)
+                elif mode == 'ocr': ok = bots['pdf'].flatten_or_ocr(f, dst_file, 'ocr', dpi=dpi_val)
+            elif ext in {'.jpg','.png'}:
+                if options.get('resize'): ok = bots['img'].resize(f, dst_file, CFG.get('resize_width'))
+                if options.get('img2pdf'): ok = bots['img'].convert_to_pdf(f, final_dst_dir/f"{f.stem}.pdf")
+            elif ext in {'.docx','.xlsx'}:
+                if options.get('sanitize'): ok = bots['office'].sanitize(f, dst_file)
+
+            if not ok and not dst_file.exists(): 
+                 shutil.copy2(f, dst_file)
+                 
         except Exception as e:
             self.log(f"Err {f.name}: {e}", True)
 
@@ -455,27 +502,22 @@ class Worker:
             }
             fs = list(src.iterdir())
             
-            # v88: RAM-Aware Throttling
-            # Default to 2 workers for safety if psutil is missing
             max_workers = 2
             if HAS_PSUTIL:
                 try:
-                    # Calculate available RAM in GB
                     total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
-                    # Logic: <8GB=1, 8-16GB=2, >16GB=4
                     if total_ram_gb < 8: max_workers = 1
                     elif total_ram_gb < 16: max_workers = 2
                     else: max_workers = 4
                 except: pass
             
-            # Cap by CPU cores to avoid context switching thrash
-            cpu_cap = os.cpu_count() or 1
-            max_workers = min(max_workers, cpu_cap)
-            # Ensure at least 1 worker
+            max_workers = min(max_workers, os.cpu_count() or 1)
             max_workers = max(1, max_workers)
+            self.log(f"Workers: {max_workers}")
 
-            self.log(f"Auto-Throttling: {max_workers} Parallel Workers")
-
+            # v89: Indeterminate Progress if parallel
+            if max_workers > 1: self.set_sub_determinate(False)
+            
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -484,20 +526,22 @@ class Worker:
                     try: future.result()
                     except Exception as e: self.log(f"Thread Err: {e}", True)
 
+            if max_workers > 1: self.set_sub_determinate(True)
+            
             update_stats_time(ws, "batch_time", time.time() - start_time)
             self.set_job_status(ws, "PROCESSED", "Complete")
             self.q.put(("job", str(ws))) 
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
-    def run_organize(self, ws_p):
+    def run_organize(self, ws_p, priority_mode):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time()
             out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; q = out/"Quarantine"
             for p in [m,q]: p.mkdir(parents=True, exist_ok=True)
             
-            self.log("Unique Export Start")
+            self.log(f"Unique Export ({priority_mode})")
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
@@ -515,7 +559,8 @@ class Worker:
                         for f in (ws/"00_Quarantine").glob("*"):
                             if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
                     else:
-                        src = self.get_best_source(ws, data['uid'])
+                        # v89: Pass Priority
+                        src = self.get_best_source(ws, data['uid'], priority_mode)
                         if src and src.exists():
                             clean_name = data['name']
                             if src.suffix != Path(clean_name).suffix:
@@ -539,7 +584,7 @@ class Worker:
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(out)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
-    def run_distribute(self, ws_p, ext_src):
+    def run_distribute(self, ws_p, ext_src, priority_mode):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists():
@@ -548,7 +593,7 @@ class Worker:
 
             start_time = time.time(); 
             dst = ws / "Final_Delivery"
-            self.log("Reconstruction Start")
+            self.log(f"Reconstruction Start ({priority_mode})")
             self.set_job_status(ws, "DISTRIBUTING", "Reconstructing...")
             
             with open(ws/"manifest.json") as f: man = json.load(f)
@@ -568,7 +613,8 @@ class Worker:
                 if ext_src:
                     src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
                 else:
-                    src = self.get_best_source(ws, d['uid'])
+                    # v89: Pass Priority
+                    src = self.get_best_source(ws, d['uid'], priority_mode)
                 
                 if not src: continue
                 
@@ -670,7 +716,10 @@ class App:
         
         self.lbl_sub_stats = tk.Label(mon, text="Waiting...", font=("Segoe UI", 8), anchor="w", fg="#666")
         self.lbl_sub_stats.pack(fill="x", pady=(5,0))
-        self.p_sub = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_sub).pack(fill="x", pady=2)
+        # v89: Reference to sub_bar for mode switching
+        self.p_sub = tk.DoubleVar()
+        self.bar_sub = ttk.Progressbar(mon, variable=self.p_sub)
+        self.bar_sub.pack(fill="x", pady=2)
         
         self.log_box = scrolledtext.ScrolledText(mon, height=8); self.log_box.pack(fill="both", expand=True)
         self.load_jobs(); self.root.after(100, self.poll)
@@ -703,27 +752,26 @@ class App:
     def _build_export(self):
         tk.Label(self.tab_dist, text="Final Export Strategies", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
         f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
+        
+        # v89: Priority Selector
+        tk.Label(f, text="Source Priority:", font=("Segoe UI", 9)).pack(anchor="w", pady=(0,2))
+        self.prio_var = tk.StringVar(value="Auto (Best Available)")
+        self.cb_prio = ttk.Combobox(f, textvariable=self.prio_var, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30)
+        self.cb_prio.pack(anchor="w", pady=(0,10))
+        
         self.var_ext = tk.BooleanVar(); tk.Checkbutton(f, text="Override Source: External Folder", variable=self.var_ext).pack(anchor="w")
         
         f_a = tk.LabelFrame(self.tab_dist, text="Option A: Unique Masters", padx=10, pady=10)
         f_a.pack(fill="x", padx=10, pady=5)
-        tk.Label(f_a, text="Export a clean folder containing one copy of every unique file.\n(Uses refined versions if available).", justify="left", fg="#555").pack(anchor="w")
+        tk.Label(f_a, text="Export a clean folder containing one copy of every unique file.", justify="left", fg="#555").pack(anchor="w")
         kw_org = {"bg": "#fff8e1"} if not self.is_mac else {}
         self.btn_org = self.Btn(f_a, text="Export Unique Files", command=self.safe_start_organize, state="disabled", **kw_org); self.btn_org.pack(anchor="e", pady=5)
 
         f_b = tk.LabelFrame(self.tab_dist, text="Option B: Reconstruct Original Structure", padx=10, pady=10)
         f_b.pack(fill="x", padx=10, pady=5)
-        tk.Label(f_b, text="Re-create the original folder structure using refined files.", justify="left", fg="#555").pack(anchor="w")
+        tk.Label(f_b, text="Re-create the original folder structure.", justify="left", fg="#555").pack(anchor="w")
         kw_dist = {"bg": "#fff3e0"} if not self.is_mac else {}
         self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
-
-    def _build_inspect(self):
-        f = tk.Frame(self.tab_inspect); f.pack(fill="both",expand=True,padx=5,pady=5)
-        self.insp_tree = ttk.Treeview(f, columns=("ID","Name","Status","Copies"), show="headings")
-        for c,w in [("ID",60),("Name",200),("Status",80),("Copies",50)]:
-            self.insp_tree.heading(c, text=c, command=lambda _c=c: self.sort_tree(self.insp_tree,_c,False)); self.insp_tree.column(c, width=w)
-        vsb = ttk.Scrollbar(f, orient="vertical", command=self.insp_tree.yview); self.insp_tree.configure(yscrollcommand=vsb.set)
-        self.insp_tree.pack(side="left",fill="both",expand=True); vsb.pack(side="right",fill="y")
 
     # --- ACTIONS ---
     def check_run_btn(self, *args):
@@ -839,10 +887,15 @@ class App:
 
     def safe_start_organize(self):
         ws = self.get_ws()
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws)), daemon=True).start()
+        # v89: Pass Priority
+        prio = self.prio_var.get()
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws), prio), daemon=True).start()
+        
     def safe_start_dist(self):
         ws=self.get_ws(); src=filedialog.askdirectory() if self.var_ext.get() else None
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src), daemon=True).start()
+        prio = self.prio_var.get()
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src, prio), daemon=True).start()
+        
     def safe_preview(self):
         ws=self.get_ws()
         d_raw = self.dpi_var.get()
@@ -950,11 +1003,14 @@ class App:
                 m = self.q.get_nowait()
                 if m[0]=='log': self.log_box.insert(tk.END, m[1]+"\n"); self.log_box.see(tk.END)
                 elif m[0]=='main_p': self.p_main.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
-                elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_sub_stats.config(text=m[2]) # Update DETAIL label
-                elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue") # EXPLICIT BLUE UPDATE
+                elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_sub_stats.config(text=m[2])
+                elif m[0]=='sub_p_mode': 
+                    if m[1] == 'indeterminate': self.bar_sub.start(10)
+                    else: self.bar_sub.stop(); self.p_sub.set(0)
+                elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue")
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
-                elif m[0]=='job': self.load_jobs(m[1]) # Pass ID for reselection
-                elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0)
+                elif m[0]=='job': self.load_jobs(m[1]) 
+                elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0); self.bar_sub.stop()
                 elif m[0]=='update_avail':
                     if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"): webbrowser.open(m[2])
                 elif m[0]=='auto_open': SystemUtils.open_file(m[1])
