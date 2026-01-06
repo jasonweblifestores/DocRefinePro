@@ -51,14 +51,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v89 (VERSIONED CACHE & UX POLISH)
+#   DOCREFINE PRO v90 (HOTFIX: RESTORED INSPECTOR)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v89"
+    CURRENT_VERSION = "v90"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -68,7 +68,6 @@ class SystemUtils:
 
     @staticmethod
     def get_user_data_dir():
-        # Persistent Data Path
         if SystemUtils.IS_MAC or SystemUtils.IS_WIN:
             p = Path.home() / "Documents" / "DocRefinePro_Data"
             p.mkdir(parents=True, exist_ok=True)
@@ -335,7 +334,6 @@ class Worker:
         if status_only: self.q.put(("status_blue", t)) 
         else: self.q.put(("sub_p", v, t))
     
-    # v89: Indeterminate Mode Control
     def set_sub_determinate(self, is_det):
         mode = "determinate" if is_det else "indeterminate"
         self.q.put(("sub_p_mode", mode))
@@ -360,17 +358,14 @@ class Worker:
             return h.hexdigest(), "Binary"
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
-    # v89: Enhanced Source Selection with Priority
     def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
         master = ws / "01_Master_Files" / file_uid
         base_cache = ws / "02_Ready_For_Redistribution"
         
-        # Sub-folder lookups
         p_ocr = base_cache / "OCR" / file_uid
         p_flat = base_cache / "Flattened" / file_uid
-        p_std = base_cache / "Standard" / file_uid # For Resized/Sanitized if not split
+        p_std = base_cache / "Standard" / file_uid 
         
-        # Helper to find file even if ext changed (e.g. img2pdf)
         def find_in_dir(d, stem):
             if d.exists():
                 if (d / file_uid).exists(): return d / file_uid
@@ -391,8 +386,7 @@ class Worker:
         elif "Force: Original" in priority_mode:
             return master
             
-        else: # Auto
-            # Order: OCR -> Flattened -> Standard/Resized -> Master
+        else: 
             for sub in ["OCR", "Flattened", "Resized", "Sanitized", "Standard"]:
                 f = find_in_dir(base_cache/sub, stem)
                 if f: return f
@@ -445,7 +439,6 @@ class Worker:
             self.log(f"Done. Masters: {total}"); self.q.put(("job", str(ws))); self.q.put(("done",))
         except Exception as e: self.log(f"Error: {e}", True); self.q.put(("done",))
 
-    # v89: Versioned Task Handling
     def process_file_task(self, f, bots, options, base_dst):
         if self.stop_sig: return
         try:
@@ -454,7 +447,6 @@ class Worker:
             ok = False
             dpi_val = int(options.get('dpi', 300))
             
-            # Destination Routing
             target_folder = "Standard"
             
             if ext == '.pdf':
@@ -463,7 +455,7 @@ class Worker:
                 elif mode == 'ocr': target_folder = "OCR"
             elif ext in {'.jpg','.png'}:
                 if options.get('resize'): target_folder = "Resized"
-                if options.get('img2pdf'): target_folder = "Resized" # Bundled
+                if options.get('img2pdf'): target_folder = "Resized" 
             elif ext in {'.docx','.xlsx'}:
                 if options.get('sanitize'): target_folder = "Sanitized"
             
@@ -515,7 +507,6 @@ class Worker:
             max_workers = max(1, max_workers)
             self.log(f"Workers: {max_workers}")
 
-            # v89: Indeterminate Progress if parallel
             if max_workers > 1: self.set_sub_determinate(False)
             
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -559,7 +550,6 @@ class Worker:
                         for f in (ws/"00_Quarantine").glob("*"):
                             if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
                     else:
-                        # v89: Pass Priority
                         src = self.get_best_source(ws, data['uid'], priority_mode)
                         if src and src.exists():
                             clean_name = data['name']
@@ -613,7 +603,6 @@ class Worker:
                 if ext_src:
                     src = next((v for k,v in orphans.items() if k.startswith(d['id'])), None)
                 else:
-                    # v89: Pass Priority
                     src = self.get_best_source(ws, d['uid'], priority_mode)
                 
                 if not src: continue
@@ -773,6 +762,14 @@ class App:
         kw_dist = {"bg": "#fff3e0"} if not self.is_mac else {}
         self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
 
+    def _build_inspect(self):
+        f = tk.Frame(self.tab_inspect); f.pack(fill="both",expand=True,padx=5,pady=5)
+        self.insp_tree = ttk.Treeview(f, columns=("ID","Name","Status","Copies"), show="headings")
+        for c,w in [("ID",60),("Name",200),("Status",80),("Copies",50)]:
+            self.insp_tree.heading(c, text=c, command=lambda _c=c: self.sort_tree(self.insp_tree,_c,False)); self.insp_tree.column(c, width=w)
+        vsb = ttk.Scrollbar(f, orient="vertical", command=self.insp_tree.yview); self.insp_tree.configure(yscrollcommand=vsb.set)
+        self.insp_tree.pack(side="left",fill="both",expand=True); vsb.pack(side="right",fill="y")
+
     # --- ACTIONS ---
     def check_run_btn(self, *args):
         any_checked = any(v.get() for v in self.chk_vars.values())
@@ -887,7 +884,6 @@ class App:
 
     def safe_start_organize(self):
         ws = self.get_ws()
-        # v89: Pass Priority
         prio = self.prio_var.get()
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws), prio), daemon=True).start()
         
