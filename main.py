@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v94 (AUDIT & REPORTING)
+#   DOCREFINE PRO v95 (AUDIT CERTIFICATE & WORKER SLOTS)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v94"
+    CURRENT_VERSION = "v95"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -116,8 +116,8 @@ class Config:
         "max_pixels": 500000000,
         "max_threads": 0, 
         "default_export_prio": "Auto (Best Available)",
+        "default_ingest_mode": "Standard", # v95
         "ocr_lang": "eng",
-        # v94: Session State Persistence
         "last_workspace": "",
         "last_geometry": "1150x900",
         "last_tab": 0
@@ -135,6 +135,7 @@ class Config:
 
     def get(self, key): return self.data.get(key, self.DEFAULTS.get(key))
     def set(self, key, val): self.data[key] = val; self.save()
+    def reset(self): self.data = self.DEFAULTS.copy(); self.save()
     def save(self):
         try:
             with open(self.path, 'w') as f: json.dump(self.data, f, indent=4)
@@ -241,63 +242,98 @@ def check_memory():
     except: pass
     return True
 
-# v94: HTML Report Generator
-def generate_job_report(ws_path, action_name, stats_dict=None):
+# v95: Audit Certificate Generator
+def generate_job_report(ws_path, action_name, file_results=None):
     try:
         ws = Path(ws_path)
         rpt_dir = ws / "04_Reports"
         rpt_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
-        file_name = f"Job_Receipt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        file_name = f"Audit_Certificate_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         
-        # Load Main Stats
         s = {}
         if (ws/"stats.json").exists():
             with open(ws/"stats.json") as f: s = json.load(f)
         
-        if stats_dict: s.update(stats_dict)
+        # Calculate Savings from file_results
+        total_orig = 0
+        total_new = 0
+        errors = []
+        
+        if file_results:
+            for res in file_results:
+                total_orig += res.get('orig_size', 0)
+                total_new += res.get('new_size', 0)
+                if not res.get('ok', True):
+                    errors.append(res)
+        
+        saved_bytes = total_orig - total_new
+        saved_mb = round(saved_bytes / (1024*1024), 2)
+        saved_pct = round((saved_bytes / total_orig * 100), 1) if total_orig > 0 else 0
 
         html = f"""
         <html>
         <head>
             <style>
-                body {{ font-family: 'Segoe UI', sans-serif; padding: 40px; background: #f4f4f4; color: #333; }}
-                .card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }}
-                h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
-                .stat-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }}
-                .stat-item {{ background: #f8f9fa; padding: 15px; border-left: 4px solid #3498db; }}
-                .label {{ font-size: 0.85em; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }}
-                .value {{ font-size: 1.4em; font-weight: bold; color: #2c3e50; }}
-                .footer {{ margin-top: 30px; font-size: 0.8em; color: #95a5a6; text-align: center; }}
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f0f2f5; color: #333; }}
+                .container {{ background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 900px; margin: auto; }}
+                .header {{ border-bottom: 2px solid #0078d7; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }}
+                .title h1 {{ margin: 0; color: #2c3e50; font-size: 24px; }}
+                .title span {{ color: #7f8c8d; font-size: 14px; }}
+                .badge {{ background: #0078d7; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }}
+                
+                .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
+                .card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }}
+                .card-label {{ font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }}
+                .card-value {{ font-size: 20px; font-weight: 600; color: #212529; }}
+                .highlight {{ color: #28a745; }}
+                
+                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+                th {{ text-align: left; border-bottom: 2px solid #dee2e6; padding: 10px; color: #495057; }}
+                td {{ border-bottom: 1px solid #dee2e6; padding: 10px; }}
+                .error-row {{ background-color: #fff5f5; color: #c0392b; }}
+                
+                .footer {{ margin-top: 40px; font-size: 11px; color: #adb5bd; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }}
             </style>
         </head>
         <body>
-            <div class="card">
-                <h1>DocRefine Job Receipt</h1>
-                <p><strong>Action:</strong> {action_name}<br><strong>Date:</strong> {timestamp}</p>
-                
-                <div class="stat-grid">
-                    <div class="stat-item">
-                        <div class="label">Files Ingested</div>
-                        <div class="value">{s.get('total_scanned', 0)}</div>
+            <div class="container">
+                <div class="header">
+                    <div class="title">
+                        <h1>Processing Audit Certificate</h1>
+                        <span>DocRefine Pro {SystemUtils.CURRENT_VERSION}</span>
                     </div>
-                    <div class="stat-item">
-                        <div class="label">Unique Masters</div>
-                        <div class="value">{s.get('masters', 0)}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="label">Quarantined</div>
-                        <div class="value" style="color: {'red' if s.get('quarantined',0) > 0 else '#2c3e50'}">{s.get('quarantined', 0)}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="label">Total Processing Time</div>
-                        <div class="value">{str(timedelta(seconds=int(s.get('batch_time', 0) + s.get('ingest_time', 0))))}</div>
-                    </div>
+                    <span class="badge">COMPLETED</span>
                 </div>
                 
+                <p><strong>Operation:</strong> {action_name}<br><strong>Timestamp:</strong> {timestamp}</p>
+                
+                <div class="grid">
+                    <div class="card">
+                        <div class="card-label">Files Processed</div>
+                        <div class="card-value">{len(file_results) if file_results else s.get('total_scanned', 0)}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Storage Reclaimed</div>
+                        <div class="card-value highlight">{saved_mb} MB ({saved_pct}%)</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Failed / Skipped</div>
+                        <div class="card-value" style="color: {'red' if errors else '#212529'}">{len(errors)}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Duration</div>
+                        <div class="card-value">{str(timedelta(seconds=int(s.get('batch_time', 0) + s.get('ingest_time', 0))))}</div>
+                    </div>
+                </div>
+
+                <h3>Exceptions & Errors</h3>
+                {f"<table><thead><tr><th>File</th><th>Status</th><th>Error Details</th></tr></thead><tbody>{''.join([f'<tr class=error-row><td>{e['file']}</td><td>FAILED</td><td>{e.get('error','Unknown')}</td></tr>' for e in errors])}</tbody></table>" if errors else "<p>No errors reported. Clean run.</p>"}
+                
                 <div class="footer">
-                    Generated by DocRefine Pro {SystemUtils.CURRENT_VERSION}
+                    This document certifies that the files listed above were processed by the DocRefine Engine.<br>
+                    Generated automatically on {timestamp}
                 </div>
             </div>
         </body>
@@ -306,7 +342,6 @@ def generate_job_report(ws_path, action_name, stats_dict=None):
         
         with open(rpt_dir / file_name, "w", encoding="utf-8") as f:
             f.write(html)
-        
         return str(rpt_dir / file_name)
     except Exception as e:
         print(f"Report Gen Error: {e}")
@@ -330,7 +365,6 @@ class PdfProcessor(BaseProcessor):
             info = pdfinfo_from_path(str(src), poppler_path=POPPLER_BIN)
             pages = info.get("Pages", 1)
             imgs = []
-            
             ocr_lang = CFG.get("ocr_lang")
 
             for i in range(1, pages + 1):
@@ -422,13 +456,12 @@ class Worker:
         except: pass
 
     def prog_main(self, v, t): self.q.put(("main_p", v, t))
-    def prog_sub(self, v, t, status_only=False): 
-        if status_only: self.q.put(("status_blue", t)) 
-        else: self.q.put(("sub_p", v, t))
     
-    def set_sub_determinate(self, is_det):
-        mode = "determinate" if is_det else "indeterminate"
-        self.q.put(("sub_p_mode", mode))
+    # v95: Updated for Worker Slots
+    def prog_sub(self, v, t, status_only=False): 
+        # Pass current thread ID to map to a slot
+        tid = threading.get_ident()
+        self.q.put(("slot_update", tid, t, v))
 
     def get_hash(self, path, mode):
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
@@ -491,10 +524,15 @@ class Worker:
             files = [Path(r)/f for r,_,fs in os.walk(d) for f in fs]
             seen = {}; quarantined = 0; file_types = {}
 
+            # v95: Ingest is single threaded, show in Slot 0
+            self.q.put(("slot_config", 1)) 
+
             for i, f in enumerate(files):
                 if self.stop_sig: break
                 if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
                 self.prog_main((i/len(files))*100, f"Scanning {i}/{len(files)}")
+                self.q.put(("slot_update", threading.get_ident(), f"Hashing: {f.name}", None))
+                
                 if f.suffix.lower() not in SUPPORTED_EXTENSIONS: continue
                 file_types[f.suffix.lower()] = file_types.get(f.suffix.lower(), 0) + 1
                 
@@ -528,7 +566,8 @@ class Worker:
         except Exception as e: self.log(f"Error: {e}", True); self.q.put(("done",))
 
     def process_file_task(self, f, bots, options, base_dst):
-        if self.stop_sig: return
+        if self.stop_sig: return None
+        result = {'file': f.name, 'orig_size': f.stat().st_size, 'new_size': 0, 'ok': False}
         try:
             self.q.put(("status_blue", f"Refining: {f.name}"))
             ext = f.suffix.lower()
@@ -564,9 +603,17 @@ class Worker:
 
             if not ok and not dst_file.exists(): 
                  shutil.copy2(f, dst_file)
+            
+            if dst_file.exists():
+                result['new_size'] = dst_file.stat().st_size
+                result['ok'] = True
+            
+            return result
                  
         except Exception as e:
             self.log(f"Err {f.name}: {e}", True)
+            result['error'] = str(e)
+            return result
 
     def run_batch(self, ws_p, options):
         try:
@@ -600,23 +647,25 @@ class Worker:
                 max_workers = max(1, max_workers)
                 self.log(f"Auto-Throttled Workers: {max_workers}")
 
-            if max_workers > 1: self.set_sub_determinate(False)
+            # v95: Init Slots
+            self.q.put(("slot_config", max_workers))
             
+            file_results = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     if self.stop_sig: break
                     self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
-                    try: future.result()
+                    try: 
+                        r = future.result()
+                        if r: file_results.append(r)
                     except Exception as e: self.log(f"Thread Err: {e}", True)
 
-            if max_workers > 1: self.set_sub_determinate(True)
-            
             update_stats_time(ws, "batch_time", time.time() - start_time)
             self.set_job_status(ws, "PROCESSED", "Complete")
             
-            # v94: Report
-            rpt = generate_job_report(ws, "Content Refinement Batch")
+            # v95: Pass results to report
+            rpt = generate_job_report(ws, "Content Refinement Batch", file_results)
             if rpt: self.log(f"Receipt Generated: {Path(rpt).name}")
             
             self.q.put(("job", str(ws))) 
@@ -634,6 +683,8 @@ class Worker:
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
+            self.q.put(("slot_config", 1))
+
             dup_csv = out / "duplicates_report.csv"
             with open(dup_csv, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
@@ -642,7 +693,7 @@ class Worker:
                 for i, (h, data) in enumerate(man.items()):
                     if self.stop_sig: break
                     self.prog_main((i/total)*100, "Exporting Unique...")
-                    self.q.put(("status_blue", f"Exporting: {data['name']}"))
+                    self.q.put(("slot_update", threading.get_ident(), f"Exporting: {data['name']}", None))
                     
                     if data.get("status") == "QUARANTINE": 
                         for f in (ws/"00_Quarantine").glob("*"):
@@ -669,7 +720,6 @@ class Worker:
             update_stats_time(ws, "organize_time", time.time() - start_time)
             self.set_job_status(ws, "ORGANIZED", "Done")
             
-            # v94: Report
             rpt = generate_job_report(ws, f"Unique Export ({priority_mode})")
             
             self.q.put(("job", str(ws))) 
@@ -694,10 +744,12 @@ class Worker:
             if ext_src:
                  orphans = {f.name: f for f in Path(ext_src).iterdir()}
 
+            self.q.put(("slot_config", 1))
+
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
                 self.prog_main((i/len(man))*100, f"Recon {i+1}")
-                self.q.put(("status_blue", f"Copying: {d['name']}"))
+                self.q.put(("slot_update", threading.get_ident(), f"Copying: {d['name']}", None))
                 
                 if d.get("status") == "QUARANTINE": continue
                 
@@ -722,7 +774,6 @@ class Worker:
             update_stats_time(ws, "dist_time", time.time() - start_time)
             self.set_job_status(ws, "DISTRIBUTED", "Done")
             
-            # v94: Report
             rpt = generate_job_report(ws, "Full Reconstruction")
             
             self.q.put(("job", str(ws))) 
@@ -751,12 +802,13 @@ class App:
         self.root = root
         self.root.title(f"DocRefine Pro {SystemUtils.CURRENT_VERSION} ({platform.system()})")
         
-        # v94: Restore Geometry
         self.root.geometry(CFG.get("last_geometry"))
         
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
         self.current_manifest = {}
+        self.slot_widgets = {} # v95: Thread ID -> Label Widget
+        self.slot_frames = []
         
         self.is_mac = SystemUtils.IS_MAC
         self.Btn = ttk.Button if self.is_mac else tk.Button
@@ -813,7 +865,6 @@ class App:
         self.lbl_status.pack(side="left", fill="x", expand=True)
         self.lbl_timer = tk.Label(head, text="00:00:00", font=("Consolas", 10)); self.lbl_timer.pack(side="right", padx=10)
         
-        # v94: Job Receipt Button
         self.btn_receipt = self.Btn(head, text="View Receipt", command=self.open_receipt, state="disabled")
         self.btn_receipt.pack(side="right", padx=10)
         
@@ -824,18 +875,14 @@ class App:
         tk.Label(mon, text="Overall Batch:", font=("Segoe UI", 8), anchor="w").pack(fill="x", pady=(5,0))
         self.p_main = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_main).pack(fill="x", pady=2)
         
-        self.lbl_sub_stats = tk.Label(mon, text="Waiting...", font=("Segoe UI", 8), anchor="w", fg="#666")
-        self.lbl_sub_stats.pack(fill="x", pady=(5,0))
-        
-        self.p_sub = tk.DoubleVar()
-        self.bar_sub = ttk.Progressbar(mon, variable=self.p_sub)
-        self.bar_sub.pack(fill="x", pady=2)
+        # v95: Dynamic Worker Slots Area
+        self.frame_slots = tk.Frame(mon, pady=5)
+        self.frame_slots.pack(fill="x")
         
         self.log_box = scrolledtext.ScrolledText(mon, height=8, bg="white", fg="black", insertbackground="black")
         self.log_box.pack(fill="both", expand=True)
         
         self.load_jobs()
-        # v94: Restore Selection
         self.restore_session()
         
         self.root.after(300, self.poll)
@@ -883,7 +930,6 @@ class App:
         f_a.pack(fill="x", padx=10, pady=5)
         tk.Label(f_a, text="Export a clean folder containing one copy of every unique file.", justify="left", fg="#555").pack(anchor="w")
         
-        # v94: View Dups Report Button
         ra = tk.Frame(f_a); ra.pack(fill="x", pady=5)
         kw_org = {"bg": "#fff8e1"} if not self.is_mac else {}
         self.btn_org = self.Btn(ra, text="Export Unique Files", command=self.safe_start_organize, state="disabled", **kw_org); self.btn_org.pack(side="right")
@@ -915,45 +961,61 @@ class App:
         
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
 
+    # v95: Improved Settings
     def open_settings(self):
         win = tk.Toplevel(self.root)
         win.title("Preferences")
-        win.geometry("500x500")
+        win.geometry("600x600")
         
-        lf_perf = tk.LabelFrame(win, text="Engine Performance", padx=10, pady=10)
+        # Engine
+        lf_perf = tk.LabelFrame(win, text="Processing Engine", padx=10, pady=10)
         lf_perf.pack(fill="x", padx=10, pady=5)
         
-        tk.Label(lf_perf, text="Max Worker Threads (0 = Auto):").grid(row=0,column=0,sticky="w")
+        tk.Label(lf_perf, text="Max Worker Threads:", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
         v_threads = tk.IntVar(value=CFG.get("max_threads"))
         tk.Spinbox(lf_perf, from_=0, to=32, textvariable=v_threads, width=5).grid(row=0,column=1,sticky="e")
+        tk.Label(lf_perf, text="(0 = Auto. Higher = Faster but uses more RAM)", font=("Segoe UI", 8), fg="#666").grid(row=1,column=0,columnspan=2,sticky="w")
         
-        tk.Label(lf_perf, text="Max Image Pixels (Zip Bomb Cap):").grid(row=1,column=0,sticky="w")
+        tk.Label(lf_perf, text="Safety Cap (Max Pixels):", font=("Segoe UI", 9, "bold")).grid(row=2,column=0,sticky="w", pady=(10,0))
         v_pixels = tk.StringVar(value=str(CFG.get("max_pixels")))
-        tk.Entry(lf_perf, textvariable=v_pixels, width=15).grid(row=1,column=1,sticky="e")
+        tk.Entry(lf_perf, textvariable=v_pixels, width=15).grid(row=2,column=1,sticky="e", pady=(10,0))
+        tk.Label(lf_perf, text="(Prevents crashes on massive blueprints/zip bombs)", font=("Segoe UI", 8), fg="#666").grid(row=3,column=0,columnspan=2,sticky="w")
 
-        lf_def = tk.LabelFrame(win, text="Default Behaviors", padx=10, pady=10)
+        # Workflow
+        lf_def = tk.LabelFrame(win, text="Workflow Defaults", padx=10, pady=10)
         lf_def.pack(fill="x", padx=10, pady=5)
         
-        tk.Label(lf_def, text="Default Export Priority:").grid(row=0,column=0,sticky="w")
-        v_export = tk.StringVar(value=CFG.get("default_export_prio"))
-        cb_ex = ttk.Combobox(lf_def, textvariable=v_export, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly")
-        cb_ex.grid(row=0,column=1,sticky="e",pady=2)
+        tk.Label(lf_def, text="Default Ingest Mode:", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
+        v_ingest = tk.StringVar(value=CFG.get("default_ingest_mode"))
+        ttk.Combobox(lf_def, textvariable=v_ingest, values=["Standard", "Lightning", "Deep"], state="readonly").grid(row=0,column=1,sticky="e")
+        tk.Label(lf_def, text="(Sets the initial scan sensitivity)", font=("Segoe UI", 8), fg="#666").grid(row=1,column=0,columnspan=2,sticky="w")
 
-        lf_ocr = tk.LabelFrame(win, text="OCR Settings", padx=10, pady=10)
+        tk.Label(lf_def, text="Default Export Priority:", font=("Segoe UI", 9, "bold")).grid(row=2,column=0,sticky="w", pady=(10,0))
+        v_export = tk.StringVar(value=CFG.get("default_export_prio"))
+        ttk.Combobox(lf_def, textvariable=v_export, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30).grid(row=2,column=1,sticky="e", pady=(10,0))
+        tk.Label(lf_def, text="(Which file version to use when exporting)", font=("Segoe UI", 8), fg="#666").grid(row=3,column=0,columnspan=2,sticky="w")
+
+        # OCR
+        lf_ocr = tk.LabelFrame(win, text="Optical Character Recognition (OCR)", padx=10, pady=10)
         lf_ocr.pack(fill="x", padx=10, pady=5)
         
-        tk.Label(lf_ocr, text="Tesseract Language:").grid(row=0,column=0,sticky="w")
+        tk.Label(lf_ocr, text="Tesseract Language:", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
         langs = get_tesseract_langs()
         v_lang = tk.StringVar(value=CFG.get("ocr_lang"))
         if v_lang.get() not in langs and "N/A" not in langs: v_lang.set(langs[0])
+        ttk.Combobox(lf_ocr, textvariable=v_lang, values=langs, state="readonly").grid(row=0,column=1,sticky="e")
         
-        cb_lang = ttk.Combobox(lf_ocr, textvariable=v_lang, values=langs, state="readonly")
-        cb_lang.grid(row=0,column=1,sticky="e")
-        
+        def reset():
+            if messagebox.askyesno("Reset", "Restore all settings to factory defaults?"):
+                CFG.reset()
+                win.destroy()
+                messagebox.showinfo("Reset", "Settings reset. Please restart the app.")
+
         def save():
             CFG.set("max_threads", v_threads.get())
             try: CFG.set("max_pixels", int(v_pixels.get()))
             except: pass
+            CFG.set("default_ingest_mode", v_ingest.get())
             CFG.set("default_export_prio", v_export.get())
             CFG.set("ocr_lang", v_lang.get())
             Image.MAX_IMAGE_PIXELS = int(CFG.get("max_pixels"))
@@ -961,20 +1023,18 @@ class App:
             messagebox.showinfo("Saved", "Preferences updated.")
             win.destroy()
             
-        self.Btn(win, text="Save & Close", command=save).pack(pady=20)
+        btn_fr = tk.Frame(win); btn_fr.pack(pady=20)
+        self.Btn(btn_fr, text="Restore Defaults", command=reset).pack(side="left", padx=10)
+        self.Btn(btn_fr, text="Save & Close", command=save, bg="#e8f5e9").pack(side="left", padx=10)
 
     # --- ACTIONS ---
-    # v94: Save Session
     def on_close(self):
         try:
             CFG.set("last_geometry", self.root.geometry())
             ws = self.get_ws()
             if ws: CFG.set("last_workspace", str(ws))
-            
-            # Save Active Tab
             current_tab = self.nb.index(self.nb.select())
             CFG.set("last_tab", current_tab)
-            
         except: pass
         self.root.destroy()
         
@@ -988,11 +1048,8 @@ class App:
                         self.tree.selection_set(item)
                         self.tree.see(item)
                         break
-            
             tab_idx = CFG.get("last_tab")
-            if tab_idx is not None and tab_idx < 3:
-                 self.nb.select(tab_idx)
-                 
+            if tab_idx is not None and tab_idx < 3: self.nb.select(tab_idx)
         except: pass
 
     def open_receipt(self):
@@ -1000,8 +1057,7 @@ class App:
         if not ws: return
         rpt_dir = ws / "04_Reports"
         if rpt_dir.exists():
-            # Find latest
-            files = sorted(rpt_dir.glob("Job_Receipt_*.html"), key=os.path.getmtime, reverse=True)
+            files = sorted(rpt_dir.glob("*.html"), key=os.path.getmtime, reverse=True)
             if files: SystemUtils.open_file(files[0])
             else: messagebox.showinfo("No Receipt", "No job receipt found yet.")
         else: messagebox.showinfo("No Receipt", "No job receipt found.")
@@ -1035,13 +1091,10 @@ class App:
         if not item_id: return
         vals = self.insp_tree.item(item_id[0], 'values')
         name = vals[1]
-        
         data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
         if not data: return
-        
         ws = self.get_ws()
         if not ws: return
-
         if data.get("status") == "QUARANTINE":
             reason = data.get('error_reason', 'Unknown Error')
             messagebox.showerror("Quarantine Info", f"File: {name}\nReason: {reason}")
@@ -1067,11 +1120,9 @@ class App:
                 if manual: messagebox.showinfo("Update Check", "Update URL not configured.")
                 return
             url = f"{base_url}?t={int(time.time())}" if "?" not in base_url else f"{base_url}&t={int(time.time())}"
-            
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
-            
             with urllib.request.urlopen(url, context=ctx, timeout=5) as r:
                 if r.status == 200:
                     data = json.loads(r.read().decode())
@@ -1088,7 +1139,8 @@ class App:
         top.title("New Job Setup")
         top.geometry("450x500") 
         tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
-        mode = tk.StringVar(value="Standard")
+        # v95: Load Default
+        mode = tk.StringVar(value=CFG.get("default_ingest_mode"))
         modes = [
             ("Standard (Recommended)", "Smart Text Hash (PDFs).\nStrict Binary Hash (Others)."),
             ("Lightning (Fastest)", "Strict Binary Hash (All Files).\nExact digital copies only."),
@@ -1204,7 +1256,7 @@ class App:
         self.cb_dpi.config(state="disabled")
         self.cb_pdf.config(state="disabled")
         self.lbl_stats.config(text="Stats: Select a job...")
-        self.btn_receipt.config(state="disabled") # v94: Default disabled
+        self.btn_receipt.config(state="disabled")
         
         self.dpi_var.set("Medium (Standard)")
         self.pdf_mode_var.set("No Action")
@@ -1228,8 +1280,7 @@ class App:
         self.btn_dist.config(state="normal")
         self.btn_org.config(state="normal")
         
-        # v94: Enable Reports if present
-        if (ws/"04_Reports").exists() and list((ws/"04_Reports").glob("Job_Receipt_*.html")):
+        if (ws/"04_Reports").exists() and list((ws/"04_Reports").glob("Audit_Certificate_*.html")):
             self.btn_receipt.config(state="normal")
             
         if (ws/"03_Organized_Output"/"duplicates_report.csv").exists():
@@ -1297,18 +1348,46 @@ class App:
                 m = self.q.get_nowait()
                 if m[0]=='log': self.log_box.insert(tk.END, m[1]+"\n"); self.log_box.see(tk.END)
                 elif m[0]=='main_p': self.p_main.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
-                elif m[0]=='sub_p': self.p_sub.set(m[1]); self.lbl_sub_stats.config(text=m[2])
-                elif m[0]=='sub_p_mode': 
-                    if m[1] == 'indeterminate': self.bar_sub.start(10)
-                    else: self.bar_sub.stop(); self.p_sub.set(0)
                 elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue")
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
                 elif m[0]=='job': self.load_jobs(m[1]) 
-                elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); self.p_sub.set(0); self.bar_sub.stop()
+                elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); 
                 elif m[0]=='update_avail':
                     if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"): webbrowser.open(m[2])
                 elif m[0]=='auto_open': SystemUtils.open_file(m[1])
                 elif m[0]=='error': messagebox.showerror("Error", m[1])
+                
+                # v95: Slot Management
+                elif m[0]=='slot_config':
+                    count = m[1]
+                    # Clear old slots
+                    for w in self.frame_slots.winfo_children(): w.destroy()
+                    self.slot_widgets = {}
+                    self.slot_frames = []
+                    for i in range(count):
+                        f = tk.Frame(self.frame_slots, relief="sunken", bd=1, bg="white")
+                        f.pack(fill="x", padx=5, pady=1)
+                        self.slot_frames.append(f)
+                        tk.Label(f, text=f"Worker {i+1}:", font=("Consolas", 8), bg="#eee", width=10).pack(side="left")
+                        lbl = tk.Label(f, text="Idle", font=("Segoe UI", 8), anchor="w", bg="white")
+                        lbl.pack(side="left", fill="x", expand=True)
+                        # We just keep a list, we'll assign dynamically or round-robin if we can't map
+                        # Simple Mapping strategy: We need to map thread_id to index 0..N
+                        
+                elif m[0]=='slot_update':
+                    # tid, text, progress(opt)
+                    tid, txt, _ = m[1], m[2], m[3]
+                    if tid not in self.slot_widgets:
+                        # Assign next available slot
+                        idx = len(self.slot_widgets)
+                        if idx < len(self.slot_frames):
+                             # Find label inside frame
+                             lbl = self.slot_frames[idx].winfo_children()[1]
+                             self.slot_widgets[tid] = lbl
+                    
+                    if tid in self.slot_widgets:
+                        self.slot_widgets[tid].config(text=txt)
+
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
         self.root.after(300, self.poll)
