@@ -45,20 +45,21 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
+# Global defaults - overridden by Config later
 Image.MAX_IMAGE_PIXELS = 500000000 
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v91 (INTERACTIVE INSPECTOR)
+#   DOCREFINE PRO v92 (SETTINGS & PREFERENCES)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v91"
+    CURRENT_VERSION = "v92"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -107,16 +108,39 @@ class SystemUtils:
 
 class Config:
     GITHUB_REPO = "jasonweblifestores/DocRefinePro" 
-    DEFAULTS = { "ram_warning_mb": 1024, "resize_width": 1920, "log_level": "INFO" }
+    # v92: Extended Defaults
+    DEFAULTS = { 
+        "ram_warning_mb": 1024, 
+        "resize_width": 1920, 
+        "log_level": "INFO",
+        "max_pixels": 500000000,
+        "max_threads": 0, # 0 = Auto
+        "default_export_prio": "Auto (Best Available)",
+        "ocr_lang": "eng"
+    }
     
     def __init__(self):
         self.data = self.DEFAULTS.copy()
-        p = SystemUtils.get_user_data_dir() / "config.json"
-        if p.exists():
+        self.path = SystemUtils.get_user_data_dir() / "config.json"
+        if self.path.exists():
             try:
-                with open(p, 'r') as f: self.data.update(json.load(f))
-            except: pass 
+                with open(self.path, 'r') as f: self.data.update(json.load(f))
+            except: pass
+            
+        # Apply Global Configs immediately
+        try: Image.MAX_IMAGE_PIXELS = int(self.data.get("max_pixels", 500000000))
+        except: pass
+
     def get(self, key): return self.data.get(key, self.DEFAULTS.get(key))
+    
+    def set(self, key, val):
+        self.data[key] = val
+        self.save()
+
+    def save(self):
+        try:
+            with open(self.path, 'w') as f: json.dump(self.data, f, indent=4)
+        except Exception as e: print(f"Config Save Error: {e}")
 
 CFG = Config()
 
@@ -189,6 +213,13 @@ if HAS_TESSERACT:
         if tessdata_path.exists():
             os.environ["TESSDATA_PREFIX"] = str(tessdata_path)
 
+# v92: Get OCR Languages
+def get_tesseract_langs():
+    if not HAS_TESSERACT: return ["N/A"]
+    try:
+        return pytesseract.get_languages(config='')
+    except: return ["eng"]
+
 from pdf2image import convert_from_path, pdfinfo_from_path
 import pypdf
 from pypdf import PdfReader, PdfWriter
@@ -242,6 +273,10 @@ class PdfProcessor(BaseProcessor):
             info = pdfinfo_from_path(str(src), poppler_path=POPPLER_BIN)
             pages = info.get("Pages", 1)
             imgs = []
+            
+            # v92: Use Configured Lang
+            ocr_lang = CFG.get("ocr_lang")
+
             for i in range(1, pages + 1):
                 self.check_state() 
                 if i % 5 == 0 or i == pages: 
@@ -253,7 +288,8 @@ class PdfProcessor(BaseProcessor):
                 if mode == 'ocr' and HAS_TESSERACT:
                     t_page = temp / f"page_{i}.jpg"; img.save(t_page, "JPEG", dpi=(int(dpi), int(dpi)))
                     f = temp / f"{i}.pdf"
-                    with open(f, "wb") as o: o.write(pytesseract.image_to_pdf_or_hocr(str(t_page), extension='pdf'))
+                    # v92: Pass Lang
+                    with open(f, "wb") as o: o.write(pytesseract.image_to_pdf_or_hocr(str(t_page), extension='pdf', lang=ocr_lang))
                     imgs.append(str(f))
                 else:
                     f = temp / f"{i}.jpg"; img.convert('RGB').save(f, "JPEG", quality=85); imgs.append(str(f))
@@ -362,10 +398,6 @@ class Worker:
     def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
         master = ws / "01_Master_Files" / file_uid
         base_cache = ws / "02_Ready_For_Redistribution"
-        
-        p_ocr = base_cache / "OCR" / file_uid
-        p_flat = base_cache / "Flattened" / file_uid
-        p_std = base_cache / "Standard" / file_uid 
         
         def find_in_dir(d, stem):
             if d.exists():
@@ -495,18 +527,24 @@ class Worker:
             }
             fs = list(src.iterdir())
             
-            max_workers = 2
-            if HAS_PSUTIL:
-                try:
-                    total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
-                    if total_ram_gb < 8: max_workers = 1
-                    elif total_ram_gb < 16: max_workers = 2
-                    else: max_workers = 4
-                except: pass
-            
-            max_workers = min(max_workers, os.cpu_count() or 1)
-            max_workers = max(1, max_workers)
-            self.log(f"Workers: {max_workers}")
+            # v92: Config override
+            forced_workers = int(CFG.get("max_threads"))
+            if forced_workers > 0:
+                max_workers = forced_workers
+                self.log(f"Manual Worker Override: {max_workers}")
+            else:
+                max_workers = 2
+                if HAS_PSUTIL:
+                    try:
+                        total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+                        if total_ram_gb < 8: max_workers = 1
+                        elif total_ram_gb < 16: max_workers = 2
+                        else: max_workers = 4
+                    except: pass
+                
+                max_workers = min(max_workers, os.cpu_count() or 1)
+                max_workers = max(1, max_workers)
+                self.log(f"Auto-Throttled Workers: {max_workers}")
 
             if max_workers > 1: self.set_sub_determinate(False)
             
@@ -624,18 +662,14 @@ class Worker:
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
-    # v91: Smart Cleanup
     def run_preview(self, ws_p, dpi):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
             if not pdf: self.q.put(("done",)); return
-            
-            # Smart Cleanup: Remove ALL old previews
             for old in ws.glob("PREVIEW_*.pdf"): 
                 try: os.remove(old)
                 except: pass
-                
             out = ws / f"PREVIEW_{int(time.time())}.pdf"
             imgs = convert_from_path(str(pdf), dpi=int(dpi), first_page=1, last_page=1, poppler_path=POPPLER_BIN)
             if imgs: 
@@ -652,7 +686,7 @@ class App:
         self.root.geometry("1150x900")
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
-        self.current_manifest = {} # v91: Store data for filtering
+        self.current_manifest = {}
         
         self.is_mac = SystemUtils.IS_MAC
         self.Btn = ttk.Button if self.is_mac else tk.Button
@@ -674,6 +708,10 @@ class App:
         
         self.btn_upd = self.Btn(left, text="Check Updates", command=lambda: threading.Thread(target=self.check_updates, args=(True,), daemon=True).start())
         self.btn_upd.pack(anchor="w", pady=2)
+        
+        # v92: Settings Button
+        self.btn_settings = self.Btn(left, text="⚙ Settings", command=self.open_settings)
+        self.btn_settings.pack(anchor="w", pady=2)
 
         self.btn_log = self.Btn(left, text="View App Log", command=self.open_app_log); self.btn_log.pack(anchor="w", pady=5)
         self.btn_open = self.Btn(left, text="Open Folder", command=self.open_f, state="disabled"); self.btn_open.pack(fill="x", pady=5)
@@ -749,7 +787,10 @@ class App:
         f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
         
         tk.Label(f, text="Source Priority:", font=("Segoe UI", 9)).pack(anchor="w", pady=(0,2))
-        self.prio_var = tk.StringVar(value="Auto (Best Available)")
+        
+        # v92: Default from Config
+        default_prio = CFG.get("default_export_prio")
+        self.prio_var = tk.StringVar(value=default_prio)
         self.cb_prio = ttk.Combobox(f, textvariable=self.prio_var, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30)
         self.cb_prio.pack(anchor="w", pady=(0,10))
         
@@ -768,7 +809,6 @@ class App:
         self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
 
     def _build_inspect(self):
-        # v91: Inspector Header with Search
         h = tk.Frame(self.tab_inspect); h.pack(fill="x", padx=5, pady=5)
         tk.Label(h, text="Filter:").pack(side="left")
         
@@ -786,11 +826,64 @@ class App:
         vsb = ttk.Scrollbar(f, orient="vertical", command=self.insp_tree.yview); self.insp_tree.configure(yscrollcommand=vsb.set)
         self.insp_tree.pack(side="left",fill="both",expand=True); vsb.pack(side="right",fill="y")
         
-        # v91: Bind Double Click
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
 
+    # v92: Settings Window
+    def open_settings(self):
+        win = tk.Toplevel(self.root)
+        win.title("Preferences")
+        win.geometry("500x500")
+        
+        # --- Performance ---
+        lf_perf = tk.LabelFrame(win, text="Engine Performance", padx=10, pady=10)
+        lf_perf.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(lf_perf, text="Max Worker Threads (0 = Auto):").grid(row=0,column=0,sticky="w")
+        v_threads = tk.IntVar(value=CFG.get("max_threads"))
+        tk.Spinbox(lf_perf, from_=0, to=32, textvariable=v_threads, width=5).grid(row=0,column=1,sticky="e")
+        
+        tk.Label(lf_perf, text="Max Image Pixels (Zip Bomb Cap):").grid(row=1,column=0,sticky="w")
+        v_pixels = tk.StringVar(value=str(CFG.get("max_pixels")))
+        tk.Entry(lf_perf, textvariable=v_pixels, width=15).grid(row=1,column=1,sticky="e")
+
+        # --- Defaults ---
+        lf_def = tk.LabelFrame(win, text="Default Behaviors", padx=10, pady=10)
+        lf_def.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(lf_def, text="Default Export Priority:").grid(row=0,column=0,sticky="w")
+        v_export = tk.StringVar(value=CFG.get("default_export_prio"))
+        cb_ex = ttk.Combobox(lf_def, textvariable=v_export, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly")
+        cb_ex.grid(row=0,column=1,sticky="e",pady=2)
+
+        # --- OCR ---
+        lf_ocr = tk.LabelFrame(win, text="OCR Settings", padx=10, pady=10)
+        lf_ocr.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(lf_ocr, text="Tesseract Language:").grid(row=0,column=0,sticky="w")
+        langs = get_tesseract_langs()
+        v_lang = tk.StringVar(value=CFG.get("ocr_lang"))
+        if v_lang.get() not in langs and "N/A" not in langs: v_lang.set(langs[0])
+        
+        cb_lang = ttk.Combobox(lf_ocr, textvariable=v_lang, values=langs, state="readonly")
+        cb_lang.grid(row=0,column=1,sticky="e")
+        
+        def save():
+            CFG.set("max_threads", v_threads.get())
+            try: CFG.set("max_pixels", int(v_pixels.get()))
+            except: pass
+            CFG.set("default_export_prio", v_export.get())
+            CFG.set("ocr_lang", v_lang.get())
+            
+            # Apply immediate
+            Image.MAX_IMAGE_PIXELS = int(CFG.get("max_pixels"))
+            self.prio_var.set(v_export.get())
+            
+            messagebox.showinfo("Saved", "Preferences updated.")
+            win.destroy()
+            
+        self.Btn(win, text="Save & Close", command=save).pack(pady=20)
+
     # --- ACTIONS ---
-    # v91: Inspector Actions
     def filter_inspection(self, *args):
         query = self.search_var.get().lower()
         self.insp_tree.delete(*self.insp_tree.get_children())
@@ -814,7 +907,6 @@ class App:
         vals = self.insp_tree.item(item_id[0], 'values')
         name = vals[1]
         
-        # Find data
         data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
         if not data: return
         
@@ -824,17 +916,14 @@ class App:
         if data.get("status") == "QUARANTINE":
             reason = data.get('error_reason', 'Unknown Error')
             messagebox.showerror("Quarantine Info", f"File: {name}\nReason: {reason}")
-            # Try to open quarantine folder
             q_file = next((f for f in (ws/"00_Quarantine").iterdir() if name in f.name), None)
             if q_file: SystemUtils.open_file(q_file.parent)
         else:
             if len(data.get('copies', [])) > 1:
-                # Show duplicates
                 details = "\n".join(data['copies'])
                 if messagebox.askyesno("Duplicate Locations", f"Found {len(data['copies'])} copies:\n\n{details}\n\nOpen Master File?"):
                      SystemUtils.open_file(ws/"01_Master_Files"/data['uid'])
             else:
-                # Open Master
                 SystemUtils.open_file(ws/"01_Master_Files"/data['uid'])
 
     def check_run_btn(self, *args):
@@ -988,7 +1077,6 @@ class App:
         self.btn_dist.config(state="disabled")
         self.btn_org.config(state="disabled")
         
-        # v91: Reset Search & Manifest
         self.current_manifest = {}
         self.insp_tree.delete(*self.insp_tree.get_children())
         self.search_var.set("")
@@ -1036,7 +1124,6 @@ class App:
         self.log_box.delete(1.0, tk.END)
         if (ws/"session_log.txt").exists(): self.log_box.insert(tk.END, (ws/"session_log.txt").read_text(encoding="utf-8"))
         
-        # v91: Load Manifest to Memory for Searching
         if (ws/"manifest.json").exists():
             try:
                 with open(ws/"manifest.json") as f:
