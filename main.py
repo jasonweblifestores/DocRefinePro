@@ -51,14 +51,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v90 (HOTFIX: RESTORED INSPECTOR)
+#   DOCREFINE PRO v91 (INTERACTIVE INSPECTOR)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v90"
+    CURRENT_VERSION = "v91"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -79,6 +79,7 @@ class SystemUtils:
     def open_file(path):
         p = str(path)
         try:
+            if not Path(p).exists(): return
             if SystemUtils.IS_WIN: os.startfile(p)
             elif SystemUtils.IS_MAC: subprocess.call(['open', p])
             else: subprocess.call(['xdg-open', p])
@@ -623,14 +624,18 @@ class Worker:
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
+    # v91: Smart Cleanup
     def run_preview(self, ws_p, dpi):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
             if not pdf: self.q.put(("done",)); return
+            
+            # Smart Cleanup: Remove ALL old previews
             for old in ws.glob("PREVIEW_*.pdf"): 
                 try: os.remove(old)
                 except: pass
+                
             out = ws / f"PREVIEW_{int(time.time())}.pdf"
             imgs = convert_from_path(str(pdf), dpi=int(dpi), first_page=1, last_page=1, poppler_path=POPPLER_BIN)
             if imgs: 
@@ -647,6 +652,7 @@ class App:
         self.root.geometry("1150x900")
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
+        self.current_manifest = {} # v91: Store data for filtering
         
         self.is_mac = SystemUtils.IS_MAC
         self.Btn = ttk.Button if self.is_mac else tk.Button
@@ -705,7 +711,7 @@ class App:
         
         self.lbl_sub_stats = tk.Label(mon, text="Waiting...", font=("Segoe UI", 8), anchor="w", fg="#666")
         self.lbl_sub_stats.pack(fill="x", pady=(5,0))
-        # v89: Reference to sub_bar for mode switching
+        
         self.p_sub = tk.DoubleVar()
         self.bar_sub = ttk.Progressbar(mon, variable=self.p_sub)
         self.bar_sub.pack(fill="x", pady=2)
@@ -742,7 +748,6 @@ class App:
         tk.Label(self.tab_dist, text="Final Export Strategies", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
         f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
         
-        # v89: Priority Selector
         tk.Label(f, text="Source Priority:", font=("Segoe UI", 9)).pack(anchor="w", pady=(0,2))
         self.prio_var = tk.StringVar(value="Auto (Best Available)")
         self.cb_prio = ttk.Combobox(f, textvariable=self.prio_var, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30)
@@ -763,14 +768,75 @@ class App:
         self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
 
     def _build_inspect(self):
-        f = tk.Frame(self.tab_inspect); f.pack(fill="both",expand=True,padx=5,pady=5)
+        # v91: Inspector Header with Search
+        h = tk.Frame(self.tab_inspect); h.pack(fill="x", padx=5, pady=5)
+        tk.Label(h, text="Filter:").pack(side="left")
+        
+        self.search_var = tk.StringVar()
+        self.search_var.trace("w", self.filter_inspection)
+        self.entry_search = ttk.Entry(h, textvariable=self.search_var)
+        self.entry_search.pack(side="left", fill="x", expand=True, padx=5)
+        
+        tk.Label(self.tab_inspect, text="Double-click a row to open file / view error.", font=("Segoe UI", 8), fg="#666").pack(anchor="w", padx=5)
+
+        f = tk.Frame(self.tab_inspect); f.pack(fill="both",expand=True,padx=5,pady=(0,5))
         self.insp_tree = ttk.Treeview(f, columns=("ID","Name","Status","Copies"), show="headings")
         for c,w in [("ID",60),("Name",200),("Status",80),("Copies",50)]:
             self.insp_tree.heading(c, text=c, command=lambda _c=c: self.sort_tree(self.insp_tree,_c,False)); self.insp_tree.column(c, width=w)
         vsb = ttk.Scrollbar(f, orient="vertical", command=self.insp_tree.yview); self.insp_tree.configure(yscrollcommand=vsb.set)
         self.insp_tree.pack(side="left",fill="both",expand=True); vsb.pack(side="right",fill="y")
+        
+        # v91: Bind Double Click
+        self.insp_tree.bind("<Double-1>", self.on_inspect_click)
 
     # --- ACTIONS ---
+    # v91: Inspector Actions
+    def filter_inspection(self, *args):
+        query = self.search_var.get().lower()
+        self.insp_tree.delete(*self.insp_tree.get_children())
+        for k, v in self.current_manifest.items():
+            name = v.get('name', '').lower()
+            uid = v.get('id', '').lower()
+            if query in name or query in uid:
+                self._insert_inspect_row(v)
+
+    def _insert_inspect_row(self, v):
+        if v.get("status") == "QUARANTINE":
+            st = "⛔ Quarantined"
+            self.insp_tree.insert("", "end", values=("Q", v.get('orig_name', v.get('name','?')), st, "-"), tags=('q',))
+        else:
+            st = "Duplicate" if len(v.get('copies',[]))>1 else "Master"
+            self.insp_tree.insert("", "end", values=(v.get('id','?'), v.get('name','?'), st, len(v.get('copies',[]))), tags=('ok',))
+
+    def on_inspect_click(self, event):
+        item_id = self.insp_tree.selection()
+        if not item_id: return
+        vals = self.insp_tree.item(item_id[0], 'values')
+        name = vals[1]
+        
+        # Find data
+        data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
+        if not data: return
+        
+        ws = self.get_ws()
+        if not ws: return
+
+        if data.get("status") == "QUARANTINE":
+            reason = data.get('error_reason', 'Unknown Error')
+            messagebox.showerror("Quarantine Info", f"File: {name}\nReason: {reason}")
+            # Try to open quarantine folder
+            q_file = next((f for f in (ws/"00_Quarantine").iterdir() if name in f.name), None)
+            if q_file: SystemUtils.open_file(q_file.parent)
+        else:
+            if len(data.get('copies', [])) > 1:
+                # Show duplicates
+                details = "\n".join(data['copies'])
+                if messagebox.askyesno("Duplicate Locations", f"Found {len(data['copies'])} copies:\n\n{details}\n\nOpen Master File?"):
+                     SystemUtils.open_file(ws/"01_Master_Files"/data['uid'])
+            else:
+                # Open Master
+                SystemUtils.open_file(ws/"01_Master_Files"/data['uid'])
+
     def check_run_btn(self, *args):
         any_checked = any(v.get() for v in self.chk_vars.values())
         pdf_active = self.pdf_mode_var.get() != "No Action"
@@ -921,13 +987,17 @@ class App:
         
         self.btn_dist.config(state="disabled")
         self.btn_org.config(state="disabled")
+        
+        # v91: Reset Search & Manifest
+        self.current_manifest = {}
+        self.insp_tree.delete(*self.insp_tree.get_children())
+        self.search_var.set("")
 
         if self.running: return
         ws = self.get_ws()
         
         if not ws: 
             self.btn_open.config(state="disabled")
-            self.insp_tree.delete(*self.insp_tree.get_children())
             return
         
         self.btn_open.config(state="normal")
@@ -965,17 +1035,14 @@ class App:
         
         self.log_box.delete(1.0, tk.END)
         if (ws/"session_log.txt").exists(): self.log_box.insert(tk.END, (ws/"session_log.txt").read_text(encoding="utf-8"))
-        self.insp_tree.delete(*self.insp_tree.get_children())
+        
+        # v91: Load Manifest to Memory for Searching
         if (ws/"manifest.json").exists():
             try:
                 with open(ws/"manifest.json") as f:
-                    for k,v in json.load(f).items():
-                        if v.get("status") == "QUARANTINE":
-                            st = f"⛔ {v.get('error_reason')}"
-                            self.insp_tree.insert("", "end", values=("Q", v.get('orig_name', v.get('name','?')), st, "-"))
-                        else:
-                            st = "Duplicate" if len(v.get('copies',[]))>1 else "Master"
-                            self.insp_tree.insert("", "end", values=(v.get('id','?'), v.get('name','?'), st, len(v.get('copies',[]))))
+                    self.current_manifest = json.load(f)
+                    for k,v in self.current_manifest.items():
+                        self._insert_inspect_row(v)
             except: pass
 
     def sort_tree(self, t, c, r):
@@ -984,8 +1051,6 @@ class App:
         except: l.sort(reverse=r)
         for i, (_,k) in enumerate(l): t.move(k,'',i)
         t.heading(c, command=lambda: self.sort_tree(t,c,not r))
-    
-    def warn_ocr(self): pass
 
     def open_app_log(self): SystemUtils.open_file(LOG_PATH)
     def open_f(self): SystemUtils.open_file(self.get_ws())
