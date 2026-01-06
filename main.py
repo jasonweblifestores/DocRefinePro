@@ -53,7 +53,7 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v95 (AUDIT CERTIFICATE & WORKER SLOTS)
+#   DOCREFINE PRO v95 (HOTFIXED)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
@@ -116,7 +116,7 @@ class Config:
         "max_pixels": 500000000,
         "max_threads": 0, 
         "default_export_prio": "Auto (Best Available)",
-        "default_ingest_mode": "Standard", # v95
+        "default_ingest_mode": "Standard", 
         "ocr_lang": "eng",
         "last_workspace": "",
         "last_geometry": "1150x900",
@@ -242,7 +242,7 @@ def check_memory():
     except: pass
     return True
 
-# v95: Audit Certificate Generator
+# v95: Audit Certificate Generator (Fixed Quotes)
 def generate_job_report(ws_path, action_name, file_results=None):
     try:
         ws = Path(ws_path)
@@ -256,7 +256,7 @@ def generate_job_report(ws_path, action_name, file_results=None):
         if (ws/"stats.json").exists():
             with open(ws/"stats.json") as f: s = json.load(f)
         
-        # Calculate Savings from file_results
+        # Calculate Savings
         total_orig = 0
         total_new = 0
         errors = []
@@ -271,6 +271,18 @@ def generate_job_report(ws_path, action_name, file_results=None):
         saved_bytes = total_orig - total_new
         saved_mb = round(saved_bytes / (1024*1024), 2)
         saved_pct = round((saved_bytes / total_orig * 100), 1) if total_orig > 0 else 0
+
+        # Pre-build error rows to avoid nested f-string issues
+        error_rows = ""
+        if errors:
+            rows = []
+            for e in errors:
+                fname = e.get('file', '?')
+                err_msg = e.get('error', 'Unknown')
+                rows.append(f"<tr class='error-row'><td>{fname}</td><td>FAILED</td><td>{err_msg}</td></tr>")
+            error_rows = f"<table><thead><tr><th>File</th><th>Status</th><th>Error Details</th></tr></thead><tbody>{''.join(rows)}</tbody></table>"
+        else:
+            error_rows = "<p>No errors reported. Clean run.</p>"
 
         html = f"""
         <html>
@@ -329,7 +341,7 @@ def generate_job_report(ws_path, action_name, file_results=None):
                 </div>
 
                 <h3>Exceptions & Errors</h3>
-                {f"<table><thead><tr><th>File</th><th>Status</th><th>Error Details</th></tr></thead><tbody>{''.join([f'<tr class=error-row><td>{e['file']}</td><td>FAILED</td><td>{e.get('error','Unknown')}</td></tr>' for e in errors])}</tbody></table>" if errors else "<p>No errors reported. Clean run.</p>"}
+                {error_rows}
                 
                 <div class="footer">
                     This document certifies that the files listed above were processed by the DocRefine Engine.<br>
@@ -457,9 +469,7 @@ class Worker:
 
     def prog_main(self, v, t): self.q.put(("main_p", v, t))
     
-    # v95: Updated for Worker Slots
     def prog_sub(self, v, t, status_only=False): 
-        # Pass current thread ID to map to a slot
         tid = threading.get_ident()
         self.q.put(("slot_update", tid, t, v))
 
@@ -524,7 +534,6 @@ class Worker:
             files = [Path(r)/f for r,_,fs in os.walk(d) for f in fs]
             seen = {}; quarantined = 0; file_types = {}
 
-            # v95: Ingest is single threaded, show in Slot 0
             self.q.put(("slot_config", 1)) 
 
             for i, f in enumerate(files):
@@ -647,7 +656,6 @@ class Worker:
                 max_workers = max(1, max_workers)
                 self.log(f"Auto-Throttled Workers: {max_workers}")
 
-            # v95: Init Slots
             self.q.put(("slot_config", max_workers))
             
             file_results = []
@@ -664,7 +672,6 @@ class Worker:
             update_stats_time(ws, "batch_time", time.time() - start_time)
             self.set_job_status(ws, "PROCESSED", "Complete")
             
-            # v95: Pass results to report
             rpt = generate_job_report(ws, "Content Refinement Batch", file_results)
             if rpt: self.log(f"Receipt Generated: {Path(rpt).name}")
             
@@ -807,7 +814,7 @@ class App:
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
         self.current_manifest = {}
-        self.slot_widgets = {} # v95: Thread ID -> Label Widget
+        self.slot_widgets = {} 
         self.slot_frames = []
         
         self.is_mac = SystemUtils.IS_MAC
@@ -875,7 +882,6 @@ class App:
         tk.Label(mon, text="Overall Batch:", font=("Segoe UI", 8), anchor="w").pack(fill="x", pady=(5,0))
         self.p_main = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_main).pack(fill="x", pady=2)
         
-        # v95: Dynamic Worker Slots Area
         self.frame_slots = tk.Frame(mon, pady=5)
         self.frame_slots.pack(fill="x")
         
@@ -961,7 +967,6 @@ class App:
         
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
 
-    # v95: Improved Settings
     def open_settings(self):
         win = tk.Toplevel(self.root)
         win.title("Preferences")
@@ -1139,7 +1144,7 @@ class App:
         top.title("New Job Setup")
         top.geometry("450x500") 
         tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
-        # v95: Load Default
+        
         mode = tk.StringVar(value=CFG.get("default_ingest_mode"))
         modes = [
             ("Standard (Recommended)", "Smart Text Hash (PDFs).\nStrict Binary Hash (Others)."),
@@ -1356,11 +1361,8 @@ class App:
                     if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"): webbrowser.open(m[2])
                 elif m[0]=='auto_open': SystemUtils.open_file(m[1])
                 elif m[0]=='error': messagebox.showerror("Error", m[1])
-                
-                # v95: Slot Management
                 elif m[0]=='slot_config':
                     count = m[1]
-                    # Clear old slots
                     for w in self.frame_slots.winfo_children(): w.destroy()
                     self.slot_widgets = {}
                     self.slot_frames = []
@@ -1371,20 +1373,13 @@ class App:
                         tk.Label(f, text=f"Worker {i+1}:", font=("Consolas", 8), bg="#eee", width=10).pack(side="left")
                         lbl = tk.Label(f, text="Idle", font=("Segoe UI", 8), anchor="w", bg="white")
                         lbl.pack(side="left", fill="x", expand=True)
-                        # We just keep a list, we'll assign dynamically or round-robin if we can't map
-                        # Simple Mapping strategy: We need to map thread_id to index 0..N
-                        
                 elif m[0]=='slot_update':
-                    # tid, text, progress(opt)
                     tid, txt, _ = m[1], m[2], m[3]
                     if tid not in self.slot_widgets:
-                        # Assign next available slot
                         idx = len(self.slot_widgets)
                         if idx < len(self.slot_frames):
-                             # Find label inside frame
                              lbl = self.slot_frames[idx].winfo_children()[1]
                              self.slot_widgets[tid] = lbl
-                    
                     if tid in self.slot_widgets:
                         self.slot_widgets[tid].config(text=txt)
 
