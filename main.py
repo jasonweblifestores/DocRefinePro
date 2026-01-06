@@ -19,6 +19,7 @@ import urllib.request
 import webbrowser
 import csv
 import random 
+import ssl 
 import concurrent.futures
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -45,21 +46,21 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
-# Global defaults - overridden by Config later
+# Global defaults
 Image.MAX_IMAGE_PIXELS = 500000000 
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v92 (SETTINGS & PREFERENCES)
+#   DOCREFINE PRO v93 (MAC REPAIR & UI UPDATE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v92"
+    CURRENT_VERSION = "v93"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -108,13 +109,12 @@ class SystemUtils:
 
 class Config:
     GITHUB_REPO = "jasonweblifestores/DocRefinePro" 
-    # v92: Extended Defaults
     DEFAULTS = { 
         "ram_warning_mb": 1024, 
         "resize_width": 1920, 
         "log_level": "INFO",
         "max_pixels": 500000000,
-        "max_threads": 0, # 0 = Auto
+        "max_threads": 0, 
         "default_export_prio": "Auto (Best Available)",
         "ocr_lang": "eng"
     }
@@ -126,17 +126,11 @@ class Config:
             try:
                 with open(self.path, 'r') as f: self.data.update(json.load(f))
             except: pass
-            
-        # Apply Global Configs immediately
         try: Image.MAX_IMAGE_PIXELS = int(self.data.get("max_pixels", 500000000))
         except: pass
 
     def get(self, key): return self.data.get(key, self.DEFAULTS.get(key))
-    
-    def set(self, key, val):
-        self.data[key] = val
-        self.save()
-
+    def set(self, key, val): self.data[key] = val; self.save()
     def save(self):
         try:
             with open(self.path, 'w') as f: json.dump(self.data, f, indent=4)
@@ -213,7 +207,6 @@ if HAS_TESSERACT:
         if tessdata_path.exists():
             os.environ["TESSDATA_PREFIX"] = str(tessdata_path)
 
-# v92: Get OCR Languages
 def get_tesseract_langs():
     if not HAS_TESSERACT: return ["N/A"]
     try:
@@ -225,16 +218,7 @@ import pypdf
 from pypdf import PdfReader, PdfWriter
 
 # --- 5. UTILS ---
-class ToolTip:
-    def __init__(self, w, t):
-        self.w, self.t, self.tip = w, t, None
-        w.bind("<Enter>", self.s); w.bind("<Leave>", self.h)
-    def s(self, e=None):
-        x, y, _, _ = self.w.bbox("insert"); x += self.w.winfo_rootx() + 25; y += self.w.winfo_rooty() + 25
-        self.tip = tk.Toplevel(self.w); self.tip.wm_overrideredirect(True); self.tip.wm_geometry(f"+{x}+{y}")
-        tk.Label(self.tip, text=self.t, bg="#ffffe0", relief="solid", bd=1, font=("tahoma","8")).pack()
-    def h(self, e=None):
-        if self.tip: self.tip.destroy(); self.tip=None
+# v93: Removed ToolTip Class entirely to fix Mac lag
 
 def sanitize_filename(name): return re.sub(r'[<>:"/\\|?*]', '_', name)
 
@@ -274,7 +258,6 @@ class PdfProcessor(BaseProcessor):
             pages = info.get("Pages", 1)
             imgs = []
             
-            # v92: Use Configured Lang
             ocr_lang = CFG.get("ocr_lang")
 
             for i in range(1, pages + 1):
@@ -288,7 +271,6 @@ class PdfProcessor(BaseProcessor):
                 if mode == 'ocr' and HAS_TESSERACT:
                     t_page = temp / f"page_{i}.jpg"; img.save(t_page, "JPEG", dpi=(int(dpi), int(dpi)))
                     f = temp / f"{i}.pdf"
-                    # v92: Pass Lang
                     with open(f, "wb") as o: o.write(pytesseract.image_to_pdf_or_hocr(str(t_page), extension='pdf', lang=ocr_lang))
                     imgs.append(str(f))
                 else:
@@ -527,7 +509,6 @@ class Worker:
             }
             fs = list(src.iterdir())
             
-            # v92: Config override
             forced_workers = int(CFG.get("max_threads"))
             if forced_workers > 0:
                 max_workers = forced_workers
@@ -691,7 +672,12 @@ class App:
         self.is_mac = SystemUtils.IS_MAC
         self.Btn = ttk.Button if self.is_mac else tk.Button
         self.style = ttk.Style()
-        if self.is_mac: self.style.theme_use('clam') 
+        
+        # v93: Dark Mode Fixes (Force light-themed internals)
+        if self.is_mac: 
+            self.style.theme_use('clam')
+            self.style.configure("Treeview", background="white", foreground="black", fieldbackground="white")
+            self.style.map("Treeview", background=[('selected', '#0078d7')])
 
         # --- LAYOUT ---
         left = tk.Frame(root, width=350); left.pack(side="left", fill="both", padx=10, pady=10)
@@ -709,7 +695,6 @@ class App:
         self.btn_upd = self.Btn(left, text="Check Updates", command=lambda: threading.Thread(target=self.check_updates, args=(True,), daemon=True).start())
         self.btn_upd.pack(anchor="w", pady=2)
         
-        # v92: Settings Button
         self.btn_settings = self.Btn(left, text="⚙ Settings", command=self.open_settings)
         self.btn_settings.pack(anchor="w", pady=2)
 
@@ -754,14 +739,20 @@ class App:
         self.bar_sub = ttk.Progressbar(mon, variable=self.p_sub)
         self.bar_sub.pack(fill="x", pady=2)
         
-        self.log_box = scrolledtext.ScrolledText(mon, height=8); self.log_box.pack(fill="both", expand=True)
-        self.load_jobs(); self.root.after(100, self.poll)
+        # v93: Force Light Mode for Logs
+        self.log_box = scrolledtext.ScrolledText(mon, height=8, bg="white", fg="black", insertbackground="black")
+        self.log_box.pack(fill="both", expand=True)
+        
+        self.load_jobs()
+        # v93: Relaxed poll rate for Mac
+        self.root.after(300, self.poll)
         
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
     def _build_refine(self):
         tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
         
+        # v93: Inline Description Layout
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
         
@@ -788,7 +779,6 @@ class App:
         
         tk.Label(f, text="Source Priority:", font=("Segoe UI", 9)).pack(anchor="w", pady=(0,2))
         
-        # v92: Default from Config
         default_prio = CFG.get("default_export_prio")
         self.prio_var = tk.StringVar(value=default_prio)
         self.cb_prio = ttk.Combobox(f, textvariable=self.prio_var, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30)
@@ -828,13 +818,11 @@ class App:
         
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
 
-    # v92: Settings Window
     def open_settings(self):
         win = tk.Toplevel(self.root)
         win.title("Preferences")
         win.geometry("500x500")
         
-        # --- Performance ---
         lf_perf = tk.LabelFrame(win, text="Engine Performance", padx=10, pady=10)
         lf_perf.pack(fill="x", padx=10, pady=5)
         
@@ -846,7 +834,6 @@ class App:
         v_pixels = tk.StringVar(value=str(CFG.get("max_pixels")))
         tk.Entry(lf_perf, textvariable=v_pixels, width=15).grid(row=1,column=1,sticky="e")
 
-        # --- Defaults ---
         lf_def = tk.LabelFrame(win, text="Default Behaviors", padx=10, pady=10)
         lf_def.pack(fill="x", padx=10, pady=5)
         
@@ -855,7 +842,6 @@ class App:
         cb_ex = ttk.Combobox(lf_def, textvariable=v_export, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly")
         cb_ex.grid(row=0,column=1,sticky="e",pady=2)
 
-        # --- OCR ---
         lf_ocr = tk.LabelFrame(win, text="OCR Settings", padx=10, pady=10)
         lf_ocr.pack(fill="x", padx=10, pady=5)
         
@@ -873,11 +859,8 @@ class App:
             except: pass
             CFG.set("default_export_prio", v_export.get())
             CFG.set("ocr_lang", v_lang.get())
-            
-            # Apply immediate
             Image.MAX_IMAGE_PIXELS = int(CFG.get("max_pixels"))
             self.prio_var.set(v_export.get())
-            
             messagebox.showinfo("Saved", "Preferences updated.")
             win.destroy()
             
@@ -938,7 +921,13 @@ class App:
                 if manual: messagebox.showinfo("Update Check", "Update URL not configured.")
                 return
             url = f"{base_url}?t={int(time.time())}" if "?" not in base_url else f"{base_url}&t={int(time.time())}"
-            with urllib.request.urlopen(url, timeout=5) as r:
+            
+            # v93: SSL Bypass for Mac
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
+            with urllib.request.urlopen(url, context=ctx, timeout=5) as r:
                 if r.status == 200:
                     data = json.loads(r.read().decode())
                     rem_ver = data.get("latest_version", "v0")
@@ -1106,17 +1095,20 @@ class App:
         types = set()
         if (ws/"01_Master_Files").exists(): types = {f.suffix.lower() for f in (ws/"01_Master_Files").rglob('*') if f.is_file()}
         
-        def ac(l,k,t): 
+        def ac(l,k,desc): 
+            f = tk.Frame(self.chk_frame); f.pack(fill="x", pady=2)
             v=tk.BooleanVar(); v.trace_add("write", self.check_run_btn)
-            c=tk.Checkbutton(self.chk_frame,text=l,variable=v); c.pack(side="left",padx=10); self.chk_vars[k]=v; ToolTip(c,t)
+            c=tk.Checkbutton(f,text=l,variable=v, font=("Segoe UI", 9, "bold")); c.pack(anchor="w")
+            tk.Label(f, text=desc, font=("Segoe UI", 8), fg="#555").pack(anchor="w", padx=20)
+            self.chk_vars[k]=v
         
         if '.pdf' in types: 
              self.cb_pdf.config(state="readonly")
              self.pdf_mode_var.trace_add("write", self.check_run_btn)
              self.btn_prev.config(state="normal")
 
-        if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px."); ac("Images to PDF","img2pdf","Bundle images.")
-        if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove metadata.")
+        if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px (HD Standard)."); ac("Images to PDF","img2pdf","Bundle loose images into one PDF.")
+        if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove author metadata and revision history.")
         
         if types:
              self.cb_dpi.config(state="readonly")
@@ -1165,7 +1157,7 @@ class App:
                 elif m[0]=='error': messagebox.showerror("Error", m[1])
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
-        self.root.after(100, self.poll)
+        self.root.after(300, self.poll)
 
 if __name__ == "__main__":
     try: root = tk.Tk(); App(root); root.mainloop()
