@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v96 (VISUAL COMPARATOR & LANG MANAGER)
+#   DOCREFINE PRO v97 (LINKAGE UPDATE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v96"
+    CURRENT_VERSION = "v97"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -212,12 +212,10 @@ if HAS_TESSERACT:
         if tessdata_path.exists():
             os.environ["TESSDATA_PREFIX"] = str(tessdata_path)
 
-# v96: Enhanced Language Detection
 def get_tesseract_langs():
     if not HAS_TESSERACT: return ["N/A"]
     try:
         raw_langs = pytesseract.get_languages(config='')
-        # Filter out OSD and create friendly map
         friendly_map = {
             'eng': 'English', 'spa': 'Spanish', 'fra': 'French', 'deu': 'German',
             'ita': 'Italian', 'por': 'Portuguese', 'chi_sim': 'Chinese (Simp)',
@@ -232,7 +230,6 @@ def get_tesseract_langs():
         return sorted(clean)
     except: return ["eng"]
 
-# v96: Extract pure code from "English (eng)"
 def parse_lang_code(selection):
     if "(" in selection and ")" in selection:
         return selection.split("(")[1].replace(")", "")
@@ -262,7 +259,6 @@ def check_memory():
     except: pass
     return True
 
-# v95: Audit Certificate Generator (Fixed Quotes)
 def generate_job_report(ws_path, action_name, file_results=None):
     try:
         ws = Path(ws_path)
@@ -396,7 +392,6 @@ class PdfProcessor(BaseProcessor):
             pages = info.get("Pages", 1)
             imgs = []
             
-            # v96: Clean Config
             ocr_lang = parse_lang_code(CFG.get("ocr_lang"))
 
             for i in range(1, pages + 1):
@@ -573,8 +568,8 @@ class Worker:
                 
                 rel = str(f.relative_to(d))
                 if h in seen: seen[h]['copies'].append(rel)
-                else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name}
-            
+                else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)} # v97: Store Root
+
             self.log("Tagging..."); total = len(seen)
             for i, (h, data) in enumerate(seen.items()):
                 if self.stop_sig: break
@@ -824,14 +819,12 @@ class Worker:
         except: self.q.put(("done",))
 
 # --- 8. UI ---
-# v96: Visual Comparator Class
 class VisualComparator:
     def __init__(self, root, master_path, dup_path):
         self.win = tk.Toplevel(root)
         self.win.title("Duplicate Verification")
         self.win.geometry("900x500")
         
-        # UI
         main = tk.Frame(self.win, padx=20, pady=20)
         main.pack(fill="both", expand=True)
         
@@ -854,7 +847,6 @@ class VisualComparator:
             info = f"{p.name}\nSize: {p.stat().st_size/1024:.1f} KB\nDate: {datetime.fromtimestamp(p.stat().st_mtime)}"
             tk.Label(parent, text=info, font=("Consolas", 9)).pack(side="top", pady=5)
             
-            # Preview Logic
             img = None
             if p.suffix.lower() == '.pdf':
                 imgs = convert_from_path(str(p), dpi=72, first_page=1, last_page=1, poppler_path=POPPLER_BIN)
@@ -884,7 +876,7 @@ class App:
         self.current_manifest = {}
         self.slot_widgets = {} 
         self.slot_frames = []
-        self.context_menu = None # v96
+        self.context_menu = None 
         
         self.is_mac = SystemUtils.IS_MAC
         self.Btn = ttk.Button if self.is_mac else tk.Button
@@ -1036,7 +1028,6 @@ class App:
         
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
         
-        # v96: Context Menu
         self.context_menu = Menu(self.root, tearoff=0)
         self.context_menu.add_command(label="Open File", command=lambda: self.on_inspect_click(None))
         self.context_menu.add_command(label="Reveal in Folder", command=self.reveal_in_folder)
@@ -1081,33 +1072,27 @@ class App:
             messagebox.showinfo("Compare", "No duplicates to compare.")
             return
             
-        # If >1 duplicate, let user choose which to compare
-        copies = data['copies']
-        # We need absolute paths to compare
-        # BUT copies list are relative paths from original scan! 
-        # We need to find the files in the workspace (if they were copied) OR original disk?
-        # Actually, DocRefine copies EVERYTHING to 01_Master_Files? No, it copies ONLY MASTERS.
-        # Duplicates are NOT in the workspace! They are on the source disk.
-        # Wait, if user deleted source, we can't compare.
-        # Let's assume source is still mounted.
-        
-        # For the Master, we have it in 01_Master_Files
         master_file = ws/"01_Master_Files"/data['uid']
         
-        # For duplicates, we have original relative path. We need to reconstruct absolute path?
-        # We don't store absolute path in manifest, only relative.
-        # We rely on user to know where "Relative" means.
-        # WORKAROUND: We can't show duplicates if we don't know where they are.
-        # FIX: The manifest needs the root.
-        # Current manifest doesn't store root.
-        # BUT the workspace name is "Folder_Timestamp".
-        # Let's try to infer or just show the Master vs Master (as proof?)
-        # BETTER: The 'copies' list has the relative path.
-        # In v96, we can't magically find the external drive if unmounted.
+        # v97: Try to resolve root path
+        root = data.get('root')
         
-        # Let's look at `data['master']` -> relative path.
-        # If we can't find duplicates, we show alert.
-        messagebox.showinfo("Info", "Comparison requires access to original source files.\n(Feature fully enabled in future ingest update).")
+        # Fallback for old jobs
+        if not root or not Path(root).exists():
+            root = filedialog.askdirectory(title=f"Locate Source Folder for {name}")
+            if not root: return
+        
+        # Try to find duplicate
+        # Copies list has relative paths
+        dup_rel = next((c for c in data['copies'] if c != data['master']), None)
+        if dup_rel:
+            dup_file = Path(root) / dup_rel
+            if dup_file.exists():
+                VisualComparator(self.root, master_file, dup_file)
+            else:
+                messagebox.showerror("Error", f"Could not find duplicate at:\n{dup_file}")
+        else:
+            messagebox.showerror("Error", "Could not identify duplicate path.")
 
     def open_settings(self):
         win = tk.Toplevel(self.root)
@@ -1143,31 +1128,24 @@ class App:
         langs = get_tesseract_langs()
         v_lang = tk.StringVar(value=CFG.get("ocr_lang"))
         
-        # Ensure current value is friendly mapped
         current = v_lang.get()
         if "(" not in current and current in langs: pass 
         else: 
-            # try to find match
             match = next((l for l in langs if f"({current})" in l), None)
             if match: v_lang.set(match)
             
         ttk.Combobox(lf_ocr, textvariable=v_lang, values=langs, state="readonly").grid(row=0,column=1,sticky="e")
         
-        # v96: Lang Manager Buttons
         fr_btns = tk.Frame(lf_ocr)
         fr_btns.grid(row=1, column=0, columnspan=2, pady=10, sticky="e")
         
         def open_lang_folder():
             path = os.environ.get("TESSDATA_PREFIX")
             if not path and HAS_TESSERACT:
-                # Try to infer
                 try: path = str(Path(pytesseract.pytesseract.tesseract_cmd).parent / "tessdata")
                 except: path = None
-            
-            if path and Path(path).exists():
-                SystemUtils.open_file(path)
-            else:
-                messagebox.showerror("Error", "Could not locate tessdata folder automatically.")
+            if path and Path(path).exists(): SystemUtils.open_file(path)
+            else: messagebox.showerror("Error", "Could not locate tessdata folder automatically.")
 
         def open_help():
             webbrowser.open("https://github.com/tesseract-ocr/tessdata_best")
@@ -1182,7 +1160,6 @@ class App:
             CFG.set("default_ingest_mode", v_ingest.get())
             CFG.set("default_export_prio", v_export.get())
             
-            # v96: Save just code
             code = parse_lang_code(v_lang.get())
             CFG.set("ocr_lang", code)
             
