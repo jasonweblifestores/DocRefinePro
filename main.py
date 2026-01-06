@@ -45,21 +45,21 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
-# v87: Memory Safety Cap (500MP) to prevent decompression bombs
+# v87: Memory Safety Cap (500MP)
 Image.MAX_IMAGE_PIXELS = 500000000 
 ImageFile.LOAD_TRUNCATED_IMAGES = True 
 try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v87 (MULTITHREADING & UX LOGIC UPDATE)
+#   DOCREFINE PRO v88 (STABILITY & PERSISTENCE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v87"
+    CURRENT_VERSION = "v88"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -69,10 +69,18 @@ class SystemUtils:
 
     @staticmethod
     def get_user_data_dir():
+        # v88: Persistent Data Path for BOTH Windows and Mac
         if SystemUtils.IS_MAC:
             p = Path.home() / "Documents" / "DocRefinePro_Data"
             p.mkdir(parents=True, exist_ok=True)
             return p
+        elif SystemUtils.IS_WIN:
+            # v88 Change: Save to My Documents instead of .exe folder
+            p = Path.home() / "Documents" / "DocRefinePro_Data"
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        
+        # Linux / Portable Fallback
         if getattr(sys, 'frozen', False): return Path(sys.executable).parent
         return Path(__file__).parent
 
@@ -244,7 +252,6 @@ class PdfProcessor(BaseProcessor):
             imgs = []
             for i in range(1, pages + 1):
                 self.check_state() 
-                # Reduced granularity for multithreading
                 if i % 5 == 0 or i == pages: 
                      self.progress((i/pages)*100, f"Page {i}/{pages}")
                 gc.collect() 
@@ -412,28 +419,21 @@ class Worker:
             self.log(f"Done. Masters: {total}"); self.q.put(("job", str(ws))); self.q.put(("done",))
         except Exception as e: self.log(f"Error: {e}", True); self.q.put(("done",))
 
-    # v87: Process Single File (Helper for ThreadPool)
     def process_file_task(self, f, bots, options, dst):
         if self.stop_sig: return
         try:
-            # Thread-safe logging requires simplified messages
             self.q.put(("status_blue", f"Refining: {f.name}"))
-            
             ext = f.suffix.lower()
             ok = False
-            
-            # v87: Logic Mapped from UI Dropdowns
             dpi_val = int(options.get('dpi', 300))
             
             if ext == '.pdf':
                 mode = options.get('pdf_mode', 'none')
                 if mode == 'flatten': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'flatten', dpi=dpi_val)
                 elif mode == 'ocr': ok = bots['pdf'].flatten_or_ocr(f, dst/f.name, 'ocr', dpi=dpi_val)
-            
             elif ext in {'.jpg','.png'}:
                 if options.get('resize'): ok = bots['img'].resize(f, dst/f.name, CFG.get('resize_width'))
                 if options.get('img2pdf'): ok = bots['img'].convert_to_pdf(f, dst/f"{f.stem}.pdf")
-            
             elif ext in {'.docx','.xlsx'}:
                 if options.get('sanitize'): ok = bots['office'].sanitize(f, dst/f.name)
 
@@ -455,13 +455,29 @@ class Worker:
             }
             fs = list(src.iterdir())
             
-            # v87: Multithreading Implementation
-            # Limit workers to 4 to prevent UI freeze on dual-core machines
-            max_workers = min(4, os.cpu_count() or 2)
+            # v88: RAM-Aware Throttling
+            # Default to 2 workers for safety if psutil is missing
+            max_workers = 2
+            if HAS_PSUTIL:
+                try:
+                    # Calculate available RAM in GB
+                    total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+                    # Logic: <8GB=1, 8-16GB=2, >16GB=4
+                    if total_ram_gb < 8: max_workers = 1
+                    elif total_ram_gb < 16: max_workers = 2
+                    else: max_workers = 4
+                except: pass
             
+            # Cap by CPU cores to avoid context switching thrash
+            cpu_cap = os.cpu_count() or 1
+            max_workers = min(max_workers, cpu_cap)
+            # Ensure at least 1 worker
+            max_workers = max(1, max_workers)
+
+            self.log(f"Auto-Throttling: {max_workers} Parallel Workers")
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
-                
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     if self.stop_sig: break
                     self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
@@ -662,24 +678,20 @@ class App:
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
     def _build_refine(self):
-        # v87: Logic Refactor for Dropdowns
         tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
         
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
         
-        # New: PDF Mode Dropdown
         tk.Label(self.tab_process, text="PDF Action:", font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(10,0))
         self.pdf_mode_var = tk.StringVar(value="No Action")
         self.cb_pdf = ttk.Combobox(self.tab_process, textvariable=self.pdf_mode_var, values=["No Action", "Flatten Only (Fast)", "Flatten + OCR (Slow)"], state="readonly")
         self.cb_pdf.pack(fill="x", padx=10, pady=2)
         
-        # New Control Row: Quality + Preview + Run
         ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=15,padx=10)
         
         tk.Label(ctrl, text="Quality:").pack(side="left")
         self.dpi_var = tk.StringVar(value="Medium (Standard)")
-        # v87: Semantic Quality Labels
         self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["Low (Fast)", "Medium (Standard)", "High (Slow)"], width=18, state="readonly")
         self.cb_dpi.pack(side="left",padx=5)
         
@@ -715,7 +727,6 @@ class App:
 
     # --- ACTIONS ---
     def check_run_btn(self, *args):
-        # v87: Enable button if any checkbox OR PDF mode is active
         any_checked = any(v.get() for v in self.chk_vars.values())
         pdf_active = self.pdf_mode_var.get() != "No Action"
         self.btn_run.config(state="normal" if (any_checked or pdf_active) else "disabled")
@@ -806,23 +817,19 @@ class App:
                 
                 item_id = self.tree.insert("", "end", values=(d.name, s, datetime.fromtimestamp(d.stat().st_mtime).strftime('%Y-%m-%d %H:%M')))
                 
-                # RE-SELECT LOGIC
                 if sel and str(d) == str(Path(sel)):
                      self.tree.selection_set(item_id)
                      self.tree.see(item_id)
 
     def safe_start_batch(self):
         ws = self.get_ws()
-        # v87: Build Options Dictionary
         opts = {k: v.get() for k,v in self.chk_vars.items()}
         
-        # Parse PDF Mode
         p_mode = self.pdf_mode_var.get()
         if "OCR" in p_mode: opts['pdf_mode'] = 'ocr'
         elif "Flatten" in p_mode: opts['pdf_mode'] = 'flatten'
         else: opts['pdf_mode'] = 'none'
         
-        # Parse DPI
         d_raw = self.dpi_var.get()
         if "Low" in d_raw: opts['dpi'] = 150
         elif "High" in d_raw: opts['dpi'] = 600
@@ -838,7 +845,6 @@ class App:
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src), daemon=True).start()
     def safe_preview(self):
         ws=self.get_ws()
-        # Parse DPI for preview
         d_raw = self.dpi_var.get()
         dpi = 150 if "Low" in d_raw else (600 if "High" in d_raw else 300)
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_preview, str(ws), dpi), daemon=True).start()
@@ -897,7 +903,6 @@ class App:
             v=tk.BooleanVar(); v.trace_add("write", self.check_run_btn)
             c=tk.Checkbutton(self.chk_frame,text=l,variable=v); c.pack(side="left",padx=10); self.chk_vars[k]=v; ToolTip(c,t)
         
-        # v87: UI Control Enabling
         if '.pdf' in types: 
              self.cb_pdf.config(state="readonly")
              self.pdf_mode_var.trace_add("write", self.check_run_btn)
@@ -931,9 +936,7 @@ class App:
         for i, (_,k) in enumerate(l): t.move(k,'',i)
         t.heading(c, command=lambda: self.sort_tree(t,c,not r))
     
-    def warn_ocr(self): 
-        # v87: Deprecated in favor of dropdown logic, keeping for safety if reused
-        pass
+    def warn_ocr(self): pass
 
     def open_app_log(self): SystemUtils.open_file(LOG_PATH)
     def open_f(self): SystemUtils.open_file(self.get_ws())
