@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v98 (FORENSIC COMPARATOR)
+#   DOCREFINE PRO v99 (SAFE MODE)
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v98"
+    CURRENT_VERSION = "v99"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -820,11 +820,13 @@ class Worker:
 
 # --- 8. UI ---
 class ForensicComparator:
-    def __init__(self, root, master_path, dup_candidates):
+    def __init__(self, root, ws_path, manifest, master_path, dup_candidates):
         self.win = tk.Toplevel(root)
         self.win.title("Forensic Verification (Sync View)")
         self.win.geometry("1400x800")
         
+        self.ws_path = ws_path
+        self.manifest = manifest
         self.master_path = master_path
         self.dups = dup_candidates
         self.dup_idx = 0
@@ -836,6 +838,12 @@ class ForensicComparator:
         self.top = tk.Frame(self.win, bg="#eee", pady=5)
         self.top.pack(fill="x")
         
+        # v99: Added Filenames
+        self.lbl_info = tk.Frame(self.win)
+        self.lbl_info.pack(fill="x", pady=2)
+        tk.Label(self.lbl_info, text=f"MASTER: {master_path.name}", font=("Consolas", 9, "bold"), fg="#2c3e50").pack(side="left", fill="x", expand=True)
+        tk.Label(self.lbl_info, text="CANDIDATE (DUPLICATE)", font=("Consolas", 9, "bold"), fg="#c0392b").pack(side="left", fill="x", expand=True)
+
         self.mid = tk.Frame(self.win)
         self.mid.pack(fill="both", expand=True)
         
@@ -873,6 +881,8 @@ class ForensicComparator:
         self.lbl_zoom = tk.Label(f_zoom, text="100%", width=6)
         self.lbl_zoom.pack(side="left")
         tk.Button(f_zoom, text="Zoom +", command=lambda: self.do_zoom(1.2)).pack(side="left")
+        # v99: Fit Width
+        tk.Button(f_zoom, text="[Fit Width]", command=self.fit_width).pack(side="left", padx=5)
         
         # Duplicate Nav
         f_dup = tk.Frame(self.top); f_dup.pack(side="right", padx=10)
@@ -880,7 +890,8 @@ class ForensicComparator:
         self.lbl_dup = tk.Label(f_dup, text="Copy 1/1", width=15)
         self.lbl_dup.pack(side="left", padx=5)
         tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
-        tk.Button(f_dup, text="DELETE COPY", bg="red", fg="white", command=self.delete_current_dup).pack(side="left", padx=10)
+        # v99: Safety Pivot
+        tk.Button(f_dup, text="MARK AS UNIQUE", bg="green", fg="white", command=self.mark_as_unique).pack(side="left", padx=10)
 
     def load_images(self):
         # Update Labels
@@ -888,14 +899,21 @@ class ForensicComparator:
         self.lbl_zoom.config(text=f"{int(self.zoom*100)}%")
         self.lbl_dup.config(text=f"Copy {self.dup_idx+1}/{len(self.dups)}")
         
+        if self.dups:
+            tk.Label(self.lbl_info.winfo_children()[1], text=f"CANDIDATE: {self.dups[self.dup_idx].name}").pack_forget() # Refresh info
+            self.lbl_info.winfo_children()[1].config(text=f"CANDIDATE: {self.dups[self.dup_idx].name}")
+
         # Render Master
         self.img1 = self._render(self.master_path)
         self.show_img(self.c1, self.img1)
         
         # Render Duplicate
-        dup_path = self.dups[self.dup_idx]
-        self.img2 = self._render(dup_path)
-        self.show_img(self.c2, self.img2)
+        if self.dups:
+            dup_path = self.dups[self.dup_idx]
+            self.img2 = self._render(dup_path)
+            self.show_img(self.c2, self.img2)
+        else:
+            self.c2.delete("all")
 
     def _render(self, path):
         try:
@@ -941,16 +959,27 @@ class ForensicComparator:
         self.c2.yview_scroll(d, "units")
 
     def scroll_start(self, event):
-        self.scan_mark_x = event.x
-        self.scan_mark_y = event.y
+        # v99: Correct Tkinter Panning
+        self.c1.scan_mark(event.x, event.y)
+        self.c2.scan_mark(event.x, event.y)
 
     def scroll_move(self, event):
+        # v99: Correct Tkinter Panning
         self.c1.scan_dragto(event.x, event.y, gain=1)
         self.c2.scan_dragto(event.x, event.y, gain=1)
 
     def do_zoom(self, factor):
         self.zoom *= factor
         self.load_images()
+
+    def fit_width(self):
+        try:
+            # Simple fit: assuming standard letter width ~600px at 72dpi
+            cw = self.c1.winfo_width()
+            if cw > 50:
+                self.zoom = (cw - 20) / 600.0
+                self.load_images()
+        except: pass
 
     def next_page(self):
         if self.page < self.total_pages:
@@ -972,18 +1001,69 @@ class ForensicComparator:
             self.dup_idx -= 1
             self.load_images()
 
-    def delete_current_dup(self):
-        if messagebox.askyesno("Confirm", "Permanently delete this file?"):
+    def mark_as_unique(self):
+        # v99: Safety Pivot - Promote to Master instead of Delete
+        if not self.dups: return
+        target_path = self.dups[self.dup_idx]
+        
+        if messagebox.askyesno("Promote File", f"Mark '{target_path.name}' as a unique Master file?\n\nIt will be removed from this duplicate list and treated as a distinct document."):
             try:
-                p = self.dups[self.dup_idx]
-                os.remove(p)
-                del self.dups[self.dup_idx]
-                if not self.dups:
-                    messagebox.showinfo("Done", "All duplicates deleted.")
-                    self.win.destroy()
+                # 1. Identify current entry in manifest
+                root_path = None
+                original_hash = None
+                
+                # Reverse lookup path in manifest (finding key by value in copy list)
+                for h, data in self.manifest.items():
+                    r_p = data.get('root')
+                    if r_p:
+                        try:
+                            rel_p = str(target_path.relative_to(r_p))
+                            if rel_p in data['copies']:
+                                original_hash = h
+                                root_path = r_p
+                                break
+                        except: continue
+
+                if original_hash:
+                    # 2. Modify Manifest
+                    # A. Remove from original copies
+                    rel_p = str(target_path.relative_to(root_path))
+                    if rel_p in self.manifest[original_hash]['copies']:
+                        self.manifest[original_hash]['copies'].remove(rel_p)
+
+                    # B. Create new entry
+                    new_uid = f"{uuid.uuid4()}_{sanitize_filename(target_path.name)}"
+                    new_key = f"PROMOTED_{uuid.uuid4()}"
+                    
+                    self.manifest[new_key] = {
+                        "master": rel_p,
+                        "copies": [rel_p],
+                        "name": target_path.name,
+                        "root": root_path,
+                        "uid": new_uid,
+                        "id": "PROMOTED",
+                        "status": "OK"
+                    }
+                    
+                    # 3. Create Physical Master Copy (Required for Export logic)
+                    m_dir = self.ws_path / "01_Master_Files"
+                    shutil.copy2(target_path, m_dir / new_uid)
+
+                    # 4. Save JSON
+                    with open(self.ws_path / "manifest.json", 'w') as f:
+                        json.dump(self.manifest, f, indent=4)
+
+                    # 5. Update UI
+                    del self.dups[self.dup_idx]
+                    if not self.dups:
+                        messagebox.showinfo("Done", "All duplicates handled.")
+                        self.win.destroy()
+                    else:
+                        if self.dup_idx >= len(self.dups): self.dup_idx -= 1
+                        self.load_images()
                 else:
-                    if self.dup_idx >= len(self.dups): self.dup_idx -= 1
-                    self.load_images()
+                    messagebox.showerror("Error", "Could not locate file in manifest structure.")
+
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
@@ -1151,7 +1231,7 @@ class App:
         self.insp_tree.bind("<Double-1>", self.on_inspect_click)
         
         self.context_menu = Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Open File", command=self.open_selected_file) # v98: Fixed
+        self.context_menu.add_command(label="Open File", command=self.open_selected_file) 
         self.context_menu.add_command(label="Reveal in Folder", command=self.reveal_in_folder)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Compare Duplicates...", command=self.on_compare_click)
@@ -1171,7 +1251,6 @@ class App:
         finally:
             self.context_menu.grab_release()
 
-    # v98: Decoupled Logic
     def open_selected_file(self):
         item_id = self.insp_tree.selection()
         if not item_id: return
@@ -1214,7 +1293,8 @@ class App:
                 if path.exists(): duplicates.append(path)
         
         if duplicates:
-            ForensicComparator(self.root, master_file, duplicates)
+            # v99: Pass manifest and ws so Comparator can safely modify state
+            ForensicComparator(self.root, ws, self.current_manifest, master_file, duplicates)
         else:
             messagebox.showerror("Error", "Could not locate any duplicate files.")
 
