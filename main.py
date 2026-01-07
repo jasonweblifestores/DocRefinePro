@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v103
+#   DOCREFINE PRO v104
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v103"
+    CURRENT_VERSION = "v104"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -538,7 +538,7 @@ class Worker:
                 if f: return f
             return master if master.exists() else None
 
-    # v103: Reverted to Single Threaded Ingest for GIL avoidance
+    # v104: Restored Single Threaded Ingest
     def run_inventory(self, d_str, ingest_mode):
         try:
             d = Path(d_str); start_time = time.time()
@@ -886,7 +886,7 @@ class ForensicComparator:
         self.win.title("Forensic Verification (Sync View)")
         self.win.geometry("1400x800")
         
-        # v103: Fixed Center Logic
+        # v104: Fixed Center Logic - NO CLAMPING
         App.center_toplevel(self.win, root)
         
         self.ws_path = ws_path
@@ -1249,7 +1249,7 @@ class App:
         except:
             self.root.geometry("1150x900")
 
-    # v103: Fixed Center Logic (Hide -> Calc -> Show)
+    # v104: Fixed Center Logic - NO CLAMPING (Allow negative coords for left monitors)
     @staticmethod
     def center_toplevel(win, parent):
         try:
@@ -1267,10 +1267,7 @@ class App:
             x = px + (pw // 2) - (cw // 2)
             y = py + (ph // 2) - (ch // 2)
             
-            # Ensure not negative
-            x = max(0, x)
-            y = max(0, y)
-            
+            # Removed the max(0, x) clamp to support left-side monitors
             win.geometry(f"+{x}+{y}")
             win.deiconify() # Show
         except: 
