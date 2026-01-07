@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v101
+#   DOCREFINE PRO v102
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v101"
+    CURRENT_VERSION = "v102"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -538,6 +538,7 @@ class Worker:
                 if f: return f
             return master if master.exists() else None
 
+    # v102: Multithreaded Ingest
     def run_inventory(self, d_str, ingest_mode):
         try:
             d = Path(d_str); start_time = time.time()
@@ -546,29 +547,60 @@ class Worker:
             self.current_ws = str(ws); self.log(f"Inventory Start: {d}")
             self.q.put(("job", str(ws))); self.q.put(("ws", str(ws)))
             self.set_job_status(ws, "SCANNING", "Ingesting...")
+            
             files = [Path(r)/f for r,_,fs in os.walk(d) for f in fs]
-            seen = {}; quarantined = 0; file_types = {}
+            files = [f for f in files if f.suffix.lower() in SUPPORTED_EXTENSIONS]
+            
+            seen = {}; quarantined = 0
+            
+            # Use Auto-Throttle logic from run_batch
+            max_workers = 4
+            if HAS_PSUTIL:
+                try:
+                    total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+                    if total_ram_gb < 8: max_workers = 1
+                    elif total_ram_gb < 16: max_workers = 2
+                    else: max_workers = 4
+                except: pass
+            
+            # Allow manual config override if needed
+            cfg_threads = int(CFG.get("max_threads"))
+            if cfg_threads > 0: max_workers = cfg_threads
 
-            self.q.put(("slot_config", 1)) 
+            self.q.put(("slot_config", max_workers))
+            self.log(f"Ingest Threads: {max_workers}")
 
-            for i, f in enumerate(files):
-                if self.stop_sig: break
-                if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
-                self.prog_main((i/len(files))*100, f"Scanning {i}/{len(files)}")
-                self.q.put(("slot_update", threading.get_ident(), f"Hashing: {f.name}", None))
-                
-                if f.suffix.lower() not in SUPPORTED_EXTENSIONS: continue
-                file_types[f.suffix.lower()] = file_types.get(f.suffix.lower(), 0) + 1
-                
+            def _hash_task(f):
+                if self.stop_sig: return None
+                self.prog_sub(None, f"Hashing: {f.name}", True)
                 h, method = self.get_hash(f, ingest_mode)
-                if not h: 
-                    self.log(f"⚠️ Quarantine: {f.name}", True)
-                    shutil.copy2(f, ws/"00_Quarantine"/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
-                    quarantined += 1; continue
+                return (f, h, method)
+
+            completed_count = 0
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(_hash_task, f): f for f in files}
                 
-                rel = str(f.relative_to(d))
-                if h in seen: seen[h]['copies'].append(rel)
-                else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)}
+                for future in concurrent.futures.as_completed(futures):
+                    if self.stop_sig: break
+                    if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                    
+                    completed_count += 1
+                    self.prog_main((completed_count/len(files))*100, f"Scanning {completed_count}/{len(files)}")
+                    
+                    try:
+                        f, h, method = future.result()
+                        
+                        if not h:
+                            self.log(f"⚠️ Quarantine: {f.name}", True)
+                            shutil.copy2(f, ws/"00_Quarantine"/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
+                            quarantined += 1; continue
+                        
+                        rel = str(f.relative_to(d))
+                        if h in seen: seen[h]['copies'].append(rel)
+                        else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)}
+                        
+                    except Exception as e:
+                        self.log(f"Hash Error: {e}", True)
 
             self.log("Tagging..."); total = len(seen)
             for i, (h, data) in enumerate(seen.items()):
@@ -831,12 +863,10 @@ class Worker:
                         name = data.get('name', '?')
                         master_rel = data.get('master', '')
                         
-                        # Handle Quarantine entries which might lack standard fields
                         if status == "QUARANTINE":
                             orig = data.get('orig_name', name)
                             writer.writerow([uid, status, orig, "N/A - Quarantined", "00_Quarantine", "Binary", h, 0, data.get('error_reason', '')])
                         else:
-                            # Write a row for every copy found
                             copies = data.get('copies', [])
                             for copy_path in copies:
                                 writer.writerow([
@@ -883,6 +913,9 @@ class ForensicComparator:
         self.win = tk.Toplevel(root)
         self.win.title("Forensic Verification (Sync View)")
         self.win.geometry("1400x800")
+        
+        # v102: Smart Centering & Resize
+        App.center_toplevel(self.win, root)
         
         self.ws_path = ws_path
         self.manifest = manifest
@@ -1130,7 +1163,9 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title(f"DocRefine Pro {SystemUtils.CURRENT_VERSION} ({platform.system()})")
-        self.root.geometry(CFG.get("last_geometry"))
+        
+        # v102: Smart Window Logic
+        self.apply_smart_geometry(CFG.get("last_geometry"))
         
         self.q = queue.Queue(); self.worker = Worker(self.q)
         self.start_t = 0; self.running = False; self.paused = False
@@ -1217,6 +1252,52 @@ class App:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
+
+    # v102: Smart Window Management
+    def apply_smart_geometry(self, saved_geo):
+        try:
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            
+            # Mac Dock Safety Buffer
+            if SystemUtils.IS_MAC: sh -= 120 
+            else: sh -= 60 # Win Taskbar Safety
+            
+            w, h, x, y = 1150, 900, 0, 0
+            if saved_geo:
+                parts = re.split(r'[x+]', saved_geo)
+                if len(parts) == 4:
+                    w, h, x, y = map(int, parts)
+            
+            # Clamp to fit screen
+            w = min(w, sw)
+            h = min(h, sh)
+            
+            self.root.geometry(f"{w}x{h}+{x}+{y}")
+        except:
+            self.root.geometry("1150x900")
+
+    @staticmethod
+    def center_toplevel(win, parent):
+        try:
+            win.update_idletasks()
+            pw = parent.winfo_width()
+            ph = parent.winfo_height()
+            px = parent.winfo_rootx()
+            py = parent.winfo_rooty()
+            
+            cw = win.winfo_width()
+            ch = win.winfo_height()
+            
+            x = px + (pw // 2) - (cw // 2)
+            y = py + (ph // 2) - (ch // 2)
+            
+            # Ensure not negative
+            x = max(0, x)
+            y = max(0, y)
+            
+            win.geometry(f"+{x}+{y}")
+        except: pass
 
     def _build_refine(self):
         tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
@@ -1369,6 +1450,9 @@ class App:
         win = tk.Toplevel(self.root)
         win.title("Preferences")
         win.geometry("600x600")
+        
+        # v102: Smart Centering
+        App.center_toplevel(win, self.root)
         
         lf_perf = tk.LabelFrame(win, text="Processing Engine", padx=10, pady=10)
         lf_perf.pack(fill="x", padx=10, pady=5)
@@ -1558,6 +1642,10 @@ class App:
         top = tk.Toplevel(self.root)
         top.title("New Job Setup")
         top.geometry("450x500") 
+        
+        # v102: Smart Centering
+        App.center_toplevel(top, self.root)
+        
         tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
         
         mode = tk.StringVar(value=CFG.get("default_ingest_mode"))
