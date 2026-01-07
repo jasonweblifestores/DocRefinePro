@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v107
+#   DOCREFINE PRO v108
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v107"
+    CURRENT_VERSION = "v108"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -119,7 +119,7 @@ class Config:
         "default_ingest_mode": "Standard", 
         "ocr_lang": "eng",
         "last_workspace": "",
-        "last_geometry": "1024x700", # v107: Safer default for laptops
+        "last_geometry": "1024x700",
         "last_tab": 0
     }
     
@@ -879,37 +879,42 @@ class Worker:
             self.q.put(("done",))
         except: self.q.put(("done",))
 
-    # v107: Safe File Copy Logic for Export
+    # v108: Robust Binary Copy for Locked Logs
     def export_debug_bundle(self):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
             dest_zip = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
-            
-            # Create a temp dir to copy active files into
             temp_dir = SystemUtils.get_user_data_dir() / f"temp_debug_{ts}"
             temp_dir.mkdir(parents=True, exist_ok=True)
             
             def safe_copy(src, dst_name):
                 try:
-                    if src and Path(src).exists():
+                    if not src or not Path(src).exists(): return
+                    # Try simple copy first
+                    try:
                         shutil.copy2(src, temp_dir / dst_name)
-                except: pass
+                    except PermissionError:
+                        # Fallback: Read binary allowing shared access if possible
+                        with open(src, 'rb') as f_in:
+                            content = f_in.read()
+                        with open(temp_dir / dst_name, 'wb') as f_out:
+                            f_out.write(content)
+                except Exception as e:
+                    # Write error placeholder
+                    with open(temp_dir / f"{dst_name}_ERROR.txt", 'w') as err_f:
+                        err_f.write(f"Could not copy {src}: {e}")
 
             # Copy Core Logs
             safe_copy(LOG_PATH, "app_debug.log")
             safe_copy(JSON_LOG_PATH, "app_events.jsonl")
             safe_copy(CFG.path, "config.json")
             
-            # Copy Workspace context
             ws = self.get_ws()
             if ws:
                 safe_copy(ws/"session_log.txt", "current_job_log.txt")
                 safe_copy(ws/"stats.json", "current_job_stats.json")
             
-            # Zip the temp dir
             shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
-            
-            # Cleanup temp dir
             shutil.rmtree(temp_dir, ignore_errors=True)
             
             messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{dest_zip.name}")
@@ -1263,7 +1268,7 @@ class App:
         
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
-    # v107: Smart Window Management (Safer Default)
+    # v108: Aggressive Startup Resize logic
     def apply_smart_geometry(self, saved_geo):
         try:
             sw = self.root.winfo_screenwidth()
@@ -1273,16 +1278,27 @@ class App:
             if SystemUtils.IS_MAC: sh -= 120 
             else: sh -= 60 # Win Taskbar Safety
             
-            # v107: Reduced default from 1150x900 to 1024x700
+            # Default fallback
             w, h, x, y = 1024, 700, 0, 0
+            
             if saved_geo:
                 parts = re.split(r'[x+]', saved_geo)
                 if len(parts) == 4:
                     w, h, x, y = map(int, parts)
             
-            # Clamp to fit screen
-            w = min(w, sw)
-            h = min(h, sh)
+            # Aggressive Sanity Check for v108:
+            # If saved width is > 90% of screen width, force resize down to standard
+            # This fixes "Huge Window on First Run" if config had old values
+            if w > (sw * 0.9): 
+                w = 1024
+                h = 768
+                # Recenter
+                x = (sw // 2) - (w // 2)
+                y = (sh // 2) - (h // 2)
+            else:
+                # Standard clamp
+                w = min(w, sw)
+                h = min(h, sh)
             
             self.root.geometry(f"{w}x{h}+{x}+{y}")
         except:
@@ -1526,11 +1542,18 @@ class App:
         lf_support.pack(fill="x", padx=10, pady=5)
         
         def do_export_debug():
-            # v106 Fix: Close window BEFORE running export to unblock popup
-            win.destroy()
+            # v108: Feedback & No Close
+            btn_export.config(text="Exporting... (Please wait)", state="disabled")
+            win.update()
+            
             self.export_debug_bundle()
+            
+            btn_export.config(text="Export Debug Bundle (Zipped Logs)", state="normal")
+            win.destroy()
 
-        self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug).pack(fill="x")
+        # v108: Saved ref to button to change text
+        btn_export = self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug)
+        btn_export.pack(fill="x")
         tk.Label(lf_support, text="Use this if you need to report a bug.", font=("Segoe UI", 8), fg="#555").pack()
 
         def save():
