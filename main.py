@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v100
+#   DOCREFINE PRO v101
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v100"
+    CURRENT_VERSION = "v101"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -802,6 +802,65 @@ class Worker:
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
         except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
 
+    def run_full_export(self, ws_p):
+        try:
+            ws = Path(ws_p); self.current_ws = str(ws)
+            if not (ws/"manifest.json").exists(): return
+
+            rpt_dir = ws / "04_Reports"
+            rpt_dir.mkdir(parents=True, exist_ok=True)
+            csv_path = rpt_dir / "Full_Inventory_Manifest.csv"
+
+            self.log("Generating Full Inventory CSV...")
+            
+            with open(ws/"manifest.json") as f: man = json.load(f)
+            
+            try:
+                # utf-8-sig for Excel compatibility with special chars
+                with open(csv_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(["ID", "Status", "Original_Filename", "Original_Path_Structure", "Master_Location_In_Workplace", "Hash_Type", "Hash", "Copy_Count", "Error_Details"])
+                    
+                    total = len(man)
+                    for i, (h, data) in enumerate(man.items()):
+                        if self.stop_sig: break
+                        self.prog_main((i/total)*100, "Writing CSV...")
+                        
+                        uid = data.get('id', '?')
+                        status = data.get('status', 'OK')
+                        name = data.get('name', '?')
+                        master_rel = data.get('master', '')
+                        
+                        # Handle Quarantine entries which might lack standard fields
+                        if status == "QUARANTINE":
+                            orig = data.get('orig_name', name)
+                            writer.writerow([uid, status, orig, "N/A - Quarantined", "00_Quarantine", "Binary", h, 0, data.get('error_reason', '')])
+                        else:
+                            # Write a row for every copy found
+                            copies = data.get('copies', [])
+                            for copy_path in copies:
+                                writer.writerow([
+                                    uid, 
+                                    status, 
+                                    name, 
+                                    copy_path, 
+                                    master_rel, 
+                                    "MD5", 
+                                    h, 
+                                    len(copies), 
+                                    ""
+                                ])
+            except PermissionError:
+                self.q.put(("error", "Could not write CSV.\nPlease close the file in Excel and try again."))
+                self.q.put(("done",))
+                return
+
+            self.log(f"Exported: {csv_path.name}")
+            self.q.put(("job", str(ws))) 
+            self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(rpt_dir)
+
+        except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
+
     def run_preview(self, ws_p, dpi):
         try:
             ws = Path(ws_p); self.current_ws = str(ws)
@@ -1210,6 +1269,15 @@ class App:
         kw_dist = {"bg": "#fff3e0"} if not self.is_mac else {}
         self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
 
+        # v101 - Option C: Reports
+        f_c = tk.LabelFrame(self.tab_dist, text="Option C: Reports & Logs", padx=10, pady=10)
+        f_c.pack(fill="x", padx=10, pady=5)
+        
+        rc = tk.Frame(f_c); rc.pack(fill="x", pady=5)
+        self.btn_open_csv = self.Btn(rc, text="Open Full CSV", command=self.open_full_csv, state="disabled"); self.btn_open_csv.pack(side="right", padx=(10,0))
+        self.btn_full_csv = self.Btn(rc, text="Export Full Inventory CSV", command=self.safe_start_full_export, state="disabled"); self.btn_full_csv.pack(side="right")
+        tk.Label(rc, text="List every single scanned file and its location.", fg="#555").pack(side="left")
+
     def _build_inspect(self):
         h = tk.Frame(self.tab_inspect); h.pack(fill="x", padx=5, pady=5)
         tk.Label(h, text="Filter:").pack(side="left")
@@ -1416,6 +1484,13 @@ class App:
         if p.exists(): SystemUtils.open_file(p)
         else: messagebox.showinfo("Not Found", "No duplicates report found.")
 
+    def open_full_csv(self):
+        ws = self.get_ws()
+        if not ws: return
+        p = ws / "04_Reports" / "Full_Inventory_Manifest.csv"
+        if p.exists(): SystemUtils.open_file(p)
+        else: messagebox.showinfo("Not Found", "CSV not generated yet.")
+
     def filter_inspection(self, *args):
         query = self.search_var.get().lower()
         self.insp_tree.delete(*self.insp_tree.get_children())
@@ -1506,7 +1581,7 @@ class App:
         self.running = not enable; s = "normal" if enable else "disabled"
         if not enable: self.start_t = time.time(); self.paused = False
         self.tree.config(selectmode="browse" if enable else "none")
-        for c in [self.btn_new, self.btn_refresh, self.btn_del, self.btn_dist, self.btn_prev, self.btn_open, self.btn_org]: 
+        for c in [self.btn_new, self.btn_refresh, self.btn_del, self.btn_dist, self.btn_prev, self.btn_open, self.btn_org, self.btn_full_csv, self.btn_open_csv]: 
             try: c.configure(state=s) 
             except: pass
         if enable: self.check_run_btn() 
@@ -1577,6 +1652,10 @@ class App:
         ws=self.get_ws(); src=filedialog.askdirectory() if self.var_ext.get() else None
         prio = self.prio_var.get()
         if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src, prio), daemon=True).start()
+
+    def safe_start_full_export(self):
+        ws = self.get_ws()
+        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_full_export, str(ws)), daemon=True).start()
         
     def safe_preview(self):
         ws=self.get_ws()
@@ -1610,6 +1689,9 @@ class App:
         self.btn_org.config(state="disabled")
         self.btn_dup_rpt.config(state="disabled")
         
+        self.btn_full_csv.config(state="disabled")
+        self.btn_open_csv.config(state="disabled")
+        
         self.current_manifest = {}
         self.insp_tree.delete(*self.insp_tree.get_children())
         self.search_var.set("")
@@ -1624,9 +1706,13 @@ class App:
         self.btn_open.config(state="normal")
         self.btn_dist.config(state="normal")
         self.btn_org.config(state="normal")
+        self.btn_full_csv.config(state="normal")
         
-        if (ws/"04_Reports").exists() and list((ws/"04_Reports").glob("Audit_Certificate_*.html")):
-            self.btn_receipt.config(state="normal")
+        if (ws/"04_Reports").exists():
+            if list((ws/"04_Reports").glob("Audit_Certificate_*.html")):
+                self.btn_receipt.config(state="normal")
+            if (ws/"04_Reports"/"Full_Inventory_Manifest.csv").exists():
+                self.btn_open_csv.config(state="normal")
             
         if (ws/"03_Organized_Output"/"duplicates_report.csv").exists():
             self.btn_dup_rpt.config(state="normal")
