@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v108
+#   DOCREFINE PRO v109
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v108"
+    CURRENT_VERSION = "v109"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -879,8 +879,8 @@ class Worker:
             self.q.put(("done",))
         except: self.q.put(("done",))
 
-    # v108: Robust Binary Copy for Locked Logs
-    def export_debug_bundle(self):
+    # v109: Threaded Export Logic
+    def _export_debug_bundle_task(self):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
             dest_zip = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
@@ -890,25 +890,23 @@ class Worker:
             def safe_copy(src, dst_name):
                 try:
                     if not src or not Path(src).exists(): return
-                    # Try simple copy first
                     try:
                         shutil.copy2(src, temp_dir / dst_name)
                     except PermissionError:
-                        # Fallback: Read binary allowing shared access if possible
                         with open(src, 'rb') as f_in:
                             content = f_in.read()
                         with open(temp_dir / dst_name, 'wb') as f_out:
                             f_out.write(content)
                 except Exception as e:
-                    # Write error placeholder
                     with open(temp_dir / f"{dst_name}_ERROR.txt", 'w') as err_f:
-                        err_f.write(f"Could not copy {src}: {e}")
+                        err_f.write(str(e))
 
-            # Copy Core Logs
+            # Core Logs
             safe_copy(LOG_PATH, "app_debug.log")
             safe_copy(JSON_LOG_PATH, "app_events.jsonl")
             safe_copy(CFG.path, "config.json")
             
+            # Current WS
             ws = self.get_ws()
             if ws:
                 safe_copy(ws/"session_log.txt", "current_job_log.txt")
@@ -917,10 +915,9 @@ class Worker:
             shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
             shutil.rmtree(temp_dir, ignore_errors=True)
             
-            messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{dest_zip.name}")
-            SystemUtils.open_file(dest_zip.parent)
+            self.q.put(("export_success", str(dest_zip)))
         except Exception as e:
-            messagebox.showerror("Export Failed", str(e))
+            self.q.put(("error", f"Export Failed: {e}"))
 
 # --- 8. UI ---
 class ForensicComparator:
@@ -1288,15 +1285,12 @@ class App:
             
             # Aggressive Sanity Check for v108:
             # If saved width is > 90% of screen width, force resize down to standard
-            # This fixes "Huge Window on First Run" if config had old values
             if w > (sw * 0.9): 
                 w = 1024
                 h = 768
-                # Recenter
                 x = (sw // 2) - (w // 2)
                 y = (sh // 2) - (h // 2)
             else:
-                # Standard clamp
                 w = min(w, sw)
                 h = min(h, sh)
             
@@ -1541,17 +1535,10 @@ class App:
         lf_support = tk.LabelFrame(win, text="Support & Diagnostics", padx=10, pady=10)
         lf_support.pack(fill="x", padx=10, pady=5)
         
+        # v109: Threaded Launch
         def do_export_debug():
-            # v108: Feedback & No Close
-            btn_export.config(text="Exporting... (Please wait)", state="disabled")
-            win.update()
-            
-            self.export_debug_bundle()
-            
-            btn_export.config(text="Export Debug Bundle (Zipped Logs)", state="normal")
-            win.destroy()
+            self.start_debug_export_thread(btn_export, win)
 
-        # v108: Saved ref to button to change text
         btn_export = self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug)
         btn_export.pack(fill="x")
         tk.Label(lf_support, text="Use this if you need to report a bug.", font=("Segoe UI", 8), fg="#555").pack()
@@ -1573,6 +1560,53 @@ class App:
             
         btn_fr = tk.Frame(win); btn_fr.pack(pady=20)
         self.Btn(btn_fr, text="Save & Close", command=save, bg="#e8f5e9").pack(side="left", padx=10)
+
+    # v109: Threaded Export Wrapper
+    def start_debug_export_thread(self, btn_ref, win_ref):
+        def _run():
+            try:
+                # Same logic as v108
+                ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+                dest_zip = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
+                temp_dir = SystemUtils.get_user_data_dir() / f"temp_debug_{ts}"
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                
+                def safe_copy(src, dst_name):
+                    try:
+                        if not src or not Path(src).exists(): return
+                        try: shutil.copy2(src, temp_dir / dst_name)
+                        except PermissionError:
+                            with open(src, 'rb') as f_in: content = f_in.read()
+                            with open(temp_dir / dst_name, 'wb') as f_out: f_out.write(content)
+                    except Exception as e:
+                        with open(temp_dir / f"{dst_name}_ERROR.txt", 'w') as err_f: err_f.write(str(e))
+
+                safe_copy(LOG_PATH, "app_debug.log")
+                safe_copy(JSON_LOG_PATH, "app_events.jsonl")
+                safe_copy(CFG.path, "config.json")
+                
+                ws = self.get_ws()
+                if ws:
+                    safe_copy(ws/"session_log.txt", "current_job_log.txt")
+                    safe_copy(ws/"stats.json", "current_job_stats.json")
+                
+                shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                
+                # Signal Success
+                self.q.put(("export_success", str(dest_zip)))
+                
+                # Close window on main thread if possible (handled in poll)
+                # But here we just signal done.
+                
+            except Exception as e:
+                self.q.put(("error", f"Export Failed: {e}"))
+            finally:
+                # Always reset button state via queue
+                self.q.put(("export_reset_btn", btn_ref))
+
+        btn_ref.config(text="Exporting...", state="disabled")
+        threading.Thread(target=_run, daemon=True).start()
 
     # --- ACTIONS ---
     def on_close(self):
@@ -1944,6 +1978,12 @@ class App:
                              self.slot_widgets[tid] = lbl
                     if tid in self.slot_widgets:
                         self.slot_widgets[tid].config(text=txt)
+                elif m[0]=='export_success':
+                    messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{Path(m[1]).name}")
+                    SystemUtils.open_file(Path(m[1]).parent)
+                elif m[0]=='export_reset_btn':
+                    try: m[1].config(text="Export Debug Bundle (Zipped Logs)", state="normal")
+                    except: pass
 
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
