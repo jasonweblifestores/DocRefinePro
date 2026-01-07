@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v106
+#   DOCREFINE PRO v107
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v106"
+    CURRENT_VERSION = "v107"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -119,7 +119,7 @@ class Config:
         "default_ingest_mode": "Standard", 
         "ocr_lang": "eng",
         "last_workspace": "",
-        "last_geometry": "1150x900",
+        "last_geometry": "1024x700", # v107: Safer default for laptops
         "last_tab": 0
     }
     
@@ -879,25 +879,41 @@ class Worker:
             self.q.put(("done",))
         except: self.q.put(("done",))
 
-    # v105: Export Debug Bundle logic
+    # v107: Safe File Copy Logic for Export
     def export_debug_bundle(self):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-            dest = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
-            with zipfile.ZipFile(dest, 'w') as z:
-                # Core Logs
-                if LOG_PATH.exists(): z.write(LOG_PATH, "app_debug.log")
-                if JSON_LOG_PATH.exists(): z.write(JSON_LOG_PATH, "app_events.jsonl")
-                if CFG.path.exists(): z.write(CFG.path, "config.json")
-                
-                # Current Workspace context (if any)
-                ws = self.get_ws()
-                if ws:
-                    if (ws/"session_log.txt").exists(): z.write(ws/"session_log.txt", "current_job_log.txt")
-                    if (ws/"stats.json").exists(): z.write(ws/"stats.json", "current_job_stats.json")
+            dest_zip = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
             
-            messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{dest.name}")
-            SystemUtils.open_file(dest.parent)
+            # Create a temp dir to copy active files into
+            temp_dir = SystemUtils.get_user_data_dir() / f"temp_debug_{ts}"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            
+            def safe_copy(src, dst_name):
+                try:
+                    if src and Path(src).exists():
+                        shutil.copy2(src, temp_dir / dst_name)
+                except: pass
+
+            # Copy Core Logs
+            safe_copy(LOG_PATH, "app_debug.log")
+            safe_copy(JSON_LOG_PATH, "app_events.jsonl")
+            safe_copy(CFG.path, "config.json")
+            
+            # Copy Workspace context
+            ws = self.get_ws()
+            if ws:
+                safe_copy(ws/"session_log.txt", "current_job_log.txt")
+                safe_copy(ws/"stats.json", "current_job_stats.json")
+            
+            # Zip the temp dir
+            shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
+            
+            # Cleanup temp dir
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
+            messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{dest_zip.name}")
+            SystemUtils.open_file(dest_zip.parent)
         except Exception as e:
             messagebox.showerror("Export Failed", str(e))
 
@@ -1247,7 +1263,7 @@ class App:
         
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
-    # v102: Smart Window Management
+    # v107: Smart Window Management (Safer Default)
     def apply_smart_geometry(self, saved_geo):
         try:
             sw = self.root.winfo_screenwidth()
@@ -1257,7 +1273,8 @@ class App:
             if SystemUtils.IS_MAC: sh -= 120 
             else: sh -= 60 # Win Taskbar Safety
             
-            w, h, x, y = 1150, 900, 0, 0
+            # v107: Reduced default from 1150x900 to 1024x700
+            w, h, x, y = 1024, 700, 0, 0
             if saved_geo:
                 parts = re.split(r'[x+]', saved_geo)
                 if len(parts) == 4:
@@ -1269,7 +1286,7 @@ class App:
             
             self.root.geometry(f"{w}x{h}+{x}+{y}")
         except:
-            self.root.geometry("1150x900")
+            self.root.geometry("1024x700")
 
     # v104: Fixed Center Logic - NO CLAMPING (Allow negative coords for left monitors)
     @staticmethod
