@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v104
+#   DOCREFINE PRO v105
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v104"
+    CURRENT_VERSION = "v105"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -879,6 +879,28 @@ class Worker:
             self.q.put(("done",))
         except: self.q.put(("done",))
 
+    # v105: Export Debug Bundle logic
+    def export_debug_bundle(self):
+        try:
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dest = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
+            with zipfile.ZipFile(dest, 'w') as z:
+                # Core Logs
+                if LOG_PATH.exists(): z.write(LOG_PATH, "app_debug.log")
+                if JSON_LOG_PATH.exists(): z.write(JSON_LOG_PATH, "app_events.jsonl")
+                if CFG.path.exists(): z.write(CFG.path, "config.json")
+                
+                # Current Workspace context (if any)
+                ws = self.get_ws()
+                if ws:
+                    if (ws/"session_log.txt").exists(): z.write(ws/"session_log.txt", "current_job_log.txt")
+                    if (ws/"stats.json").exists(): z.write(ws/"stats.json", "current_job_stats.json")
+            
+            messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{dest.name}")
+            SystemUtils.open_file(dest.parent)
+        except Exception as e:
+            messagebox.showerror("Export Failed", str(e))
+
 # --- 8. UI ---
 class ForensicComparator:
     def __init__(self, root, ws_path, manifest, master_path, dup_candidates):
@@ -1481,6 +1503,17 @@ class App:
 
         self.Btn(fr_btns, text="Open Language Folder", command=open_lang_folder).pack(side="left", padx=5)
         self.Btn(fr_btns, text="Get Languages (Web)", command=open_help).pack(side="left", padx=5)
+
+        # v105: Support Section
+        lf_support = tk.LabelFrame(win, text="Support & Diagnostics", padx=10, pady=10)
+        lf_support.pack(fill="x", padx=10, pady=5)
+        
+        def do_export_debug():
+            self.export_debug_bundle()
+            win.destroy()
+
+        self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug).pack(fill="x")
+        tk.Label(lf_support, text="Use this if you need to report a bug.", font=("Segoe UI", 8), fg="#555").pack()
 
         def save():
             CFG.set("max_threads", v_threads.get())
