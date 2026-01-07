@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v105
+#   DOCREFINE PRO v106
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v105"
+    CURRENT_VERSION = "v106"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -1509,8 +1509,9 @@ class App:
         lf_support.pack(fill="x", padx=10, pady=5)
         
         def do_export_debug():
-            self.export_debug_bundle()
+            # v106 Fix: Close window BEFORE running export to unblock popup
             win.destroy()
+            self.export_debug_bundle()
 
         self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug).pack(fill="x")
         tk.Label(lf_support, text="Use this if you need to report a bug.", font=("Segoe UI", 8), fg="#555").pack()
