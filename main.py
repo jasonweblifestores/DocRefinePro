@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v99 (SAFE MODE)
+#   DOCREFINE PRO v100
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v99"
+    CURRENT_VERSION = "v100"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -838,7 +838,7 @@ class ForensicComparator:
         self.top = tk.Frame(self.win, bg="#eee", pady=5)
         self.top.pack(fill="x")
         
-        # v99: Added Filenames
+        # Added Filenames
         self.lbl_info = tk.Frame(self.win)
         self.lbl_info.pack(fill="x", pady=2)
         tk.Label(self.lbl_info, text=f"MASTER: {master_path.name}", font=("Consolas", 9, "bold"), fg="#2c3e50").pack(side="left", fill="x", expand=True)
@@ -881,7 +881,7 @@ class ForensicComparator:
         self.lbl_zoom = tk.Label(f_zoom, text="100%", width=6)
         self.lbl_zoom.pack(side="left")
         tk.Button(f_zoom, text="Zoom +", command=lambda: self.do_zoom(1.2)).pack(side="left")
-        # v99: Fit Width
+        # Fit Width
         tk.Button(f_zoom, text="[Fit Width]", command=self.fit_width).pack(side="left", padx=5)
         
         # Duplicate Nav
@@ -890,7 +890,7 @@ class ForensicComparator:
         self.lbl_dup = tk.Label(f_dup, text="Copy 1/1", width=15)
         self.lbl_dup.pack(side="left", padx=5)
         tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
-        # v99: Safety Pivot
+        # Safety Pivot
         tk.Button(f_dup, text="MARK AS UNIQUE", bg="green", fg="white", command=self.mark_as_unique).pack(side="left", padx=10)
 
     def load_images(self):
@@ -959,12 +959,12 @@ class ForensicComparator:
         self.c2.yview_scroll(d, "units")
 
     def scroll_start(self, event):
-        # v99: Correct Tkinter Panning
+        # Correct Tkinter Panning
         self.c1.scan_mark(event.x, event.y)
         self.c2.scan_mark(event.x, event.y)
 
     def scroll_move(self, event):
-        # v99: Correct Tkinter Panning
+        # Correct Tkinter Panning
         self.c1.scan_dragto(event.x, event.y, gain=1)
         self.c2.scan_dragto(event.x, event.y, gain=1)
 
@@ -1002,7 +1002,7 @@ class ForensicComparator:
             self.load_images()
 
     def mark_as_unique(self):
-        # v99: Safety Pivot - Promote to Master instead of Delete
+        # Safety Pivot - Promote to Master instead of Delete
         if not self.dups: return
         target_path = self.dups[self.dup_idx]
         
@@ -1293,7 +1293,6 @@ class App:
                 if path.exists(): duplicates.append(path)
         
         if duplicates:
-            # v99: Pass manifest and ws so Comparator can safely modify state
             ForensicComparator(self.root, ws, self.current_manifest, master_file, duplicates)
         else:
             messagebox.showerror("Error", "Could not locate any duplicate files.")
@@ -1449,8 +1448,10 @@ class App:
             q_file = next((f for f in (ws/"00_Quarantine").iterdir() if name in f.name), None)
             if q_file: SystemUtils.open_file(q_file.parent)
         else:
-            if event: # If triggered by double click event
-                SystemUtils.open_file(ws/"01_Master_Files"/data['uid'])
+            # v100 FIX: Removed 'if event:' check to allow Context Menu access
+            f_path = ws/"01_Master_Files"/data['uid']
+            if f_path.exists():
+                 SystemUtils.open_file(f_path)
 
     def check_run_btn(self, *args):
         any_checked = any(v.get() for v in self.chk_vars.values())
