@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v102
+#   DOCREFINE PRO v103
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v102"
+    CURRENT_VERSION = "v103"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -538,7 +538,7 @@ class Worker:
                 if f: return f
             return master if master.exists() else None
 
-    # v102: Multithreaded Ingest
+    # v103: Reverted to Single Threaded Ingest for GIL avoidance
     def run_inventory(self, d_str, ingest_mode):
         try:
             d = Path(d_str); start_time = time.time()
@@ -552,55 +552,27 @@ class Worker:
             files = [f for f in files if f.suffix.lower() in SUPPORTED_EXTENSIONS]
             
             seen = {}; quarantined = 0
-            
-            # Use Auto-Throttle logic from run_batch
-            max_workers = 4
-            if HAS_PSUTIL:
-                try:
-                    total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
-                    if total_ram_gb < 8: max_workers = 1
-                    elif total_ram_gb < 16: max_workers = 2
-                    else: max_workers = 4
-                except: pass
-            
-            # Allow manual config override if needed
-            cfg_threads = int(CFG.get("max_threads"))
-            if cfg_threads > 0: max_workers = cfg_threads
+            self.q.put(("slot_config", 1))
 
-            self.q.put(("slot_config", max_workers))
-            self.log(f"Ingest Threads: {max_workers}")
-
-            def _hash_task(f):
-                if self.stop_sig: return None
-                self.prog_sub(None, f"Hashing: {f.name}", True)
-                h, method = self.get_hash(f, ingest_mode)
-                return (f, h, method)
-
-            completed_count = 0
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {executor.submit(_hash_task, f): f for f in files}
+            for i, f in enumerate(files):
+                if self.stop_sig: break
+                if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
                 
-                for future in concurrent.futures.as_completed(futures):
-                    if self.stop_sig: break
-                    if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                self.prog_main((i/len(files))*100, f"Scanning {i}/{len(files)}")
+                self.prog_sub(None, f"Hashing: {f.name}", True)
+                
+                try:
+                    h, method = self.get_hash(f, ingest_mode)
+                    if not h: 
+                        self.log(f"⚠️ Quarantine: {f.name}", True)
+                        shutil.copy2(f, ws/"00_Quarantine"/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
+                        quarantined += 1; continue
                     
-                    completed_count += 1
-                    self.prog_main((completed_count/len(files))*100, f"Scanning {completed_count}/{len(files)}")
-                    
-                    try:
-                        f, h, method = future.result()
-                        
-                        if not h:
-                            self.log(f"⚠️ Quarantine: {f.name}", True)
-                            shutil.copy2(f, ws/"00_Quarantine"/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
-                            quarantined += 1; continue
-                        
-                        rel = str(f.relative_to(d))
-                        if h in seen: seen[h]['copies'].append(rel)
-                        else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)}
-                        
-                    except Exception as e:
-                        self.log(f"Hash Error: {e}", True)
+                    rel = str(f.relative_to(d))
+                    if h in seen: seen[h]['copies'].append(rel)
+                    else: seen[h] = {'master': rel, 'copies': [rel], 'name': f.name, 'root': str(d)}
+                except Exception as e:
+                    self.log(f"Hash Error: {e}", True)
 
             self.log("Tagging..."); total = len(seen)
             for i, (h, data) in enumerate(seen.items()):
@@ -914,7 +886,7 @@ class ForensicComparator:
         self.win.title("Forensic Verification (Sync View)")
         self.win.geometry("1400x800")
         
-        # v102: Smart Centering & Resize
+        # v103: Fixed Center Logic
         App.center_toplevel(self.win, root)
         
         self.ws_path = ws_path
@@ -1277,10 +1249,13 @@ class App:
         except:
             self.root.geometry("1150x900")
 
+    # v103: Fixed Center Logic (Hide -> Calc -> Show)
     @staticmethod
     def center_toplevel(win, parent):
         try:
-            win.update_idletasks()
+            win.withdraw() # Hide
+            win.update_idletasks() # Force size calc
+            
             pw = parent.winfo_width()
             ph = parent.winfo_height()
             px = parent.winfo_rootx()
@@ -1297,7 +1272,9 @@ class App:
             y = max(0, y)
             
             win.geometry(f"+{x}+{y}")
-        except: pass
+            win.deiconify() # Show
+        except: 
+            win.deiconify()
 
     def _build_refine(self):
         tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
@@ -1451,7 +1428,7 @@ class App:
         win.title("Preferences")
         win.geometry("600x600")
         
-        # v102: Smart Centering
+        # v103: Smart Centering
         App.center_toplevel(win, self.root)
         
         lf_perf = tk.LabelFrame(win, text="Processing Engine", padx=10, pady=10)
@@ -1643,7 +1620,7 @@ class App:
         top.title("New Job Setup")
         top.geometry("450x500") 
         
-        # v102: Smart Centering
+        # v103: Smart Centering
         App.center_toplevel(top, self.root)
         
         tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
