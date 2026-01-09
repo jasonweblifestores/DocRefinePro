@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v110
+#   DOCREFINE PRO v111
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v110"
+    CURRENT_VERSION = "v111"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -86,6 +86,23 @@ class SystemUtils:
             elif SystemUtils.IS_MAC: subprocess.call(['open', p])
             else: subprocess.call(['xdg-open', p])
         except Exception as e: print(f"Error opening file: {e}")
+
+    # v111: New "Reveal" logic
+    @staticmethod
+    def reveal_file(path):
+        p = str(Path(path).resolve())
+        try:
+            if not Path(p).exists(): return
+            if SystemUtils.IS_WIN:
+                subprocess.Popen(f'explorer /select,"{p}"')
+            elif SystemUtils.IS_MAC:
+                subprocess.call(["open", "-R", p])
+            else:
+                # Linux fallback (just open folder)
+                subprocess.call(['xdg-open', str(Path(p).parent)])
+        except Exception as e:
+            print(f"Error revealing file: {e}")
+            SystemUtils.open_file(Path(p).parent)
 
     @staticmethod
     def find_binary(bin_name):
@@ -538,10 +555,10 @@ class Worker:
                 if f: return f
             return master if master.exists() else None
 
-    # v104: Restored Single Threaded Ingest
-    def run_inventory(self, d_str, ingest_mode):
+    # v111: Robust ID check for ingest
+    def run_inventory(self, d_str, ingest_mode, job_id):
         try:
-            # v110: Fix "Dead Worker" bug by resetting stop signal
+            # v111: Ensure stop signal is cleared for NEW job
             self.stop_sig = False
             self.resume()
             
@@ -559,6 +576,7 @@ class Worker:
             self.q.put(("slot_config", 1))
 
             for i, f in enumerate(files):
+                # v111: ID Check
                 if self.stop_sig: break
                 if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
                 
@@ -579,7 +597,10 @@ class Worker:
                     self.log(f"Hash Error: {e}", True)
 
             # Check stop before finalizing
-            if self.stop_sig: return
+            if self.stop_sig: 
+                self.log("Ingest Stopped by User.")
+                self.q.put(("done",))
+                return
 
             self.log("Tagging..."); total = len(seen)
             for i, (h, data) in enumerate(seen.items()):
@@ -654,7 +675,6 @@ class Worker:
 
     def run_batch(self, ws_p, options):
         try:
-            # v110: Reset stop signal
             self.stop_sig = False
             self.resume()
             
@@ -701,7 +721,7 @@ class Worker:
                         if r: file_results.append(r)
                     except Exception as e: self.log(f"Thread Err: {e}", True)
 
-            # v110: "Fake Completion" Fix - Abort if stopped
+            # v111: Fix "Fake Completion" - Abort completely if stopped
             if self.stop_sig: 
                 self.log("Batch Stopped by User.")
                 self.q.put(("done",))
@@ -1087,25 +1107,26 @@ class ForensicComparator:
 
     def bind_events(self):
         # Sync Scroll (Linux/Win/Mac handling)
-        self.c1.bind("<MouseWheel>", self.on_scroll)
-        self.c2.bind("<MouseWheel>", self.on_scroll)
-        self.c1.bind("<Button-4>", self.on_scroll) # Linux
-        self.c1.bind("<Button-5>", self.on_scroll)
+        # v111: Mouse Wheel flips pages
+        self.c1.bind("<MouseWheel>", self.on_scroll_page)
+        self.c2.bind("<MouseWheel>", self.on_scroll_page)
+        self.c1.bind("<Button-4>", self.on_scroll_page)
+        self.c1.bind("<Button-5>", self.on_scroll_page)
         
-        # Pan
+        # Pan (Drag)
         self.c1.bind("<ButtonPress-1>", self.scroll_start)
         self.c1.bind("<B1-Motion>", self.scroll_move)
         self.c2.bind("<ButtonPress-1>", self.scroll_start)
         self.c2.bind("<B1-Motion>", self.scroll_move)
 
-    def on_scroll(self, event):
-        # Cross-platform scroll delta
+    def on_scroll_page(self, event):
+        # v111: Mouse Wheel -> Next/Prev Page
         d = 0
-        if event.num == 5 or event.delta < 0: d = 1
-        elif event.num == 4 or event.delta > 0: d = -1
+        if event.num == 5 or event.delta < 0: d = 1 # Down/Next
+        elif event.num == 4 or event.delta > 0: d = -1 # Up/Prev
         
-        self.c1.yview_scroll(d, "units")
-        self.c2.yview_scroll(d, "units")
+        if d == 1: self.next_page()
+        elif d == -1: self.prev_page()
 
     def scroll_start(self, event):
         # Correct Tkinter Panning
@@ -1152,7 +1173,8 @@ class ForensicComparator:
 
     def open_current_dup(self):
         if self.dups:
-            SystemUtils.open_file(self.dups[self.dup_idx])
+            # v111: Reveal instead of just open
+            SystemUtils.reveal_file(self.dups[self.dup_idx])
 
     def mark_as_unique(self):
         # Safety Pivot - Promote to Master instead of Delete
@@ -1762,8 +1784,14 @@ class App:
             tk.Label(f, text=desc, fg="#555", justify="left").pack(anchor="w", padx=25)
         
         def go():
+            # v111: ID tracking for jobs
+            new_id = uuid.uuid4()
+            self.current_job_id = new_id
+            
             top.destroy(); d = filedialog.askdirectory()
-            if d: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_inventory,d,mode.get()), daemon=True).start()
+            if d: 
+                self.toggle(False)
+                threading.Thread(target=self.wrap, args=(self.worker.run_inventory, d, mode.get(), new_id), daemon=True).start()
         
         self.Btn(top, text="Select Folder & Start", command=go).pack(fill="x", padx=20, pady=20, side="bottom")
 
@@ -1782,9 +1810,11 @@ class App:
         if enable and reset: self.on_sel(None)
 
     def stop(self):
-        self.worker.stop()
-        self.btn_stop.config(state="disabled")
-        self.btn_pause.config(state="disabled")
+        # v111: Warning Dialog
+        if messagebox.askyesno("Confirm Stop", "Stopping now will abort the current operation completely.\nYou will need to restart the job.\n\nAre you sure?"):
+            self.worker.stop()
+            self.btn_stop.config(state="disabled")
+            self.btn_pause.config(state="disabled")
 
     def toggle_pause(self):
         if self.paused:
@@ -1977,7 +2007,12 @@ class App:
                 elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue")
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
                 elif m[0]=='job': self.load_jobs(m[1]) 
-                elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); 
+                # v111: Clean up pause state on Done
+                elif m[0]=='done': 
+                    self.toggle(True); 
+                    self.lbl_status.config(text="Done", fg="green"); 
+                    self.btn_pause.config(text="PAUSE", bg="SystemButtonFace", state="disabled")
+                
                 # v110: Smart Preview Complete Handler (Does not reset UI)
                 elif m[0]=='preview_done':
                     self.toggle(True, reset=False) 
