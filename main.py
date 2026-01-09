@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v111
+#   DOCREFINE PRO v112
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v111"
+    CURRENT_VERSION = "v112"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -87,7 +87,6 @@ class SystemUtils:
             else: subprocess.call(['xdg-open', p])
         except Exception as e: print(f"Error opening file: {e}")
 
-    # v111: New "Reveal" logic
     @staticmethod
     def reveal_file(path):
         p = str(Path(path).resolve())
@@ -98,7 +97,6 @@ class SystemUtils:
             elif SystemUtils.IS_MAC:
                 subprocess.call(["open", "-R", p])
             else:
-                # Linux fallback (just open folder)
                 subprocess.call(['xdg-open', str(Path(p).parent)])
         except Exception as e:
             print(f"Error revealing file: {e}")
@@ -555,10 +553,10 @@ class Worker:
                 if f: return f
             return master if master.exists() else None
 
-    # v111: Robust ID check for ingest
-    def run_inventory(self, d_str, ingest_mode, job_id):
+    # v104: Restored Single Threaded Ingest
+    def run_inventory(self, d_str, ingest_mode):
         try:
-            # v111: Ensure stop signal is cleared for NEW job
+            # v110: Fix "Dead Worker" bug by resetting stop signal
             self.stop_sig = False
             self.resume()
             
@@ -576,7 +574,6 @@ class Worker:
             self.q.put(("slot_config", 1))
 
             for i, f in enumerate(files):
-                # v111: ID Check
                 if self.stop_sig: break
                 if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
                 
@@ -675,6 +672,7 @@ class Worker:
 
     def run_batch(self, ws_p, options):
         try:
+            # v110: Reset stop signal
             self.stop_sig = False
             self.resume()
             
@@ -721,7 +719,7 @@ class Worker:
                         if r: file_results.append(r)
                     except Exception as e: self.log(f"Thread Err: {e}", True)
 
-            # v111: Fix "Fake Completion" - Abort completely if stopped
+            # v110: "Fake Completion" Fix - Abort if stopped
             if self.stop_sig: 
                 self.log("Batch Stopped by User.")
                 self.q.put(("done",))
@@ -933,8 +931,24 @@ class Worker:
     def _export_debug_bundle_task(self):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-            dest_zip = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
-            temp_dir = SystemUtils.get_user_data_dir() / f"temp_debug_{ts}"
+            
+            # v112: Mac Permissions Fallback
+            base_dir = SystemUtils.get_user_data_dir()
+            
+            # Create a write test
+            try:
+                test_file = base_dir / "write_test.tmp"
+                test_file.touch()
+                test_file.unlink()
+            except PermissionError:
+                # Fallback to Downloads or Tmp
+                if SystemUtils.IS_MAC:
+                    base_dir = Path.home() / "Downloads"
+                else:
+                    base_dir = Path(os.getenv('TEMP', '/tmp'))
+            
+            dest_zip = base_dir / f"Debug_Bundle_{ts}.zip"
+            temp_dir = base_dir / f"temp_debug_{ts}"
             temp_dir.mkdir(parents=True, exist_ok=True)
             
             def safe_copy(src, dst_name):
@@ -995,6 +1009,7 @@ class ForensicComparator:
         self.page = 1
         self.total_pages = 1
         self.zoom = 1.0
+        self.last_scroll_time = 0
         
         # UI Structure
         self.top = tk.Frame(self.win, bg="#eee", pady=5)
@@ -1054,8 +1069,10 @@ class ForensicComparator:
         tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
         # v110: Open Candidate Button
         tk.Button(f_dup, text="Open File", command=self.open_current_dup).pack(side="left", padx=5)
-        # Safety Pivot
-        tk.Button(f_dup, text="MARK AS UNIQUE", bg="green", fg="white", command=self.mark_as_unique).pack(side="left", padx=10)
+        
+        # v112: Mac Safety Color
+        kw_uniq = {"bg": "green", "fg": "white"} if not SystemUtils.IS_MAC else {}
+        tk.Button(f_dup, text="MARK AS UNIQUE", command=self.mark_as_unique, **kw_uniq).pack(side="left", padx=10)
 
     def load_images(self):
         # Update Labels
@@ -1120,7 +1137,11 @@ class ForensicComparator:
         self.c2.bind("<B1-Motion>", self.scroll_move)
 
     def on_scroll_page(self, event):
-        # v111: Mouse Wheel -> Next/Prev Page
+        # v112: Debounce to prevent Mac "Super Scroll"
+        now = time.time()
+        if now - self.last_scroll_time < 0.4: return
+        self.last_scroll_time = now
+
         d = 0
         if event.num == 5 or event.delta < 0: d = 1 # Down/Next
         elif event.num == 4 or event.delta > 0: d = -1 # Up/Prev
@@ -1308,7 +1329,10 @@ class App:
         
         mon = tk.LabelFrame(right, text="Process Monitor", padx=10, pady=10); mon.pack(fill="x", pady=10)
         head = tk.Frame(mon); head.pack(fill="x")
-        self.lbl_status = tk.Label(head, text="Ready", fg="blue", anchor="w", font=("Segoe UI", 9, "bold")); 
+        
+        # v112: Remove Blue/Colors for Mac Legibility
+        status_fg = "blue" if not self.is_mac else "black"
+        self.lbl_status = tk.Label(head, text="Ready", fg=status_fg, anchor="w", font=("Segoe UI", 9, "bold")); 
         self.lbl_status.pack(side="left", fill="x", expand=True)
         self.lbl_timer = tk.Label(head, text="00:00:00", font=("Consolas", 10)); self.lbl_timer.pack(side="right", padx=10)
         
@@ -1331,7 +1355,8 @@ class App:
         self.load_jobs()
         self.restore_session()
         
-        self.root.after(300, self.poll)
+        # v112: Smarter Poll loop
+        self.poll()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
@@ -1347,18 +1372,21 @@ class App:
             else: sh -= 60 # Win Taskbar Safety
             
             # Default fallback
-            w, h, x, y = 1024, 700, 0, 0
+            # v112: Larger default for Mac
+            if SystemUtils.IS_MAC: w, h = 1280, 850
+            else: w, h = 1024, 700
+            
+            x, y = 0, 0
             
             if saved_geo:
                 parts = re.split(r'[x+]', saved_geo)
                 if len(parts) == 4:
                     w, h, x, y = map(int, parts)
             
-            # Aggressive Sanity Check for v108:
-            # If saved width is > 90% of screen width, force resize down to standard
-            if w > (sw * 0.9): 
-                w = 1024
-                h = 768
+            # Aggressive Sanity Check
+            if w > (sw * 0.95): 
+                w = int(sw * 0.8)
+                h = int(sh * 0.8)
                 x = (sw // 2) - (w // 2)
                 y = (sh // 2) - (h // 2)
             else:
@@ -1367,7 +1395,8 @@ class App:
             
             self.root.geometry(f"{w}x{h}+{x}+{y}")
         except:
-            self.root.geometry("1024x700")
+            if SystemUtils.IS_MAC: self.root.geometry("1280x850")
+            else: self.root.geometry("1024x700")
 
     # v104: Fixed Center Logic - NO CLAMPING (Allow negative coords for left monitors)
     @staticmethod
@@ -1555,7 +1584,8 @@ class App:
         lf_perf = tk.LabelFrame(win, text="Processing Engine", padx=10, pady=10)
         lf_perf.pack(fill="x", padx=10, pady=5)
         
-        tk.Label(lf_perf, text="Max Worker Threads:", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
+        # v112: Thread Clarity
+        tk.Label(lf_perf, text="Max Worker Threads (0 = Auto):", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
         v_threads = tk.IntVar(value=CFG.get("max_threads"))
         tk.Spinbox(lf_perf, from_=0, to=32, textvariable=v_threads, width=5).grid(row=0,column=1,sticky="e")
         
@@ -2051,6 +2081,8 @@ class App:
 
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
+        
+        # v112: Sequential Polling (prevents queue flood on slow Macs)
         self.root.after(300, self.poll)
 
 if __name__ == "__main__":
