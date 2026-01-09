@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v109
+#   DOCREFINE PRO v110
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v109"
+    CURRENT_VERSION = "v110"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -541,6 +541,10 @@ class Worker:
     # v104: Restored Single Threaded Ingest
     def run_inventory(self, d_str, ingest_mode):
         try:
+            # v110: Fix "Dead Worker" bug by resetting stop signal
+            self.stop_sig = False
+            self.resume()
+            
             d = Path(d_str); start_time = time.time()
             ws = WORKSPACES_ROOT / f"{d.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             m_dir = ws / "01_Master_Files"; m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
@@ -574,6 +578,9 @@ class Worker:
                 except Exception as e:
                     self.log(f"Hash Error: {e}", True)
 
+            # Check stop before finalizing
+            if self.stop_sig: return
+
             self.log("Tagging..."); total = len(seen)
             for i, (h, data) in enumerate(seen.items()):
                 if self.stop_sig: break
@@ -581,6 +588,8 @@ class Worker:
                 shutil.copy2(d / data['master'], m_dir / safe_name)
                 data['uid'] = safe_name; data['id'] = f"[{i+1:04d}]"
             
+            if self.stop_sig: return
+
             stats = {
                 "ingest_time": time.time()-start_time, 
                 "masters": total, 
@@ -645,6 +654,10 @@ class Worker:
 
     def run_batch(self, ws_p, options):
         try:
+            # v110: Reset stop signal
+            self.stop_sig = False
+            self.resume()
+            
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time(); src = ws/"01_Master_Files"; dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
             self.log(f"Refinement Start. Opts: {options}")
@@ -688,6 +701,12 @@ class Worker:
                         if r: file_results.append(r)
                     except Exception as e: self.log(f"Thread Err: {e}", True)
 
+            # v110: "Fake Completion" Fix - Abort if stopped
+            if self.stop_sig: 
+                self.log("Batch Stopped by User.")
+                self.q.put(("done",))
+                return
+
             update_stats_time(ws, "batch_time", time.time() - start_time)
             self.set_job_status(ws, "PROCESSED", "Complete")
             
@@ -700,6 +719,7 @@ class Worker:
 
     def run_organize(self, ws_p, priority_mode):
         try:
+            self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time()
             out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; q = out/"Quarantine"
@@ -743,6 +763,8 @@ class Worker:
                                 if c != data.get('master'):
                                     writer.writerow([data['name'], c])
 
+            if self.stop_sig: return
+
             update_stats_time(ws, "organize_time", time.time() - start_time)
             self.set_job_status(ws, "ORGANIZED", "Done")
             
@@ -754,6 +776,7 @@ class Worker:
 
     def run_distribute(self, ws_p, ext_src, priority_mode):
         try:
+            self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists():
                  self.log("CRITICAL: Manifest missing.", True)
@@ -791,6 +814,8 @@ class Worker:
                     t = dst / c; t.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, t.with_suffix(src.suffix))
             
+            if self.stop_sig: return
+
             q_src = ws / "00_Quarantine"
             if q_src.exists():
                 q_dst = dst / "_QUARANTINED_FILES"; 
@@ -808,6 +833,7 @@ class Worker:
 
     def run_full_export(self, ws_p):
         try:
+            self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists(): return
 
@@ -857,6 +883,8 @@ class Worker:
                 self.q.put(("done",))
                 return
 
+            if self.stop_sig: return
+
             self.log(f"Exported: {csv_path.name}")
             self.q.put(("job", str(ws))) 
             self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(rpt_dir)
@@ -865,9 +893,10 @@ class Worker:
 
     def run_preview(self, ws_p, dpi):
         try:
+            self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
-            if not pdf: self.q.put(("done",)); return
+            if not pdf: self.q.put(("preview_done",)); return
             for old in ws.glob("PREVIEW_*.pdf"): 
                 try: os.remove(old)
                 except: pass
@@ -876,8 +905,9 @@ class Worker:
             if imgs: 
                 imgs[0].save(out, "PDF", resolution=float(dpi))
                 SystemUtils.open_file(out)
-            self.q.put(("done",))
-        except: self.q.put(("done",))
+            # v110: Send specific signal to avoid UI reset
+            self.q.put(("preview_done",))
+        except: self.q.put(("preview_done",))
 
     # v109: Threaded Export Logic
     def _export_debug_bundle_task(self):
@@ -918,6 +948,14 @@ class Worker:
             self.q.put(("export_success", str(dest_zip)))
         except Exception as e:
             self.q.put(("error", f"Export Failed: {e}"))
+
+    def start_debug_export_thread(self, btn_ref, win_ref):
+        def _run():
+            self._export_debug_bundle_task()
+            self.q.put(("export_reset_btn", btn_ref))
+        
+        btn_ref.config(text="Exporting...", state="disabled")
+        threading.Thread(target=_run, daemon=True).start()
 
 # --- 8. UI ---
 class ForensicComparator:
@@ -994,6 +1032,8 @@ class ForensicComparator:
         self.lbl_dup = tk.Label(f_dup, text="Copy 1/1", width=15)
         self.lbl_dup.pack(side="left", padx=5)
         tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
+        # v110: Open Candidate Button
+        tk.Button(f_dup, text="Open File", command=self.open_current_dup).pack(side="left", padx=5)
         # Safety Pivot
         tk.Button(f_dup, text="MARK AS UNIQUE", bg="green", fg="white", command=self.mark_as_unique).pack(side="left", padx=10)
 
@@ -1004,8 +1044,13 @@ class ForensicComparator:
         self.lbl_dup.config(text=f"Copy {self.dup_idx+1}/{len(self.dups)}")
         
         if self.dups:
-            tk.Label(self.lbl_info.winfo_children()[1], text=f"CANDIDATE: {self.dups[self.dup_idx].name}").pack_forget() # Refresh info
-            self.lbl_info.winfo_children()[1].config(text=f"CANDIDATE: {self.dups[self.dup_idx].name}")
+            # v110: Show Full Path
+            path_str = str(self.dups[self.dup_idx])
+            # Truncate if too long
+            if len(path_str) > 60: path_str = "..." + path_str[-57:]
+            
+            tk.Label(self.lbl_info.winfo_children()[1], text=path_str).pack_forget() # Refresh info
+            self.lbl_info.winfo_children()[1].config(text=f"CANDIDATE: {path_str}")
 
         # Render Master
         self.img1 = self._render(self.master_path)
@@ -1104,6 +1149,10 @@ class ForensicComparator:
         if self.dup_idx > 0:
             self.dup_idx -= 1
             self.load_images()
+
+    def open_current_dup(self):
+        if self.dups:
+            SystemUtils.open_file(self.dups[self.dup_idx])
 
     def mark_as_unique(self):
         # Safety Pivot - Promote to Master instead of Delete
@@ -1328,14 +1377,18 @@ class App:
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
         
-        tk.Label(self.tab_process, text="PDF Action:", font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(10,0))
+        # v110: PDF Controls in container for dynamic hiding
+        self.f_pdf_ctrl = tk.Frame(self.tab_process)
+        tk.Label(self.f_pdf_ctrl, text="PDF Action:", font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(10,0))
         self.pdf_mode_var = tk.StringVar(value="No Action")
-        self.cb_pdf = ttk.Combobox(self.tab_process, textvariable=self.pdf_mode_var, values=["No Action", "Flatten Only (Fast)", "Flatten + OCR (Slow)"], state="readonly")
+        self.cb_pdf = ttk.Combobox(self.f_pdf_ctrl, textvariable=self.pdf_mode_var, values=["No Action", "Flatten Only (Fast)", "Flatten + OCR (Slow)"], state="readonly")
         self.cb_pdf.pack(fill="x", padx=10, pady=2)
+        # It will be packed in on_sel if needed
         
         ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=15,padx=10)
         
-        tk.Label(ctrl, text="Quality:").pack(side="left")
+        # v110: Renamed Label
+        tk.Label(ctrl, text="Processing & Preview Quality:").pack(side="left")
         self.dpi_var = tk.StringVar(value="Medium (Standard)")
         self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["Low (Fast)", "Medium (Standard)", "High (Slow)"], width=18, state="readonly")
         self.cb_dpi.pack(side="left",padx=5)
@@ -1564,47 +1617,9 @@ class App:
     # v109: Threaded Export Wrapper
     def start_debug_export_thread(self, btn_ref, win_ref):
         def _run():
-            try:
-                # Same logic as v108
-                ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-                dest_zip = SystemUtils.get_user_data_dir() / f"Debug_Bundle_{ts}.zip"
-                temp_dir = SystemUtils.get_user_data_dir() / f"temp_debug_{ts}"
-                temp_dir.mkdir(parents=True, exist_ok=True)
-                
-                def safe_copy(src, dst_name):
-                    try:
-                        if not src or not Path(src).exists(): return
-                        try: shutil.copy2(src, temp_dir / dst_name)
-                        except PermissionError:
-                            with open(src, 'rb') as f_in: content = f_in.read()
-                            with open(temp_dir / dst_name, 'wb') as f_out: f_out.write(content)
-                    except Exception as e:
-                        with open(temp_dir / f"{dst_name}_ERROR.txt", 'w') as err_f: err_f.write(str(e))
-
-                safe_copy(LOG_PATH, "app_debug.log")
-                safe_copy(JSON_LOG_PATH, "app_events.jsonl")
-                safe_copy(CFG.path, "config.json")
-                
-                ws = self.get_ws()
-                if ws:
-                    safe_copy(ws/"session_log.txt", "current_job_log.txt")
-                    safe_copy(ws/"stats.json", "current_job_stats.json")
-                
-                shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                
-                # Signal Success
-                self.q.put(("export_success", str(dest_zip)))
-                
-                # Close window on main thread if possible (handled in poll)
-                # But here we just signal done.
-                
-            except Exception as e:
-                self.q.put(("error", f"Export Failed: {e}"))
-            finally:
-                # Always reset button state via queue
-                self.q.put(("export_reset_btn", btn_ref))
-
+            self._export_debug_bundle_task()
+            self.q.put(("export_reset_btn", btn_ref))
+        
         btn_ref.config(text="Exporting...", state="disabled")
         threading.Thread(target=_run, daemon=True).start()
 
@@ -1694,7 +1709,12 @@ class App:
             if f_path.exists():
                  SystemUtils.open_file(f_path)
 
+    # v110: "Ghost Runner" Fix
     def check_run_btn(self, *args):
+        if self.running: 
+            self.btn_run.config(state="disabled")
+            return
+            
         any_checked = any(v.get() for v in self.chk_vars.values())
         pdf_active = self.pdf_mode_var.get() != "No Action"
         self.btn_run.config(state="normal" if (any_checked or pdf_active) else "disabled")
@@ -1747,7 +1767,8 @@ class App:
         
         self.Btn(top, text="Select Folder & Start", command=go).pack(fill="x", padx=20, pady=20, side="bottom")
 
-    def toggle(self, enable):
+    # v110: Added 'reset' parameter to control UI clearing
+    def toggle(self, enable, reset=True):
         self.running = not enable; s = "normal" if enable else "disabled"
         if not enable: self.start_t = time.time(); self.paused = False
         self.tree.config(selectmode="browse" if enable else "none")
@@ -1758,7 +1779,7 @@ class App:
         else: self.btn_run.config(state="disabled")
         self.btn_stop.config(state="normal" if not enable else "disabled")
         self.btn_pause.config(state="normal" if not enable else "disabled")
-        if enable: self.on_sel(None)
+        if enable and reset: self.on_sel(None)
 
     def stop(self):
         self.worker.stop()
@@ -1908,10 +1929,14 @@ class App:
             tk.Label(f, text=desc, font=("Segoe UI", 8), fg="#555").pack(anchor="w", padx=20)
             self.chk_vars[k]=v
         
+        # v110: Dynamic PDF UI
         if '.pdf' in types: 
+             self.f_pdf_ctrl.pack(fill="x", padx=10, pady=2) # Show
              self.cb_pdf.config(state="readonly")
              self.pdf_mode_var.trace_add("write", self.check_run_btn)
              self.btn_prev.config(state="normal")
+        else:
+             self.f_pdf_ctrl.pack_forget() # Hide
 
         if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px (HD Standard)."); ac("Images to PDF","img2pdf","Bundle loose images into one PDF.")
         if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove author metadata and revision history.")
@@ -1953,6 +1978,10 @@ class App:
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
                 elif m[0]=='job': self.load_jobs(m[1]) 
                 elif m[0]=='done': self.toggle(True); self.lbl_status.config(text="Done", fg="green"); 
+                # v110: Smart Preview Complete Handler (Does not reset UI)
+                elif m[0]=='preview_done':
+                    self.toggle(True, reset=False) 
+                    self.lbl_status.config(text="Preview Ready", fg="green")
                 elif m[0]=='update_avail':
                     if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"): webbrowser.open(m[2])
                 elif m[0]=='auto_open': SystemUtils.open_file(m[1])
