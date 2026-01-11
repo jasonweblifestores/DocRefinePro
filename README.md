@@ -2,100 +2,45 @@
 
 **Enterprise-Grade Document Processing & Organization Tool**
 
-**DocRefine Pro** is a standalone desktop application built for batch processing heavy document workflows. It automates the ingestion, deduplication, flattening, and OCR (Optical Character Recognition) of PDF and image files without requiring expensive cloud subscriptions.
-
-Works natively on **Windows 10/11** and **macOS (Intel & Apple Silicon)**.
+**DocRefine Pro** is a standalone desktop application for batch processing document workflows (Ingestion, Deduplication, Flattening, OCR). It runs 100% locally on your machine—no cloud uploads.
 
 ---
 
-## 🚀 Key Features
-
-* **Smart Ingestion:** Automatically scans folders, detects duplicates using hashing (Binary or Smart Text), and quarantines corrupt files.
-* **Organization & Deduplication:** dedicated mode to sort unique master files and generate detailed duplicate reports without modifying the original files.
-* **PDF Flattening:** Converts searchable PDFs into flattened images to remove hidden layers or metadata.
-* **Batch OCR:** Bulk-converts scanned images or flat PDFs into searchable text documents using Tesseract 5.
-* **Sanitization:** Removes metadata (Authors, Edit Time) from Microsoft Office documents (.docx, .xlsx).
-* **Privacy First:** All processing happens **locally** on your machine. No data is ever uploaded to the cloud.
-
----
-
-## 📥 Download & Installation
-
-Go to the [**Releases Page**](https://github.com/jasonweblifestores/DocRefinePro/releases) to download the latest version.
+## 📥 Installation Instructions
 
 ### 🪟 Windows
-1.  Download `DocRefinePro_Win_vXX.zip`.
+1.  You should have received a file named `DocRefinePro_Win_v113.zip`.
 2.  Right-click the zip file -> **Extract All**.
-3.  Open the folder and run **DocRefine Pro.exe**.
+3.  Open the extracted folder.
+4.  Double-click **DocRefine Pro.exe**.
     * *Note: If Windows SmartScreen appears, click "More Info" -> "Run Anyway".*
 
 ### 🍎 macOS
-1.  Download `DocRefinePro_Mac_vXX.dmg`.
-2.  Double-click the `.dmg` file to mount it.
+1.  You should have received a file named `DocRefinePro_Mac_v113.zip` (or `.dmg`).
+2.  Double-click to extract/mount it.
 3.  **Drag the DocRefine Pro app** into your **Applications** folder.
 
-#### ⚠️ Important: First-Run Security Warning
-Since this is an open-source tool signed with a community certificate, macOS will block it by default.
-
+#### ⚠️ Critical: First-Run Security (macOS)
+Since this is an internal tool, macOS will block it by default.
 1.  Go to your **Applications** folder.
 2.  **Right-Click (or Control+Click)** on `DocRefinePro`.
 3.  Select **Open** from the menu.
-4.  A popup will appear saying "macOS cannot verify the developer". Click **Open**.
+4.  Click **Open** in the confirmation popup.
     * *You only need to do this once.*
 
 ---
 
-## 🛠️ Usage Workflow
+## 🚀 Quick Start Guide
 
 ### 1. Ingest
 * Click **+ New Ingest Job**.
-* Select your source folder.
-* Choose a mode:
-    * **Standard:** Best for general use (Smart text hashing for PDFs).
-    * **Lightning:** Fastest (Strict binary hashing only).
-    * **Deep Scan:** Slowest but most accurate (Full text scan).
+* Select your source folder containing raw documents.
+* **Standard Mode:** Best for most PDFs.
+* **Lightning Mode:** Fastest (Exact duplicate detection only).
 
-### 2. Process (Choose Option A or B)
-Select your job from the dashboard and go to the **Process** tab.
+### 2. Process
+* **Option A (Modify):** Use the "Refine" tab to Flatten, OCR, or Sanitize files.
+* **Option B (Organize):** Use "Export > Option A" to extract unique master files without modifying them.
 
-#### **Option A: Batch Processing (Modify Files)**
-* Use this if you need to **Flatten**, **OCR**, **Resize**, or **Sanitize** files.
-* Check the actions you want (e.g., *Flatten PDFs*).
-* Click **Run Actions**.
-* Output goes to: `02_Ready_For_Redistribution`.
-
-#### **Option B: Organization (Deduplication Only)**
-* Use this if you only want to **clean up a messy drive** without altering the files.
-* Click **Run Dedupe & Sort**.
-* Output goes to: `03_Organized_Output`.
-    * **Unique_Masters:** Contains one clean copy of every file.
-    * **Duplicates:** Contains text reports listing where duplicates were found.
-
-### 3. Distribute
-*(Only applicable if you used Option A)*
-* Go to the **Distribute** tab.
-* Choose if you want to output searchable (OCR) copies or flat copies.
-* Click **Run Distribution** to generate the final "Clean" folder structure.
-
----
-
-## 👨‍💻 Building from Source
-
-If you prefer to run the raw Python code or build it yourself:
-
-**Prerequisites:**
-* Python 3.10+
-* **Windows:** Install Poppler and Tesseract-OCR and add them to your PATH.
-* **macOS:** Install via Homebrew: `brew install poppler tesseract tesseract-lang`.
-
-**Setup:**
-```bash
-# Clone the repo
-git clone [https://github.com/jasonweblifestores/DocRefinePro.git](https://github.com/jasonweblifestores/DocRefinePro.git)
-cd DocRefinePro
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the app
-python main.py
+### 3. Support
+For bugs or feature requests, contact the development team directly.
