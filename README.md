@@ -16,17 +16,20 @@
     * *Note: If Windows SmartScreen appears, click "More Info" -> "Run Anyway".*
 
 ### 🍎 macOS
-1.  You should have received a file named `DocRefinePro_Mac_v113.zip` (or `.dmg`).
-2.  Double-click to extract/mount it.
+1.  Download `DocRefinePro_Mac_vXX.dmg`.
+2.  Double-click the `.dmg` file to mount it.
 3.  **Drag the DocRefine Pro app** into your **Applications** folder.
 
-#### ⚠️ Critical: First-Run Security (macOS)
-Since this is an internal tool, macOS will block it by default.
-1.  Go to your **Applications** folder.
-2.  **Right-Click (or Control+Click)** on `DocRefinePro`.
-3.  Select **Open** from the menu.
-4.  Click **Open** in the confirmation popup.
-    * *You only need to do this once.*
+#### ⚠️ Critical: "App is Damaged" Fix
+Because this is an internal tool not signed by the Apple Store, macOS will likely block it with a message saying *"The app is damaged"* or *"Cannot be opened."*
+
+**To fix this (One-time setup):**
+1.  Open your Mac's **Terminal** app (Command+Space, type "Terminal").
+2.  Paste the following command and hit Enter:
+    ```bash
+    xattr -cr /Applications/DocRefinePro.app
+    ```
+3.  You can now open the app normally from your Applications folder.
 
 ---
 
