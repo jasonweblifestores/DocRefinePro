@@ -1,0 +1,49 @@
+# DocRefine Pro - Deployment Checklist (Hybrid Hosting)
+
+## Phase 1: Code & Versioning
+[ ] 1. Update Version String:
+    - Open `DocRefinePro.py`.
+    - Update `CURRENT_VERSION = "vXXX"`.
+    - Save file.
+[ ] 2. Git Commit:
+    - Run `git add .`
+    - Run `git commit -m "vXXX: [Brief description of features/fixes]"`
+[ ] 3. Git Tag (Private Repo):
+    - Run `git tag vXXX`
+    - Run `git push origin vXXX`
+    - Run `git push`
+
+## Phase 2: Build & Package
+[ ] 4. Clean Build Environment:
+    - Delete `build/` and `dist/` folders if they exist.
+    - Delete any `.spec` files unless reusing a custom one.
+[ ] 5. Run PyInstaller:
+    - Windows: `pyinstaller --noconfirm --onefile --windowed --name "DocRefine Pro" --icon "icon.ico" DocRefinePro.py`
+    - Mac: `pyinstaller --noconfirm --onefile --windowed --name "DocRefine Pro" --icon "icon.icns" DocRefinePro.py`
+[ ] 6. Create Distribution Bundle:
+    - Create a new folder named `DocRefine_vXXX`.
+    - Move the compiled executable (`dist/DocRefine Pro.exe` or `.app`) into this folder.
+    - Copy `README.pdf` or `User_Manual.pdf` into this folder.
+[ ] 7. Zip the Bundle:
+    - Zip the `DocRefine_vXXX` folder.
+    - Final file should be: `DocRefine_vXXX.zip`.
+
+## Phase 3: Distribution (Google Drive)
+[ ] 8. Upload to Cloud:
+    - Upload `DocRefine_vXXX.zip` to the shared "DocRefine Releases" folder on Google Drive/OneDrive.
+[ ] 9. Generate Link:
+    - Right-click the uploaded zip -> "Share" -> "Copy Link" (Ensure permissions are set to "Anyone in [Company] can view").
+
+## Phase 4: Signal Update
+[ ] 10. Update Gist Manifest:
+    - Go to the docrefine_version.json Gist.
+    - Edit the file.
+    - Update `"latest_version": "vXXX"`.
+    - Update `"download_url": "[PASTE GOOGLE DRIVE LINK HERE]"`.
+    - Click "Update public gist".
+
+## Phase 5: Verification
+[ ] 11. Test Update:
+    - Launch an older version of DocRefine Pro.
+    - Click "Check Updates".
+    - Verify it detects vXXX and opens the correct Google Drive link.

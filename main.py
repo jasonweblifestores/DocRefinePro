@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v112
+#   DOCREFINE PRO v113
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v112"
+    CURRENT_VERSION = "v113"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -89,13 +89,15 @@ class SystemUtils:
 
     @staticmethod
     def reveal_file(path):
+        # v113 Fix: Highlighting and Non-Blocking for Mac
         p = str(Path(path).resolve())
         try:
             if not Path(p).exists(): return
             if SystemUtils.IS_WIN:
                 subprocess.Popen(f'explorer /select,"{p}"')
             elif SystemUtils.IS_MAC:
-                subprocess.call(["open", "-R", p])
+                # Use Popen to avoid blocking Main Thread
+                subprocess.Popen(["open", "-R", p])
             else:
                 subprocess.call(['xdg-open', str(Path(p).parent)])
         except Exception as e:
@@ -483,6 +485,9 @@ class OfficeProcessor(BaseProcessor):
 class Worker:
     def __init__(self, q): 
         self.q = q; self.stop_sig = False; self.pause_event = threading.Event(); self.pause_event.set(); self.current_ws = None 
+        # v113: Throttling state
+        self._last_update = {}
+
     def stop(self): self.stop_sig = True; self.pause_event.set()
     def pause(self): self.pause_event.clear()
     def resume(self): self.pause_event.set()
@@ -500,8 +505,17 @@ class Worker:
     def prog_main(self, v, t): self.q.put(("main_p", v, t))
     
     def prog_sub(self, v, t, status_only=False): 
+        # v113 Fix: Throttle high-frequency updates to prevent Mac UI freeze
         tid = threading.get_ident()
-        self.q.put(("slot_update", tid, t, v))
+        now = time.time()
+        
+        # Allow immediate update if it's the first one or sufficient time passed
+        if tid not in self._last_update:
+            self._last_update[tid] = 0
+            
+        if (now - self._last_update[tid]) > 0.1: # Max 10 updates/sec per thread
+            self.q.put(("slot_update", tid, t, v))
+            self._last_update[tid] = now
 
     def get_hash(self, path, mode):
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
@@ -1541,7 +1555,8 @@ class App:
         data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
         if data:
             path = ws/"01_Master_Files"/data['uid']
-            if path.exists(): SystemUtils.open_file(path.parent)
+            # v113 Fix: Pass full path to reveal_file, not parent to open_file
+            if path.exists(): SystemUtils.reveal_file(path)
 
     def on_compare_click(self):
         ws = self.get_ws()
@@ -1650,8 +1665,14 @@ class App:
 
         def save():
             CFG.set("max_threads", v_threads.get())
-            try: CFG.set("max_pixels", int(v_pixels.get()))
-            except: pass
+            try: 
+                # v113 Fix: Validate integer for Max Pixels
+                px_val = int(v_pixels.get())
+                if px_val <= 0: raise ValueError
+                CFG.set("max_pixels", px_val)
+            except: 
+                 CFG.set("max_pixels", 500000000) # Reset to default if invalid
+            
             CFG.set("default_ingest_mode", v_ingest.get())
             CFG.set("default_export_prio", v_export.get())
             
@@ -2030,7 +2051,9 @@ class App:
         except Exception as e: self.q.put(("error", str(e))); self.q.put(("done",))
     def poll(self):
         try:
-            for _ in range(50):
+            # v113 Fix: Smaller batch size (20) to prevent Main Loop blocking on Mac
+            for _ in range(20):
+                if self.q.empty(): break
                 m = self.q.get_nowait()
                 if m[0]=='log': self.log_box.insert(tk.END, m[1]+"\n"); self.log_box.see(tk.END)
                 elif m[0]=='main_p': self.p_main.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
@@ -2082,8 +2105,8 @@ class App:
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
         
-        # v112: Sequential Polling (prevents queue flood on slow Macs)
-        self.root.after(300, self.poll)
+        # v113 Fix: Faster poll frequency (100ms) with smaller batch sizes = snappier UI
+        self.root.after(100, self.poll)
 
 if __name__ == "__main__":
     try: root = tk.Tk(); App(root); root.mainloop()
