@@ -34,6 +34,11 @@ jobs:
       run: |
         pyinstaller DocRefinePro.spec --noconfirm
 
+    - name: Bundle Readme & License
+      run: |
+        copy README.md dist/DocRefinePro/
+        copy LICENSE dist/DocRefinePro/
+
     - name: Zip the Build
       run: |
         powershell Compress-Archive -Path dist/DocRefinePro -DestinationPath DocRefinePro_Win_v${{ github.ref_name }}.zip
@@ -102,6 +107,9 @@ jobs:
         mkdir -p dist/dmg_content
         cp -r "dist/DocRefinePro.app" dist/dmg_content
         
+        cp README.md dist/dmg_content/
+        cp LICENSE dist/dmg_content/
+
         create-dmg \
           --volname "DocRefinePro Installer" \
           --window-pos 200 120 \
