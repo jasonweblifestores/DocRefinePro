@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v116
+#   DOCREFINE PRO v117
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v116"
+    CURRENT_VERSION = "v117"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -947,7 +947,7 @@ class Worker:
             self.q.put(("preview_done",))
         except: self.q.put(("preview_done",))
 
-    def _export_debug_bundle_task(self):
+    def run_debug_export(self, ws_path_str):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
             base_dir = SystemUtils.get_user_data_dir()
@@ -986,10 +986,11 @@ class Worker:
             safe_copy(CFG.path, "config.json")
             
             # Current WS
-            ws = self.get_ws()
-            if ws:
-                safe_copy(ws/"session_log.txt", "current_job_log.txt")
-                safe_copy(ws/"stats.json", "current_job_stats.json")
+            if ws_path_str:
+                ws = Path(ws_path_str)
+                if ws.exists():
+                    safe_copy(ws/"session_log.txt", "current_job_log.txt")
+                    safe_copy(ws/"stats.json", "current_job_stats.json")
             
             shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -998,13 +999,6 @@ class Worker:
         except Exception as e:
             self.q.put(("error", f"Export Failed: {e}"))
 
-    def start_debug_export_thread(self, btn_ref, win_ref):
-        def _run():
-            self._export_debug_bundle_task()
-            self.q.put(("export_reset_btn", btn_ref))
-        
-        btn_ref.config(text="Exporting...", state="disabled")
-        threading.Thread(target=_run, daemon=True).start()
 
 # --- 8. UI ---
 class DocViewer:
@@ -1664,7 +1658,11 @@ class App:
 
     def start_debug_export_thread(self, btn_ref, win_ref):
         def _run():
-            self._export_debug_bundle_task()
+            ws = self.get_ws()
+            # Capture the path as a string safely on the main thread
+            ws_str = str(ws) if ws else None
+            # Delegate to worker without touching UI
+            self.worker.run_debug_export(ws_str)
             self.q.put(("export_reset_btn", btn_ref))
         
         btn_ref.config(text="Exporting...", state="disabled")
@@ -1811,7 +1809,8 @@ class App:
             top.destroy(); d = filedialog.askdirectory()
             if d: 
                 self.toggle(False)
-                threading.Thread(target=self.wrap, args=(self.worker.run_inventory, d, mode.get(), new_id), daemon=True).start()
+                # FIX: Removed new_id from arguments
+                threading.Thread(target=self.wrap, args=(self.worker.run_inventory, d, mode.get()), daemon=True).start()
         
         self.Btn(top, text="Select Folder & Start", command=go).pack(fill="x", padx=20, pady=20, side="bottom")
 
