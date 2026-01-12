@@ -1,16 +1,22 @@
 # DocRefine Pro - Changelog
 
-## v117
-* [Fixed] **Ingest Crash:** Resolved a critical regression where starting a new job caused a `TypeError` due to mismatched arguments.
-* [Fixed] **Debug Export:** Fixed a threading violation that caused the "Export Debug Bundle" button to freeze the application without producing a file.
-* [Refactor] **Thread Safety:** Hardened the separation between UI logic and background workers to prevent "Ghost" locks.
+## v118-patch1
+* [Fixed] **Context Menu Bug:** Fixed "Reveal in Folder" failure by using unique ID lookup instead of fragile filename matching.
 
-## v116 (Current)
-* [Added] **In-App Documentation:** Added a "Documentation" section to Settings. Users can now view the **Changelog** and **User Guide** directly within the application.
-* [Added] **Intelligent Resource Loader:** The app now intelligently locates documentation files whether running from the Python source, a compiled bundle, or an external folder.
-* [Improved] **Build Pipeline:** Updated build configuration to bundle `.md` documentation files directly inside the executable/app bundle for offline access.
+## v118 (Modular Foundation)
+* [Architecture] **Modular Restructure:** Application logic split into `gui`, `worker`, `processing`, and `config` modules for improved stability.
+* [Improvement] **Update Signal:** Hardcoded verification of v118.
+* [Docs] Updated bundled documentation paths.
+
+## v117 (Hotfixes)
+* [Fixed] **Ingest Crash:** Resolved regression in `run_inventory` arguments.
+* [Fixed] **Debug Export:** Fixed threading violation in export tool.
+* [Refactor] **Thread Safety:** Hardened UI/Worker separation.
+
+## v116
+* [Added] In-App Documentation Viewer.
+* [Improved] Intelligent Resource Loader.
 
 ## v115
-* [Fixed] Mac UI freeze issue by implementing thread-safe queue throttling.
-* [Fixed] "Ghost Windows" on Windows 11 by patching subprocess.STARTUPINFO.
-* [Added] New "Permanent Channel" deployment protocol.
+* [Fixed] Mac UI freeze (queue throttling).
+* [Fixed] Windows "Ghost Windows" patch.

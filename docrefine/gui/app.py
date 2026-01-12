@@ -583,11 +583,20 @@ class App:
         if not ws: return
         item_id = self.insp_tree.selection()
         if not item_id: return
-        name = self.insp_tree.item(item_id[0], 'values')[1]
-        data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
+        
+        # CHANGED: Look up by ID (Col 0) instead of Name (Col 1) for safety
+        file_id = self.insp_tree.item(item_id[0], 'values')[0] 
+        
+        data = next((v for k,v in self.current_manifest.items() if v.get('id') == file_id), None)
+        
         if data:
             path = ws/"01_Master_Files"/data['uid']
-            if path.exists(): SystemUtils.reveal_file(path)
+            if path.exists(): 
+                SystemUtils.reveal_file(path)
+            else:
+                messagebox.showwarning("File Missing", f"Could not find master file at:\n{path}")
+        else:
+             messagebox.showerror("Error", "Could not locate file in manifest.")
 
     def on_compare_click(self):
         ws = self.get_ws()
