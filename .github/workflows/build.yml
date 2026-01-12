@@ -10,7 +10,7 @@ on:
 
 jobs:
   # ====================================================
-  # JOB 1: WINDOWS BUILD (Preserves your current logic)
+  # JOB 1: WINDOWS BUILD
   # ====================================================
   build-windows:
     name: Windows Build
@@ -34,9 +34,11 @@ jobs:
       run: |
         pyinstaller DocRefinePro.spec --noconfirm
 
-    - name: Bundle Readme & License
+    # [UPDATED] Copies BOTH docs next to the .exe (The app v116 looks here)
+    - name: Bundle Readme & Changelog
       run: |
         copy README.md dist/DocRefinePro/
+        copy CHANGELOG.md dist/DocRefinePro/
         copy LICENSE dist/DocRefinePro/
 
     - name: Zip the Build
@@ -50,7 +52,7 @@ jobs:
         files: DocRefinePro_Win_v${{ github.ref_name }}.zip
 
   # ====================================================
-  # JOB 2: MAC BUILD (New dynamic setup)
+  # JOB 2: MAC BUILD
   # ====================================================
   build-mac:
     name: macOS Build
@@ -76,8 +78,7 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
-    # We use CLI flags here instead of the .spec file because
-    # the paths to Poppler/Tesseract on Mac are dynamic (Homebrew).
+    # [UPDATED] Added --add-data flags for Docs
     - name: Build Mac App
       run: |
         # 1. Find dynamic Homebrew paths
@@ -89,35 +90,37 @@ jobs:
         echo "Found Tesseract at: $TESS_PATH"
 
         # 2. Run PyInstaller
-        # --add-binary bundles the exe files
-        # --add-data bundles the language files for OCR
+        # Added CHANGELOG.md and README.md to the bundle
         pyinstaller --noconfirm --onedir --windowed --clean \
           --name "DocRefinePro" \
           --add-binary "$POPPLER_PATH/bin/pdfinfo:." \
           --add-binary "$POPPLER_PATH/bin/pdftoppm:." \
           --add-binary "$TESS_PATH/bin/tesseract:." \
           --add-data "$TESSDATA_DIR:tessdata" \
+          --add-data "CHANGELOG.md:." \
+          --add-data "README.md:." \
           main.py
-          
-        # NOTE: If you have a Mac icon, add: --icon "assets/icon.icns" \ above
 
-    # Create the clickable .dmg installer
+    # [UPDATED] Copies Docs to the DMG Installer view
     - name: Create DMG Installer
       run: |
         mkdir -p dist/dmg_content
         cp -r "dist/DocRefinePro.app" dist/dmg_content
-        
         cp README.md dist/dmg_content/
+        cp CHANGELOG.md dist/dmg_content/
         cp LICENSE dist/dmg_content/
 
         create-dmg \
           --volname "DocRefinePro Installer" \
           --window-pos 200 120 \
-          --window-size 800 400 \
+          --window-size 800 500 \
           --icon-size 100 \
           --icon "DocRefinePro.app" 200 190 \
           --hide-extension "DocRefinePro.app" \
           --app-drop-link 600 185 \
+          --icon "README.md" 200 350 \
+          --icon "CHANGELOG.md" 400 350 \
+          --icon "LICENSE" 600 350 \
           "dist/DocRefinePro_Mac_v${{ github.ref_name }}.dmg" \
           "dist/dmg_content"
 

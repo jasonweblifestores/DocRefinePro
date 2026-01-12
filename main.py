@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v115
+#   DOCREFINE PRO v116
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v115"
+    CURRENT_VERSION = "v116"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -78,6 +78,23 @@ class SystemUtils:
         return Path(__file__).parent
 
     @staticmethod
+    def find_doc_file(filename):
+        # 1. Look in bundled resources (PyInstaller)
+        res = SystemUtils.get_resource_dir() / filename
+        if res.exists(): return res
+        
+        # 2. Look next to executable (Portable/Distribution)
+        if getattr(sys, 'frozen', False):
+            exe_path = Path(sys.executable).parent / filename
+            if exe_path.exists(): return exe_path
+        
+        # 3. Look in current working dir (Dev)
+        cwd = Path.cwd() / filename
+        if cwd.exists(): return cwd
+        
+        return None
+
+    @staticmethod
     def open_file(path):
         p = str(path)
         try:
@@ -89,14 +106,12 @@ class SystemUtils:
 
     @staticmethod
     def reveal_file(path):
-        # v113 Fix: Highlighting and Non-Blocking for Mac
         p = str(Path(path).resolve())
         try:
             if not Path(p).exists(): return
             if SystemUtils.IS_WIN:
                 subprocess.Popen(f'explorer /select,"{p}"')
             elif SystemUtils.IS_MAC:
-                # Use Popen to avoid blocking Main Thread
                 subprocess.Popen(["open", "-R", p])
             else:
                 subprocess.call(['xdg-open', str(Path(p).parent)])
@@ -485,7 +500,6 @@ class OfficeProcessor(BaseProcessor):
 class Worker:
     def __init__(self, q): 
         self.q = q; self.stop_sig = False; self.pause_event = threading.Event(); self.pause_event.set(); self.current_ws = None 
-        # v113: Throttling state
         self._last_update = {}
 
     def stop(self): self.stop_sig = True; self.pause_event.set()
@@ -505,11 +519,9 @@ class Worker:
     def prog_main(self, v, t): self.q.put(("main_p", v, t))
     
     def prog_sub(self, v, t, status_only=False): 
-        # v113 Fix: Throttle high-frequency updates to prevent Mac UI freeze
         tid = threading.get_ident()
         now = time.time()
         
-        # Allow immediate update if it's the first one or sufficient time passed
         if tid not in self._last_update:
             self._last_update[tid] = 0
             
@@ -567,10 +579,8 @@ class Worker:
                 if f: return f
             return master if master.exists() else None
 
-    # v104: Restored Single Threaded Ingest
     def run_inventory(self, d_str, ingest_mode):
         try:
-            # v110: Fix "Dead Worker" bug by resetting stop signal
             self.stop_sig = False
             self.resume()
             
@@ -607,7 +617,6 @@ class Worker:
                 except Exception as e:
                     self.log(f"Hash Error: {e}", True)
 
-            # Check stop before finalizing
             if self.stop_sig: 
                 self.log("Ingest Stopped by User.")
                 self.q.put(("done",))
@@ -686,7 +695,6 @@ class Worker:
 
     def run_batch(self, ws_p, options):
         try:
-            # v110: Reset stop signal
             self.stop_sig = False
             self.resume()
             
@@ -733,7 +741,6 @@ class Worker:
                         if r: file_results.append(r)
                     except Exception as e: self.log(f"Thread Err: {e}", True)
 
-            # v110: "Fake Completion" Fix - Abort if stopped
             if self.stop_sig: 
                 self.log("Batch Stopped by User.")
                 self.q.put(("done",))
@@ -937,25 +944,19 @@ class Worker:
             if imgs: 
                 imgs[0].save(out, "PDF", resolution=float(dpi))
                 SystemUtils.open_file(out)
-            # v110: Send specific signal to avoid UI reset
             self.q.put(("preview_done",))
         except: self.q.put(("preview_done",))
 
-    # v109: Threaded Export Logic
     def _export_debug_bundle_task(self):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-            
-            # v112: Mac Permissions Fallback
             base_dir = SystemUtils.get_user_data_dir()
             
-            # Create a write test
             try:
                 test_file = base_dir / "write_test.tmp"
                 test_file.touch()
                 test_file.unlink()
             except PermissionError:
-                # Fallback to Downloads or Tmp
                 if SystemUtils.IS_MAC:
                     base_dir = Path.home() / "Downloads"
                 else:
@@ -1006,13 +1007,36 @@ class Worker:
         threading.Thread(target=_run, daemon=True).start()
 
 # --- 8. UI ---
+class DocViewer:
+    def __init__(self, root, filename, title):
+        self.win = tk.Toplevel(root)
+        self.win.title(title)
+        self.win.geometry("800x600")
+        App.center_toplevel(self.win, root)
+        
+        target = SystemUtils.find_doc_file(filename)
+        
+        if not target:
+            tk.Label(self.win, text=f"File '{filename}' not found.", font=("Segoe UI", 12, "bold"), fg="red").pack(pady=20)
+            tk.Label(self.win, text="Please ensure the file is present in the application folder.", font=("Segoe UI", 10)).pack()
+            return
+            
+        txt = scrolledtext.ScrolledText(self.win, wrap="word", font=("Consolas", 10), padx=10, pady=10)
+        txt.pack(fill="both", expand=True)
+        
+        try:
+            content = target.read_text(encoding='utf-8')
+            txt.insert("1.0", content)
+        except Exception as e:
+            txt.insert("1.0", f"Error reading file: {e}")
+            
+        txt.config(state="disabled")
+
 class ForensicComparator:
     def __init__(self, root, ws_path, manifest, master_path, dup_candidates):
         self.win = tk.Toplevel(root)
         self.win.title("Forensic Verification (Sync View)")
         self.win.geometry("1400x800")
-        
-        # v104: Fixed Center Logic - NO CLAMPING
         App.center_toplevel(self.win, root)
         
         self.ws_path = ws_path
@@ -1025,11 +1049,9 @@ class ForensicComparator:
         self.zoom = 1.0
         self.last_scroll_time = 0
         
-        # UI Structure
         self.top = tk.Frame(self.win, bg="#eee", pady=5)
         self.top.pack(fill="x")
         
-        # Added Filenames
         self.lbl_info = tk.Frame(self.win)
         self.lbl_info.pack(fill="x", pady=2)
         tk.Label(self.lbl_info, text=f"MASTER: {master_path.name}", font=("Consolas", 9, "bold"), fg="#2c3e50").pack(side="left", fill="x", expand=True)
@@ -1049,7 +1071,6 @@ class ForensicComparator:
         
         self._build_toolbar()
         
-        # Init
         self.is_pdf = self.master_path.suffix.lower() == '.pdf'
         if self.is_pdf:
             try: self.total_pages = pdfinfo_from_path(str(self.master_path), poppler_path=POPPLER_BIN).get('Pages', 1)
@@ -1059,55 +1080,43 @@ class ForensicComparator:
         self.bind_events()
 
     def _build_toolbar(self):
-        # Page Nav
         f_page = tk.Frame(self.top); f_page.pack(side="left", padx=10)
         tk.Button(f_page, text="< Prev Page", command=self.prev_page).pack(side="left")
         self.lbl_page = tk.Label(f_page, text="Page 1/1", width=10)
         self.lbl_page.pack(side="left", padx=5)
         tk.Button(f_page, text="Next Page >", command=self.next_page).pack(side="left")
         
-        # Zoom
         f_zoom = tk.Frame(self.top); f_zoom.pack(side="left", padx=20)
         tk.Button(f_zoom, text="- Zoom", command=lambda: self.do_zoom(0.8)).pack(side="left")
         self.lbl_zoom = tk.Label(f_zoom, text="100%", width=6)
         self.lbl_zoom.pack(side="left")
         tk.Button(f_zoom, text="Zoom +", command=lambda: self.do_zoom(1.2)).pack(side="left")
-        # Fit Width
         tk.Button(f_zoom, text="[Fit Width]", command=self.fit_width).pack(side="left", padx=5)
         
-        # Duplicate Nav
         f_dup = tk.Frame(self.top); f_dup.pack(side="right", padx=10)
         tk.Button(f_dup, text="< Prev Copy", command=self.prev_dup).pack(side="left")
         self.lbl_dup = tk.Label(f_dup, text="Copy 1/1", width=15)
         self.lbl_dup.pack(side="left", padx=5)
         tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
-        # v110: Open Candidate Button
         tk.Button(f_dup, text="Open File", command=self.open_current_dup).pack(side="left", padx=5)
         
-        # v112: Mac Safety Color
         kw_uniq = {"bg": "green", "fg": "white"} if not SystemUtils.IS_MAC else {}
         tk.Button(f_dup, text="MARK AS UNIQUE", command=self.mark_as_unique, **kw_uniq).pack(side="left", padx=10)
 
     def load_images(self):
-        # Update Labels
         self.lbl_page.config(text=f"Page {self.page}/{self.total_pages}")
         self.lbl_zoom.config(text=f"{int(self.zoom*100)}%")
         self.lbl_dup.config(text=f"Copy {self.dup_idx+1}/{len(self.dups)}")
         
         if self.dups:
-            # v110: Show Full Path
             path_str = str(self.dups[self.dup_idx])
-            # Truncate if too long
             if len(path_str) > 60: path_str = "..." + path_str[-57:]
-            
-            tk.Label(self.lbl_info.winfo_children()[1], text=path_str).pack_forget() # Refresh info
+            tk.Label(self.lbl_info.winfo_children()[1], text=path_str).pack_forget() 
             self.lbl_info.winfo_children()[1].config(text=f"CANDIDATE: {path_str}")
 
-        # Render Master
         self.img1 = self._render(self.master_path)
         self.show_img(self.c1, self.img1)
         
-        # Render Duplicate
         if self.dups:
             dup_path = self.dups[self.dup_idx]
             self.img2 = self._render(dup_path)
@@ -1137,39 +1146,32 @@ class ForensicComparator:
             cv.config(scrollregion=cv.bbox("all"))
 
     def bind_events(self):
-        # Sync Scroll (Linux/Win/Mac handling)
-        # v111: Mouse Wheel flips pages
         self.c1.bind("<MouseWheel>", self.on_scroll_page)
         self.c2.bind("<MouseWheel>", self.on_scroll_page)
         self.c1.bind("<Button-4>", self.on_scroll_page)
         self.c1.bind("<Button-5>", self.on_scroll_page)
-        
-        # Pan (Drag)
         self.c1.bind("<ButtonPress-1>", self.scroll_start)
         self.c1.bind("<B1-Motion>", self.scroll_move)
         self.c2.bind("<ButtonPress-1>", self.scroll_start)
         self.c2.bind("<B1-Motion>", self.scroll_move)
 
     def on_scroll_page(self, event):
-        # v112: Debounce to prevent Mac "Super Scroll"
         now = time.time()
         if now - self.last_scroll_time < 0.4: return
         self.last_scroll_time = now
 
         d = 0
-        if event.num == 5 or event.delta < 0: d = 1 # Down/Next
-        elif event.num == 4 or event.delta > 0: d = -1 # Up/Prev
+        if event.num == 5 or event.delta < 0: d = 1 
+        elif event.num == 4 or event.delta > 0: d = -1 
         
         if d == 1: self.next_page()
         elif d == -1: self.prev_page()
 
     def scroll_start(self, event):
-        # Correct Tkinter Panning
         self.c1.scan_mark(event.x, event.y)
         self.c2.scan_mark(event.x, event.y)
 
     def scroll_move(self, event):
-        # Correct Tkinter Panning
         self.c1.scan_dragto(event.x, event.y, gain=1)
         self.c2.scan_dragto(event.x, event.y, gain=1)
 
@@ -1179,7 +1181,6 @@ class ForensicComparator:
 
     def fit_width(self):
         try:
-            # Simple fit: assuming standard letter width ~600px at 72dpi
             cw = self.c1.winfo_width()
             if cw > 50:
                 self.zoom = (cw - 20) / 600.0
@@ -1208,21 +1209,17 @@ class ForensicComparator:
 
     def open_current_dup(self):
         if self.dups:
-            # v111: Reveal instead of just open
             SystemUtils.reveal_file(self.dups[self.dup_idx])
 
     def mark_as_unique(self):
-        # Safety Pivot - Promote to Master instead of Delete
         if not self.dups: return
         target_path = self.dups[self.dup_idx]
         
         if messagebox.askyesno("Promote File", f"Mark '{target_path.name}' as a unique Master file?\n\nIt will be removed from this duplicate list and treated as a distinct document."):
             try:
-                # 1. Identify current entry in manifest
                 root_path = None
                 original_hash = None
                 
-                # Reverse lookup path in manifest (finding key by value in copy list)
                 for h, data in self.manifest.items():
                     r_p = data.get('root')
                     if r_p:
@@ -1235,13 +1232,10 @@ class ForensicComparator:
                         except: continue
 
                 if original_hash:
-                    # 2. Modify Manifest
-                    # A. Remove from original copies
                     rel_p = str(target_path.relative_to(root_path))
                     if rel_p in self.manifest[original_hash]['copies']:
                         self.manifest[original_hash]['copies'].remove(rel_p)
 
-                    # B. Create new entry
                     new_uid = f"{uuid.uuid4()}_{sanitize_filename(target_path.name)}"
                     new_key = f"PROMOTED_{uuid.uuid4()}"
                     
@@ -1255,15 +1249,12 @@ class ForensicComparator:
                         "status": "OK"
                     }
                     
-                    # 3. Create Physical Master Copy (Required for Export logic)
                     m_dir = self.ws_path / "01_Master_Files"
                     shutil.copy2(target_path, m_dir / new_uid)
 
-                    # 4. Save JSON
                     with open(self.ws_path / "manifest.json", 'w') as f:
                         json.dump(self.manifest, f, indent=4)
 
-                    # 5. Update UI
                     del self.dups[self.dup_idx]
                     if not self.dups:
                         messagebox.showinfo("Done", "All duplicates handled.")
@@ -1282,7 +1273,6 @@ class App:
         self.root = root
         self.root.title(f"DocRefine Pro {SystemUtils.CURRENT_VERSION} ({platform.system()})")
         
-        # v102: Smart Window Logic
         self.apply_smart_geometry(CFG.get("last_geometry"))
         
         self.q = queue.Queue(); self.worker = Worker(self.q)
@@ -1344,7 +1334,6 @@ class App:
         mon = tk.LabelFrame(right, text="Process Monitor", padx=10, pady=10); mon.pack(fill="x", pady=10)
         head = tk.Frame(mon); head.pack(fill="x")
         
-        # v112: Remove Blue/Colors for Mac Legibility
         status_fg = "blue" if not self.is_mac else "black"
         self.lbl_status = tk.Label(head, text="Ready", fg=status_fg, anchor="w", font=("Segoe UI", 9, "bold")); 
         self.lbl_status.pack(side="left", fill="x", expand=True)
@@ -1369,24 +1358,19 @@ class App:
         self.load_jobs()
         self.restore_session()
         
-        # v112: Smarter Poll loop
         self.poll()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         
         threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
 
-    # v108: Aggressive Startup Resize logic
     def apply_smart_geometry(self, saved_geo):
         try:
             sw = self.root.winfo_screenwidth()
             sh = self.root.winfo_screenheight()
             
-            # Mac Dock Safety Buffer
             if SystemUtils.IS_MAC: sh -= 120 
-            else: sh -= 60 # Win Taskbar Safety
+            else: sh -= 60 
             
-            # Default fallback
-            # v112: Larger default for Mac
             if SystemUtils.IS_MAC: w, h = 1280, 850
             else: w, h = 1024, 700
             
@@ -1397,7 +1381,6 @@ class App:
                 if len(parts) == 4:
                     w, h, x, y = map(int, parts)
             
-            # Aggressive Sanity Check
             if w > (sw * 0.95): 
                 w = int(sw * 0.8)
                 h = int(sh * 0.8)
@@ -1412,12 +1395,11 @@ class App:
             if SystemUtils.IS_MAC: self.root.geometry("1280x850")
             else: self.root.geometry("1024x700")
 
-    # v104: Fixed Center Logic - NO CLAMPING (Allow negative coords for left monitors)
     @staticmethod
     def center_toplevel(win, parent):
         try:
-            win.withdraw() # Hide
-            win.update_idletasks() # Force size calc
+            win.withdraw() 
+            win.update_idletasks() 
             
             pw = parent.winfo_width()
             ph = parent.winfo_height()
@@ -1430,9 +1412,8 @@ class App:
             x = px + (pw // 2) - (cw // 2)
             y = py + (ph // 2) - (ch // 2)
             
-            # Removed the max(0, x) clamp to support left-side monitors
             win.geometry(f"+{x}+{y}")
-            win.deiconify() # Show
+            win.deiconify() 
         except: 
             win.deiconify()
 
@@ -1442,17 +1423,14 @@ class App:
         self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
         self.chk_vars = {} 
         
-        # v110: PDF Controls in container for dynamic hiding
         self.f_pdf_ctrl = tk.Frame(self.tab_process)
         tk.Label(self.f_pdf_ctrl, text="PDF Action:", font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(10,0))
         self.pdf_mode_var = tk.StringVar(value="No Action")
         self.cb_pdf = ttk.Combobox(self.f_pdf_ctrl, textvariable=self.pdf_mode_var, values=["No Action", "Flatten Only (Fast)", "Flatten + OCR (Slow)"], state="readonly")
         self.cb_pdf.pack(fill="x", padx=10, pady=2)
-        # It will be packed in on_sel if needed
         
         ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=15,padx=10)
         
-        # v110: Renamed Label
         tk.Label(ctrl, text="Processing & Preview Quality:").pack(side="left")
         self.dpi_var = tk.StringVar(value="Medium (Standard)")
         self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["Low (Fast)", "Medium (Standard)", "High (Slow)"], width=18, state="readonly")
@@ -1491,7 +1469,6 @@ class App:
         kw_dist = {"bg": "#fff3e0"} if not self.is_mac else {}
         self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
 
-        # v101 - Option C: Reports
         f_c = tk.LabelFrame(self.tab_dist, text="Option C: Reports & Logs", padx=10, pady=10)
         f_c.pack(fill="x", padx=10, pady=5)
         
@@ -1555,7 +1532,6 @@ class App:
         data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
         if data:
             path = ws/"01_Master_Files"/data['uid']
-            # v113 Fix: Pass full path to reveal_file, not parent to open_file
             if path.exists(): SystemUtils.reveal_file(path)
 
     def on_compare_click(self):
@@ -1591,15 +1567,13 @@ class App:
     def open_settings(self):
         win = tk.Toplevel(self.root)
         win.title("Preferences")
-        win.geometry("600x600")
+        win.geometry("600x700")
         
-        # v103: Smart Centering
         App.center_toplevel(win, self.root)
         
         lf_perf = tk.LabelFrame(win, text="Processing Engine", padx=10, pady=10)
         lf_perf.pack(fill="x", padx=10, pady=5)
         
-        # v112: Thread Clarity
         tk.Label(lf_perf, text="Max Worker Threads (0 = Auto):", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
         v_threads = tk.IntVar(value=CFG.get("max_threads"))
         tk.Spinbox(lf_perf, from_=0, to=32, textvariable=v_threads, width=5).grid(row=0,column=1,sticky="e")
@@ -1651,27 +1625,28 @@ class App:
         self.Btn(fr_btns, text="Open Language Folder", command=open_lang_folder).pack(side="left", padx=5)
         self.Btn(fr_btns, text="Get Languages (Web)", command=open_help).pack(side="left", padx=5)
 
-        # v105: Support Section
         lf_support = tk.LabelFrame(win, text="Support & Diagnostics", padx=10, pady=10)
         lf_support.pack(fill="x", padx=10, pady=5)
         
-        # v109: Threaded Launch
         def do_export_debug():
             self.start_debug_export_thread(btn_export, win)
 
         btn_export = self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug)
-        btn_export.pack(fill="x")
-        tk.Label(lf_support, text="Use this if you need to report a bug.", font=("Segoe UI", 8), fg="#555").pack()
+        btn_export.pack(fill="x", pady=2)
+        
+        # --- DOCUMENTATION BUTTONS ---
+        f_docs = tk.Frame(lf_support); f_docs.pack(fill="x", pady=5)
+        self.Btn(f_docs, text="View Changelog", command=lambda: DocViewer(win, "CHANGELOG.md", "Version History")).pack(side="left", fill="x", expand=True, padx=(0,5))
+        self.Btn(f_docs, text="View User Guide", command=lambda: DocViewer(win, "README.md", "User Guide")).pack(side="left", fill="x", expand=True, padx=(5,0))
 
         def save():
             CFG.set("max_threads", v_threads.get())
             try: 
-                # v113 Fix: Validate integer for Max Pixels
                 px_val = int(v_pixels.get())
                 if px_val <= 0: raise ValueError
                 CFG.set("max_pixels", px_val)
             except: 
-                 CFG.set("max_pixels", 500000000) # Reset to default if invalid
+                 CFG.set("max_pixels", 500000000)
             
             CFG.set("default_ingest_mode", v_ingest.get())
             CFG.set("default_export_prio", v_export.get())
@@ -1687,7 +1662,6 @@ class App:
         btn_fr = tk.Frame(win); btn_fr.pack(pady=20)
         self.Btn(btn_fr, text="Save & Close", command=save, bg="#e8f5e9").pack(side="left", padx=10)
 
-    # v109: Threaded Export Wrapper
     def start_debug_export_thread(self, btn_ref, win_ref):
         def _run():
             self._export_debug_bundle_task()
@@ -1696,7 +1670,6 @@ class App:
         btn_ref.config(text="Exporting...", state="disabled")
         threading.Thread(target=_run, daemon=True).start()
 
-    # --- ACTIONS ---
     def on_close(self):
         try:
             CFG.set("last_geometry", self.root.geometry())
@@ -1777,12 +1750,10 @@ class App:
             q_file = next((f for f in (ws/"00_Quarantine").iterdir() if name in f.name), None)
             if q_file: SystemUtils.open_file(q_file.parent)
         else:
-            # v100 FIX: Removed 'if event:' check to allow Context Menu access
             f_path = ws/"01_Master_Files"/data['uid']
             if f_path.exists():
                  SystemUtils.open_file(f_path)
 
-    # v110: "Ghost Runner" Fix
     def check_run_btn(self, *args):
         if self.running: 
             self.btn_run.config(state="disabled")
@@ -1818,7 +1789,6 @@ class App:
         top.title("New Job Setup")
         top.geometry("450x500") 
         
-        # v103: Smart Centering
         App.center_toplevel(top, self.root)
         
         tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
@@ -1835,7 +1805,6 @@ class App:
             tk.Label(f, text=desc, fg="#555", justify="left").pack(anchor="w", padx=25)
         
         def go():
-            # v111: ID tracking for jobs
             new_id = uuid.uuid4()
             self.current_job_id = new_id
             
@@ -1846,7 +1815,6 @@ class App:
         
         self.Btn(top, text="Select Folder & Start", command=go).pack(fill="x", padx=20, pady=20, side="bottom")
 
-    # v110: Added 'reset' parameter to control UI clearing
     def toggle(self, enable, reset=True):
         self.running = not enable; s = "normal" if enable else "disabled"
         if not enable: self.start_t = time.time(); self.paused = False
@@ -1861,7 +1829,6 @@ class App:
         if enable and reset: self.on_sel(None)
 
     def stop(self):
-        # v111: Warning Dialog
         if messagebox.askyesno("Confirm Stop", "Stopping now will abort the current operation completely.\nYou will need to restart the job.\n\nAre you sure?"):
             self.worker.stop()
             self.btn_stop.config(state="disabled")
@@ -2010,14 +1977,13 @@ class App:
             tk.Label(f, text=desc, font=("Segoe UI", 8), fg="#555").pack(anchor="w", padx=20)
             self.chk_vars[k]=v
         
-        # v110: Dynamic PDF UI
         if '.pdf' in types: 
              self.f_pdf_ctrl.pack(fill="x", padx=10, pady=2) # Show
              self.cb_pdf.config(state="readonly")
              self.pdf_mode_var.trace_add("write", self.check_run_btn)
              self.btn_prev.config(state="normal")
         else:
-             self.f_pdf_ctrl.pack_forget() # Hide
+             self.f_pdf_ctrl.pack_forget() 
 
         if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px (HD Standard)."); ac("Images to PDF","img2pdf","Bundle loose images into one PDF.")
         if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove author metadata and revision history.")
@@ -2051,7 +2017,6 @@ class App:
         except Exception as e: self.q.put(("error", str(e))); self.q.put(("done",))
     def poll(self):
         try:
-            # v113 Fix: Smaller batch size (20) to prevent Main Loop blocking on Mac
             for _ in range(20):
                 if self.q.empty(): break
                 m = self.q.get_nowait()
@@ -2060,13 +2025,10 @@ class App:
                 elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue")
                 elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
                 elif m[0]=='job': self.load_jobs(m[1]) 
-                # v111: Clean up pause state on Done
                 elif m[0]=='done': 
                     self.toggle(True); 
                     self.lbl_status.config(text="Done", fg="green"); 
                     self.btn_pause.config(text="PAUSE", bg="SystemButtonFace", state="disabled")
-                
-                # v110: Smart Preview Complete Handler (Does not reset UI)
                 elif m[0]=='preview_done':
                     self.toggle(True, reset=False) 
                     self.lbl_status.config(text="Preview Ready", fg="green")
@@ -2104,8 +2066,6 @@ class App:
 
         except: pass
         if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
-        
-        # v113 Fix: Faster poll frequency (100ms) with smaller batch sizes = snappier UI
         self.root.after(100, self.poll)
 
 if __name__ == "__main__":
