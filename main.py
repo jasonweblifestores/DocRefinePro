@@ -53,14 +53,14 @@ try: import psutil; HAS_PSUTIL = True
 except ImportError: HAS_PSUTIL = False
 
 # ==============================================================================
-#   DOCREFINE PRO v113
+#   DOCREFINE PRO v115
 # ==============================================================================
 
 # --- 1. SYSTEM ABSTRACTION & CONFIG ---
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v113"
+    CURRENT_VERSION = "v115"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
