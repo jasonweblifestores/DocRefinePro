@@ -1,5 +1,10 @@
 # DocRefine Pro - Changelog
 
+## [v127] - 2026-01-15
+### Fixed
+- **Mac Build:** Resolved `OSError` in stripping script by handling symlinks correctly.
+- **Optimization:** Refined `strip_mac.py` to differentiate between directories (`rmtree`) and symbolic links (`unlink`) during framework cleanup.
+
 ## [v126] - 2026-01-15
 ### Infrastructure
 - **Mac Optimization:** Implemented `strip_mac.py` to programmatically remove unused Qt Frameworks (`QtQuick`, `QtQml`, `QtWebEngine`) post-build.
