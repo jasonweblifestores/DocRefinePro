@@ -1,5 +1,10 @@
 # DocRefine Pro - Changelog
 
+## [v122] - 2026-01-15
+### Infrastructure
+- **Build Fix:** Added `BUNDLE` block to Spec file for correct macOS `.app` generation.
+- **Asset Safety:** Added fallback logic for missing application icons during build.
+
 ## [v121] - 2026-01-15
 ### Maintenance
 - **Release:** Fixed Git tag synchronization for CI/CD pipeline.
