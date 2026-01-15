@@ -27,12 +27,13 @@ jobs:
     - name: Install Libraries
       run: |
         python -m pip install --upgrade pip
-        pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller
+        # [UPDATED] Added PySide6 so the Spec file can find it
+        pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
     # Uses your existing .spec file which handles local Windows paths
     - name: Build with PyInstaller
       run: |
-        pyinstaller DocRefinePro.spec --noconfirm
+        pyinstaller DocRefinePro.spec --noconfirm --clean
 
     # [UPDATED] Copies BOTH docs next to the .exe (The app v116 looks here)
     - name: Bundle Readme & Changelog
@@ -78,28 +79,10 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
-    # [UPDATED] Added --add-data flags for Docs
+    # [UPDATED] Now uses the Spec file (Cross-Platform Fix)
     - name: Build Mac App
       run: |
-        # 1. Find dynamic Homebrew paths
-        POPPLER_PATH=$(brew --prefix poppler)
-        TESS_PATH=$(brew --prefix tesseract)
-        TESSDATA_DIR="$TESS_PATH/share/tessdata"
-        
-        echo "Found Poppler at: $POPPLER_PATH"
-        echo "Found Tesseract at: $TESS_PATH"
-
-        # 2. Run PyInstaller
-        # Added CHANGELOG.md and README.md to the bundle
-        pyinstaller --noconfirm --onedir --windowed --clean \
-          --name "DocRefinePro" \
-          --add-binary "$POPPLER_PATH/bin/pdfinfo:." \
-          --add-binary "$POPPLER_PATH/bin/pdftoppm:." \
-          --add-binary "$TESS_PATH/bin/tesseract:." \
-          --add-data "$TESSDATA_DIR:tessdata" \
-          --add-data "CHANGELOG.md:." \
-          --add-data "README.md:." \
-          main.py
+        pyinstaller DocRefinePro.spec --noconfirm --clean
 
     # [UPDATED] Copies Docs to the DMG Installer view
     - name: Create DMG Installer
