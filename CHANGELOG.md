@@ -1,5 +1,9 @@
 # DocRefine Pro - Changelog
 
+## [v124] - 2026-01-15
+### Fixed
+- **Build Fix**: Resolved `TypeError` in Spec file caused by deprecated `include_pycache` argument in PyInstaller 6.18.
+
 ## [v123] - 2026-01-15
 ### Infrastructure
 - **Size Optimization:** Reduced DMG/EXE footprint by ~50% via targeted PySide6 stripping.

@@ -4,9 +4,9 @@ import os
 from PyInstaller.utils.hooks import collect_data_files
 
 # 1. OPTIMIZATION: Targeted PySide6 Collection
-# Instead of collect_all, we manually grab core UI components
+# Fixed: Removed 'include_pycache' which is unsupported in PyInstaller 6.18+
 hiddenimports = ['PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets']
-datas = collect_data_files('PySide6', include_pycache=False)
+datas = collect_data_files('PySide6')
 
 # 2. OPTIMIZATION: Explicit Exclusions
 # Removing unused Chromium and 3D modules saves ~450MB
@@ -16,7 +16,7 @@ excluded_modules = [
     'PySide6.QtQuick', 'PySide6.QtQml', 'PySide6.QtVirtualKeyboard'
 ]
 
-# 3. Safe Icon Logic (Fixes Windows Crash) [cite: 3]
+# 3. Safe Icon Logic
 target_icon = 'resources/app_icon.ico'
 if not os.path.exists(target_icon):
     target_icon = None
@@ -49,8 +49,8 @@ exe = EXE(
     name='DocRefinePro',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,     # Discards symbols to reduce size 
-    upx=True,       # High compression for binaries 
+    strip=True,     # Discards symbols to reduce size
+    upx=True,       # High compression for binaries
     console=False,
     icon=target_icon,
 )
