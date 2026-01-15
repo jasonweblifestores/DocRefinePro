@@ -1,5 +1,14 @@
 # DocRefine Pro - Changelog
 
+## [v121] - 2026-01-15
+### Maintenance
+- **Release:** Fixed Git tag synchronization for CI/CD pipeline.
+
+## [v120] - 2026-01-15
+### Infrastructure
+- **Spec-Based Build:** Switched from CLI commands to `DocRefinePro.spec` for release builds.
+- **Cross-Platform Fix:** Added `collect_all('PySide6')` to the build spec to ensure Mac/Win DLLs are bundled correctly.
+
 ## v119 (The Great Refactor)
 * [Architecture] **UI Migration:** Complete rewrite of the UI layer from Tkinter to **PySide6 (Qt)**.
     * Modern "Fusion" theme with Dark Mode support.
