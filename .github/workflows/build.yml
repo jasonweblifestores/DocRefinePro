@@ -53,7 +53,7 @@ jobs:
         files: DocRefinePro_Win_${{ github.ref_name }}.zip
 
   # ====================================================
-  # JOB 2: MAC BUILD (Optimized for Size Reduction)
+  # JOB 2: MAC BUILD (Industrial Slimming v126)
   # ====================================================
   build-mac:
     name: macOS Build
@@ -81,24 +81,13 @@ jobs:
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    - name: Post-Build Manual Stripping (The "Scalpel")
+    - name: Post-Build Manual Stripping (v126 Industrial)
       run: |
-        # Target the Frameworks directory inside the .app bundle
-        FRAMEWORKS_DIR="dist/DocRefinePro.app/Contents/Frameworks"
-        
-        # Manually delete unused heavy Qt modules collected by PyInstaller
-        # This targets the actual .framework folders that often bypass 'excludes'
-        rm -rf $FRAMEWORKS_DIR/QtDesigner.framework
-        rm -rf $FRAMEWORKS_DIR/QtNetwork.framework
-        rm -rf $FRAMEWORKS_DIR/QtDBus.framework
-        rm -rf $FRAMEWORKS_DIR/QtQml.framework
-        rm -rf $FRAMEWORKS_DIR/QtQuick.framework
-        rm -rf $FRAMEWORKS_DIR/QtVirtualKeyboard.framework
-        
-        # Strip debug symbols from the main Mach-O binary
+        # Run the dedicated Python script for guaranteed path resolution
+        python strip_mac.py
+        # Strip debug symbols from the Mach-O binary
         strip "dist/DocRefinePro.app/Contents/MacOS/DocRefinePro"
-        
-        echo "Post-build stripping complete."
+        echo "Industrial stripping complete."
 
     - name: Create DMG Installer
       run: |

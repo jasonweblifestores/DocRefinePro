@@ -1,5 +1,11 @@
 # DocRefine Pro - Changelog
 
+## [v126] - 2026-01-15
+### Infrastructure
+- **Mac Optimization:** Implemented `strip_mac.py` to programmatically remove unused Qt Frameworks (`QtQuick`, `QtQml`, `QtWebEngine`) post-build.
+- **CI/CD:** Replaced fragile bash commands with Python scripting for reliable path resolution during the build process.
+- **Size Reduction:** Forced removal of PyInstaller-protected frameworks to reduce DMG size from ~1.2GB to target (~400MB).
+
 ## [v125] - 2026-01-15
 ### Infrastructure
 - **Mac Optimization:** Implemented manual framework stripping in CI/CD to reduce DMG size.
