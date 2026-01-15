@@ -1,5 +1,10 @@
 # DocRefine Pro - Changelog
 
+## [v125] - 2026-01-15
+### Infrastructure
+- **Mac Optimization:** Implemented manual framework stripping in CI/CD to reduce DMG size.
+- **Cleanup:** Removed unused Qt translations and debug symbols from the macOS binary.
+
 ## [v124] - 2026-01-15
 ### Fixed
 - **Build Fix**: Resolved `TypeError` in Spec file caused by deprecated `include_pycache` argument in PyInstaller 6.18.
