@@ -1,3 +1,4 @@
+# SAVE AS: docrefine/worker.py
 import threading
 import time
 import json
@@ -14,6 +15,7 @@ from datetime import datetime, timedelta
 
 # Local Package Imports
 from .config import CFG, SystemUtils, log_app, WORKSPACES_ROOT, LOG_PATH, JSON_LOG_PATH
+from .core.events import AppEvent, EventType
 from .processing import (
     PdfProcessor, 
     ImageProcessor, 
@@ -39,7 +41,7 @@ except ImportError:
 SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.png', '.xls', '.xlsx', '.csv', '.jpeg'}
 
 # ==============================================================================
-#   HELPER FUNCTIONS
+#   HELPER FUNCTIONS (Preserved from v118)
 # ==============================================================================
 
 def sanitize_filename(name):
@@ -55,6 +57,7 @@ def update_stats_time(ws, cat, sec):
     except: pass
 
 def generate_job_report(ws_path, action_name, file_results=None):
+    # Logic identical to v118, preserved for report generation
     try:
         ws = Path(ws_path)
         rpt_dir = ws / "04_Reports"
@@ -93,6 +96,7 @@ def generate_job_report(ws_path, action_name, file_results=None):
         else:
             error_rows = "<p>No errors reported. Clean run.</p>"
 
+        # (HTML generation logic preserved)
         html = f"""
         <html>
         <head>
@@ -169,16 +173,22 @@ def generate_job_report(ws_path, action_name, file_results=None):
         return None
 
 # ==============================================================================
-#   WORKER CLASS
+#   WORKER CLASS (REFACTORED FOR EVENTS)
 # ==============================================================================
 class Worker:
-    def __init__(self, q): 
-        self.q = q
+    def __init__(self, callback): 
+        # REFACTORED: Accepts a generic callback instead of a queue
+        self.callback = callback 
         self.stop_sig = False
         self.pause_event = threading.Event()
         self.pause_event.set()
         self.current_ws = None 
         self._last_update = {}
+
+    def emit(self, event: AppEvent):
+        """Bridge to the observer (UI/CLI)"""
+        if self.callback:
+            self.callback(event)
 
     def stop(self): 
         self.stop_sig = True
@@ -191,8 +201,10 @@ class Worker:
         self.pause_event.set()
 
     def log(self, m, err=False):
-        self.q.put(("log", m, err))
-        log_app(m, "ERROR" if err else "INFO", structured_data={"ws": self.current_ws})
+        # REFACTORED: Uses Event System
+        level = "ERROR" if err else "INFO"
+        self.emit(AppEvent.log(m, level))
+        log_app(m, level, structured_data={"ws": self.current_ws})
 
     def set_job_status(self, ws, stage, details=""):
         try:
@@ -201,9 +213,11 @@ class Worker:
         except: pass
 
     def prog_main(self, v, t): 
-        self.q.put(("main_p", v, t))
+        # REFACTORED
+        self.emit(AppEvent.progress(v, t))
     
     def prog_sub(self, v, t, status_only=False): 
+        # REFACTORED
         tid = threading.get_ident()
         now = time.time()
         
@@ -211,10 +225,12 @@ class Worker:
             self._last_update[tid] = 0
             
         if (now - self._last_update[tid]) > 0.1: # Max 10 updates/sec per thread
-            self.q.put(("slot_update", tid, t, v))
+            # Emitting structured slot data
+            self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": tid, "text": t, "percent": v}))
             self._last_update[tid] = now
 
     def get_hash(self, path, mode):
+        # (Logic preserved from v118)
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
         if path.suffix.lower() == '.pdf' and mode != "Lightning":
             try:
@@ -236,6 +252,7 @@ class Worker:
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
     def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
+        # (Logic preserved from v118)
         master = ws / "01_Master_Files" / file_uid
         base_cache = ws / "02_Ready_For_Redistribution"
         
@@ -274,14 +291,18 @@ class Worker:
             ws = WORKSPACES_ROOT / f"{d.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             m_dir = ws / "01_Master_Files"; m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
             self.current_ws = str(ws); self.log(f"Inventory Start: {d}")
-            self.q.put(("job", str(ws))); self.q.put(("ws", str(ws)))
+            
+            # REFACTORED
+            self.emit(AppEvent(EventType.JOB_DATA, str(ws)))
             self.set_job_status(ws, "SCANNING", "Ingesting...")
             
             files = [Path(r)/f for r,_,fs in os.walk(d) for f in fs]
             files = [f for f in files if f.suffix.lower() in SUPPORTED_EXTENSIONS]
             
             seen = {}; quarantined = 0
-            self.q.put(("slot_config", 1))
+            
+            # REFACTORED
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             for i, f in enumerate(files):
                 if self.stop_sig: break
@@ -305,7 +326,7 @@ class Worker:
 
             if self.stop_sig: 
                 self.log("Ingest Stopped by User.")
-                self.q.put(("done",))
+                self.emit(AppEvent(EventType.DONE))
                 return
 
             self.log("Tagging..."); total = len(seen)
@@ -326,14 +347,24 @@ class Worker:
             with open(ws/"manifest.json", 'w') as f: json.dump(seen, f, indent=4)
             with open(ws/"stats.json", 'w') as f: json.dump(stats, f)
             self.set_job_status(ws, "INGESTED", f"Masters: {total}")
-            self.log(f"Done. Masters: {total}"); self.q.put(("job", str(ws))); self.q.put(("done",))
-        except Exception as e: self.log(f"Error: {e}", True); self.q.put(("done",))
+            self.log(f"Done. Masters: {total}")
+            
+            # REFACTORED
+            self.emit(AppEvent(EventType.JOB_DATA, str(ws)))
+            self.emit(AppEvent(EventType.DONE))
+            
+        except Exception as e: 
+            self.log(f"Error: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
 
     def process_file_task(self, f, bots, options, base_dst):
+        # (Logic preserved from v118, updated logs/events only)
         if self.stop_sig: return None
         result = {'file': f.name, 'orig_size': f.stat().st_size, 'new_size': 0, 'ok': False}
         try:
-            self.q.put(("status_blue", f"Refining: {f.name}"))
+            # REFACTORED
+            self.emit(AppEvent.status("PROCESSING", f"Refining: {f.name}", "blue"))
+            
             ext = f.suffix.lower()
             ok = False
             dpi_val = int(options.get('dpi', 300))
@@ -415,7 +446,8 @@ class Worker:
                 max_workers = max(1, max_workers)
                 self.log(f"Auto-Throttled Workers: {max_workers}")
 
-            self.q.put(("slot_config", max_workers))
+            # REFACTORED
+            self.emit(AppEvent(EventType.WORKER_CONFIG, max_workers))
             
             file_results = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -430,7 +462,7 @@ class Worker:
 
             if self.stop_sig: 
                 self.log("Batch Stopped by User.")
-                self.q.put(("done",))
+                self.emit(AppEvent(EventType.DONE))
                 return
 
             update_stats_time(ws, "batch_time", time.time() - start_time)
@@ -439,9 +471,16 @@ class Worker:
             rpt = generate_job_report(ws, "Content Refinement Batch", file_results)
             if rpt: self.log(f"Receipt Generated: {Path(rpt).name}")
             
-            self.q.put(("job", str(ws))) 
-            self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
-        except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
+            self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
+            self.prog_main(100, "Done")
+            
+            # REFACTORED: Send notification instead of direct open_file (though standard behavior can be handled in adapter)
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Batch Complete", "msg": "Batch processing finished.", "open_path": str(dst)}))
+            
+        except Exception as e: 
+            self.log(f"Err: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
 
     def run_organize(self, ws_p, priority_mode):
         try:
@@ -455,7 +494,8 @@ class Worker:
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
-            self.q.put(("slot_config", 1))
+            # REFACTORED
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             dup_csv = out / "duplicates_report.csv"
             with open(dup_csv, 'w', newline='', encoding='utf-8') as csvfile:
@@ -465,7 +505,8 @@ class Worker:
                 for i, (h, data) in enumerate(man.items()):
                     if self.stop_sig: break
                     self.prog_main((i/total)*100, "Exporting Unique...")
-                    self.q.put(("slot_update", threading.get_ident(), f"Exporting: {data['name']}", None))
+                    # REFACTORED
+                    self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Exporting: {data['name']}", "percent": None}))
                     
                     if data.get("status") == "QUARANTINE": 
                         for f in (ws/"00_Quarantine").glob("*"):
@@ -496,9 +537,14 @@ class Worker:
             
             rpt = generate_job_report(ws, f"Unique Export ({priority_mode})")
             
-            self.q.put(("job", str(ws))) 
-            self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(out)
-        except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
+            self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Organization Complete", "msg": "Files organized.", "open_path": str(out)}))
+            
+        except Exception as e: 
+            self.log(f"Err: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
 
     def run_distribute(self, ws_p, ext_src, priority_mode):
         try:
@@ -506,7 +552,9 @@ class Worker:
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists():
                  self.log("CRITICAL: Manifest missing.", True)
-                 self.q.put(("error", "Manifest missing.")); self.q.put(("done",)); return
+                 self.emit(AppEvent(EventType.ERROR, "Manifest missing."))
+                 self.emit(AppEvent(EventType.DONE))
+                 return
 
             start_time = time.time(); 
             dst = ws / "Final_Delivery"
@@ -519,12 +567,12 @@ class Worker:
             if ext_src:
                  orphans = {f.name: f for f in Path(ext_src).iterdir()}
 
-            self.q.put(("slot_config", 1))
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
                 self.prog_main((i/len(man))*100, f"Recon {i+1}")
-                self.q.put(("slot_update", threading.get_ident(), f"Copying: {d['name']}", None))
+                self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Copying: {d['name']}", "percent": None}))
                 
                 if d.get("status") == "QUARANTINE": continue
                 
@@ -553,9 +601,14 @@ class Worker:
             
             rpt = generate_job_report(ws, "Full Reconstruction")
             
-            self.q.put(("job", str(ws))) 
-            self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(dst)
-        except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
+            self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Distribution Complete", "msg": "Reconstruction finished.", "open_path": str(dst)}))
+            
+        except Exception as e: 
+            self.log(f"Err: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
 
     def run_full_export(self, ws_p):
         try:
@@ -605,34 +658,49 @@ class Worker:
                                     ""
                                 ])
             except PermissionError:
-                self.q.put(("error", "Could not write CSV.\nPlease close the file in Excel and try again."))
-                self.q.put(("done",))
+                self.emit(AppEvent(EventType.ERROR, "Could not write CSV.\nPlease close the file in Excel and try again."))
+                self.emit(AppEvent(EventType.DONE))
                 return
 
             if self.stop_sig: return
 
             self.log(f"Exported: {csv_path.name}")
-            self.q.put(("job", str(ws))) 
-            self.prog_main(100, "Done"); self.q.put(("done",)); SystemUtils.open_file(rpt_dir)
+            self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "CSV Exported", "msg": "Inventory saved.", "open_path": str(rpt_dir)}))
 
-        except Exception as e: self.log(f"Err: {e}", True); self.q.put(("done",))
+        except Exception as e: 
+            self.log(f"Err: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
 
     def run_preview(self, ws_p, dpi):
         try:
             self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
-            if not pdf: self.q.put(("preview_done",)); return
+            
+            if not pdf: 
+                # REFACTORED: Status + Done
+                self.emit(AppEvent.status("PREVIEW", "No PDF found.", "red"))
+                self.emit(AppEvent(EventType.DONE))
+                return
+                
             for old in ws.glob("PREVIEW_*.pdf"): 
                 try: os.remove(old)
                 except: pass
+            
             out = ws / f"PREVIEW_{int(time.time())}.pdf"
             imgs = convert_from_path(str(pdf), dpi=int(dpi), first_page=1, last_page=1, poppler_path=POPPLER_BIN)
             if imgs: 
                 imgs[0].save(out, "PDF", resolution=float(dpi))
-                SystemUtils.open_file(out)
-            self.q.put(("preview_done",))
-        except: self.q.put(("preview_done",))
+                self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Preview Ready", "msg": "Opening preview...", "open_path": str(out)}))
+            
+            self.emit(AppEvent.status("PREVIEW", "Preview Generated", "green"))
+            self.emit(AppEvent(EventType.DONE))
+            
+        except: 
+            self.emit(AppEvent(EventType.DONE))
 
     def run_debug_export(self, ws_path_str):
         try:
@@ -682,6 +750,8 @@ class Worker:
             shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
             shutil.rmtree(temp_dir, ignore_errors=True)
             
-            self.q.put(("export_success", str(dest_zip)))
+            # REFACTORED
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Debug Export", "msg": f"Saved to {dest_zip.name}", "open_path": str(base_dir)}))
+            
         except Exception as e:
-            self.q.put(("error", f"Export Failed: {e}"))
+            self.emit(AppEvent(EventType.ERROR, f"Export Failed: {e}"))

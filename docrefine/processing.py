@@ -18,12 +18,12 @@ try:
     import pypdf
     import pytesseract
 except ImportError:
-    pass  # Dependencies handled in main app check or via requirements
+    pass
 
 from .config import CFG, SystemUtils, log_app
 
 # ==============================================================================
-#   BINARY DETECTION (Poppler/Tesseract)
+#   BINARY DETECTION
 # ==============================================================================
 bin_ext = ".exe" if SystemUtils.IS_WIN else ""
 poppler_bin_file = SystemUtils.find_binary("pdfinfo" + bin_ext)
@@ -69,8 +69,11 @@ class PdfProcessor(BaseProcessor):
 
             for i in range(1, pages + 1):
                 self.check_state() 
-                if i % 5 == 0 or i == pages: 
-                     self.progress((i/pages)*100, f"Page {i}/{pages}")
+                
+                # UPDATE: Report EVERY page. 
+                # The worker.py throttler will ensure the UI doesn't freeze.
+                self.progress((i/pages)*100, f"Page {i}/{pages}")
+                
                 gc.collect() 
                 res = convert_from_path(str(src), dpi=dpi, first_page=i, last_page=i, poppler_path=POPPLER_BIN)
                 if not res: continue
@@ -83,7 +86,9 @@ class PdfProcessor(BaseProcessor):
                 else:
                     f = temp / f"{i}.jpg"; img.convert('RGB').save(f, "JPEG", quality=85); imgs.append(str(f))
                 del res; del img
+            
             self.check_state(); self.progress(100, "Merging...")
+            
             if mode == 'ocr' and HAS_TESSERACT:
                 m = pypdf.PdfWriter(); 
                 for f in imgs: m.append(f)
@@ -100,7 +105,7 @@ class PdfProcessor(BaseProcessor):
 class ImageProcessor(BaseProcessor):
     def resize(self, src, dest, w):
         try:
-            self.check_state(); self.progress(50, "Processing Image...")
+            self.check_state(); self.progress(50, "Processing...")
             with Image.open(src) as img:
                 img.load(); r = min(w / img.width, 1.0)
                 img.resize((int(img.width * r), int(img.height * r)), Image.Resampling.LANCZOS).convert('RGB').save(dest, "JPEG", quality=85)

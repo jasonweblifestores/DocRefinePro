@@ -1,5 +1,17 @@
 # DocRefine Pro - Changelog
 
+## v119 (The Great Refactor)
+* [Architecture] **UI Migration:** Complete rewrite of the UI layer from Tkinter to **PySide6 (Qt)**.
+    * Modern "Fusion" theme with Dark Mode support.
+    * Non-blocking, thread-safe architecture using Signals & Slots.
+* [New] **Forensic Comparator 2.0:**
+    * Synchronized Zoom & Pan.
+    * Dark background for high-contrast inspection.
+    * Smooth page scrolling.
+* [New] **Active Worker Visualizer:** Real-time grid showing multi-threaded status.
+* [Improved] **Timer Logic:** Job timer now respects "Pause" state.
+* [Fixed] **Windows Explorer:** Fixed "Reveal in Folder" failing due to subprocess restrictions.
+
 ## v118-patch1
 * [Fixed] **Context Menu Bug:** Fixed "Reveal in Folder" failure by using unique ID lookup instead of fragile filename matching.
 
