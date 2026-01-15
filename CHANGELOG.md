@@ -1,5 +1,11 @@
 # DocRefine Pro - Changelog
 
+## [v123] - 2026-01-15
+### Infrastructure
+- **Size Optimization:** Reduced DMG/EXE footprint by ~50% via targeted PySide6 stripping.
+- **Compression:** Integrated UPX compression and enabled binary symbol stripping.
+- **Architecture:** Moved from `collect_all` to manual dependency mapping to prevent "Universal" binary bloat.
+
 ## [v122] - 2026-01-15
 ### Infrastructure
 - **Build Fix:** Added `BUNDLE` block to Spec file for correct macOS `.app` generation.

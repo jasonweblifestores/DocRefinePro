@@ -24,18 +24,18 @@ jobs:
       with:
         python-version: '3.10' 
 
+    - name: Install UPX (Windows)
+      run: choco install upx
+
     - name: Install Libraries
       run: |
         python -m pip install --upgrade pip
-        # [UPDATED] Added PySide6 so the Spec file can find it
         pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
-    # Uses your existing .spec file which handles local Windows paths
     - name: Build with PyInstaller
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    # [UPDATED] Copies BOTH docs next to the .exe (The app v116 looks here)
     - name: Bundle Readme & Changelog
       run: |
         copy README.md dist/DocRefinePro/
@@ -44,13 +44,13 @@ jobs:
 
     - name: Zip the Build
       run: |
-        powershell Compress-Archive -Path dist/DocRefinePro -DestinationPath DocRefinePro_Win_v${{ github.ref_name }}.zip
+        powershell Compress-Archive -Path dist/DocRefinePro -DestinationPath DocRefinePro_Win_${{ github.ref_name }}.zip
 
     - name: Release Windows Artifact
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: DocRefinePro_Win_v${{ github.ref_name }}.zip
+        files: DocRefinePro_Win_${{ github.ref_name }}.zip
 
   # ====================================================
   # JOB 2: MAC BUILD
@@ -67,24 +67,20 @@ jobs:
       with:
         python-version: '3.10'
 
-    # Install Mac versions of your dependencies via Homebrew
     - name: Install Mac System Deps
       run: |
         brew update
-        brew install poppler tesseract tesseract-lang create-dmg
+        brew install poppler tesseract tesseract-lang create-dmg upx
 
     - name: Install Python Libs
       run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+        python -m pip install --upgrade pip
+        pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
-    # [UPDATED] Now uses the Spec file (Cross-Platform Fix)
     - name: Build Mac App
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    # [UPDATED] Copies Docs to the DMG Installer view
     - name: Create DMG Installer
       run: |
         mkdir -p dist/dmg_content
@@ -104,11 +100,11 @@ jobs:
           --icon "README.md" 200 350 \
           --icon "CHANGELOG.md" 400 350 \
           --icon "LICENSE" 600 350 \
-          "dist/DocRefinePro_Mac_v${{ github.ref_name }}.dmg" \
+          "dist/DocRefinePro_Mac_${{ github.ref_name }}.dmg" \
           "dist/dmg_content"
 
     - name: Release Mac Artifact
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: dist/DocRefinePro_Mac_v${{ github.ref_name }}.dmg
+        files: dist/DocRefinePro_Mac_${{ github.ref_name }}.dmg
