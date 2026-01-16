@@ -1,5 +1,23 @@
 # DocRefine Pro - Changelog
 
+## [v128.5] - 2026-01-16
+### UX & Stability
+* **Inspector First:** Changed default tab order to prioritize Forensic Inspection.
+* **Progress Fix:** Resolved issue where progress bar would hang at 99%.
+* **Pause Safety:** Fixed critical bug where pausing the refinement process caused files to be copied without processing.
+* **Smart Skip:** The engine now detects existing output files and skips them to save time.
+* **Log Hygiene:** App logs now reset on startup to prevent bloat.
+* **Timing:** Added detailed breakdown of Ingest vs. Refine times in the dashboard stats.
+
+## [v128.4] - 2026-01-16
+### Architecture & Optimization
+* **Spec-First Build System:** Migrated from CLI overrides to a pure Python Spec file architecture for consistent cross-platform building.
+* **Mac Diet (Surgical):** Reduced macOS app bundle size from **1.3GB to ~200MB** via:
+    * **Pre-Build:** Filtering `hiddenimports` to prevent PyInstaller hooks from loading unwanted Qt frameworks (WebEngine, Quick, 3D).
+    * **Post-Build:** "Nuclear" stripping script that physically removes any surviving bloat frameworks and cleans up broken symlinks to prevent installer crashes.
+* **Stability:** Fixed Windows build crash caused by tuple unpacking errors in the Spec file.
+* **Maintenance:** Added `tools/inventory.py` for project auditing.
+
 ## [v128] - 2026-01-16
 ### Architecture
 * **Build System Overhaul:** Switched to a "Spec-First" build architecture.

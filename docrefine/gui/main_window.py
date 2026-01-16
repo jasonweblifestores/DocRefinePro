@@ -1,3 +1,4 @@
+# SAVE AS: docrefine/gui/main_window.py
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -38,7 +39,7 @@ class MainWindow(QMainWindow):
         self.accumulated_time = 0
         
         # Worker Slots Logic
-        self.slot_map = {} # TID -> Index
+        self.slot_map = {} 
         self.slot_widgets = []
         
         central = QWidget()
@@ -75,11 +76,19 @@ class MainWindow(QMainWindow):
         self.lbl_stat_files = QLabel("Files: -")
         self.lbl_stat_masters = QLabel("Masters: -")
         self.lbl_stat_q = QLabel("Quarantined: -")
-        self.lbl_stat_time = QLabel("Time: -")
+        
+        # Time breakdown
+        self.lbl_t_ingest = QLabel("Ingest: -")
+        self.lbl_t_refine = QLabel("Refine: -")
+        self.lbl_t_total = QLabel("Total: -")
+        
         v_stats.addWidget(self.lbl_stat_files)
         v_stats.addWidget(self.lbl_stat_masters)
         v_stats.addWidget(self.lbl_stat_q)
-        v_stats.addWidget(self.lbl_stat_time)
+        v_stats.addWidget(QLabel("--- Timing ---"))
+        v_stats.addWidget(self.lbl_t_ingest)
+        v_stats.addWidget(self.lbl_t_refine)
+        v_stats.addWidget(self.lbl_t_total)
         left_layout.addWidget(self.gb_stats)
 
         btn_row = QHBoxLayout()
@@ -107,22 +116,24 @@ class MainWindow(QMainWindow):
         self.tab_refine = QWidget(); self._build_refine_tab()
         self.tab_export = QWidget(); self._build_export_tab()
         self.tab_inspect = QWidget(); self._build_inspector_tab()
-        self.tabs.addTab(self.tab_refine, "1. Refine")
-        self.tabs.addTab(self.tab_export, "2. Export")
-        self.tabs.addTab(self.tab_inspect, "🔍 Inspector")
+        
+        # FIX: Reordered Tabs (Inspector First)
+        self.tabs.addTab(self.tab_inspect, "🔍 1. Inspector")
+        self.tabs.addTab(self.tab_refine, "2. Refine")
+        self.tabs.addTab(self.tab_export, "3. Export")
         right_layout.addWidget(self.tabs)
         
         monitor_frame = QFrame()
         monitor_frame.setFrameShape(QFrame.StyledPanel)
         mon_layout = QVBoxLayout(monitor_frame)
         
+        # FIX: Stable Monitor Layout
         head_layout = QHBoxLayout()
         self.lbl_status = QLabel("Ready")
         self.lbl_status.setStyleSheet("color: #0078d7; font-weight: bold;")
         head_layout.addWidget(self.lbl_status)
-        self.lbl_timer = QLabel("00:00:00")
-        self.lbl_timer.setStyleSheet("font-family: Consolas; font-weight: bold;")
-        head_layout.addWidget(self.lbl_timer)
+        
+        # Spacer pushes everything right
         head_layout.addStretch()
         
         self.btn_receipt = QPushButton("View Receipt")
@@ -138,12 +149,19 @@ class MainWindow(QMainWindow):
         self.btn_stop.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold;")
         self.btn_stop.setEnabled(False)
         head_layout.addWidget(self.btn_stop)
+        
+        # Timer at the very end (fixed width to prevent jitter)
+        self.lbl_timer = QLabel("00:00:00")
+        self.lbl_timer.setStyleSheet("font-family: Consolas; font-weight: bold; padding-left: 10px;")
+        self.lbl_timer.setFixedWidth(80)
+        self.lbl_timer.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        head_layout.addWidget(self.lbl_timer)
+
         mon_layout.addLayout(head_layout)
         
         self.progress_main = QProgressBar()
         mon_layout.addWidget(self.progress_main)
         
-        # Worker Slots
         self.slot_group = QGroupBox("Active Workers")
         self.slot_layout = QGridLayout(self.slot_group)
         mon_layout.addWidget(self.slot_group)
@@ -334,7 +352,9 @@ class MainWindow(QMainWindow):
         self.lbl_stat_files.setText("Files: -")
         self.lbl_stat_masters.setText("Masters: -")
         self.lbl_stat_q.setText("Quarantined: -")
-        self.lbl_stat_time.setText("Time: -")
+        self.lbl_t_ingest.setText("Ingest: -")
+        self.lbl_t_refine.setText("Refine: -")
+        self.lbl_t_total.setText("Total: -")
 
     def load_stats(self, ws_path):
         try:
@@ -342,8 +362,14 @@ class MainWindow(QMainWindow):
             self.lbl_stat_files.setText(f"Files Scanned: {s.get('total_scanned', 0)}")
             self.lbl_stat_masters.setText(f"Unique Masters: {s.get('masters', 0)}")
             self.lbl_stat_q.setText(f"Quarantined: {s.get('quarantined', 0)}")
-            sec = int(s.get('ingest_time',0) + s.get('batch_time',0))
-            self.lbl_stat_time.setText(f"Total Time: {str(timedelta(seconds=sec))}")
+            
+            t_ing = s.get('ingest_time', 0)
+            t_ref = s.get('batch_time', 0)
+            t_tot = t_ing + t_ref + s.get('dist_time',0) + s.get('organize_time',0)
+            
+            self.lbl_t_ingest.setText(f"Ingest: {str(timedelta(seconds=int(t_ing)))}")
+            self.lbl_t_refine.setText(f"Refine: {str(timedelta(seconds=int(t_ref)))}")
+            self.lbl_t_total.setText(f"Total: {str(timedelta(seconds=int(t_tot)))}")
         except: self.reset_stats()
 
     def update_refine_context(self, ws_path):
@@ -405,12 +431,11 @@ class MainWindow(QMainWindow):
 
     @Slot(int)
     def setup_slots(self, count):
-        # FIX: Full reset of mapping logic
         for i in reversed(range(self.slot_layout.count())): 
             self.slot_layout.itemAt(i).widget().setParent(None)
         
-        self.slot_map = {} # Reset TID map
-        self.slot_widgets = [] # Reset Widget list
+        self.slot_map = {} 
+        self.slot_widgets = [] 
         
         row = 0; col = 0
         for i in range(count):
@@ -423,16 +448,12 @@ class MainWindow(QMainWindow):
 
     @Slot(dict)
     def update_slot(self, data):
-        # FIX: Assign new TIDs to next available slot
         tid = data.get('tid')
-        
         if tid not in self.slot_map:
-            # New thread appeared
             next_idx = len(self.slot_map)
             if next_idx < len(self.slot_widgets):
                 self.slot_map[tid] = next_idx
-            else:
-                return # Should not happen if worker count logic matches
+            else: return 
         
         idx = self.slot_map[tid]
         self.slot_widgets[idx].setText(data.get('text'))

@@ -9,6 +9,7 @@ dist/
 Workspaces/
 __pycache__/
 *.py[cod]
+*.tmp
 
 # --- Logs ---
 *.log
@@ -19,12 +20,14 @@ app_events.jsonl
 .venv/
 env/
 .vscode/
+.idea/
 .DS_Store
 
 # --- Duplicate handling ---
 # Ignore the root version file if you accidentally recreate it
 /docrefine_version.json
 
-# --- Safety ---
-# Do NOT ignore the Gist submodule (We need this for updates)
-!53752cda3c39550673fc5dafb96c4bed/
+# --- Gist Versioning Folder ---
+# CRITICAL FIX: Ignore this folder so the Main Repo doesn't 
+# try to treat it as a broken submodule during CI/CD.
+53752cda3c39550673fc5dafb96c4bed/

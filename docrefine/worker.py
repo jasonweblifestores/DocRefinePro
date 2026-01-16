@@ -26,7 +26,6 @@ from .processing import (
     convert_from_path
 )
 
-# 3rd Party Dependencies
 try:
     import psutil
     HAS_PSUTIL = True
@@ -41,7 +40,7 @@ except ImportError:
 SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.png', '.xls', '.xlsx', '.csv', '.jpeg'}
 
 # ==============================================================================
-#   HELPER FUNCTIONS (Preserved from v118)
+#   HELPER FUNCTIONS
 # ==============================================================================
 
 def sanitize_filename(name):
@@ -50,14 +49,14 @@ def sanitize_filename(name):
 def update_stats_time(ws, cat, sec):
     try:
         p = Path(ws) / "stats.json"
-        if not p.exists(): return
-        with open(p, 'r') as f: s = json.load(f)
+        s = {}
+        if p.exists():
+            with open(p, 'r') as f: s = json.load(f)
         s[cat] = s.get(cat, 0.0) + sec
         with open(p, 'w') as f: json.dump(s, f, indent=4)
     except: pass
 
 def generate_job_report(ws_path, action_name, file_results=None):
-    # Logic identical to v118, preserved for report generation
     try:
         ws = Path(ws_path)
         rpt_dir = ws / "04_Reports"
@@ -73,9 +72,13 @@ def generate_job_report(ws_path, action_name, file_results=None):
         total_orig = 0
         total_new = 0
         errors = []
+        skipped = 0
         
         if file_results:
             for res in file_results:
+                if res.get('skipped'): 
+                    skipped += 1
+                    continue
                 total_orig += res.get('orig_size', 0)
                 total_new += res.get('new_size', 0)
                 if not res.get('ok', True):
@@ -96,7 +99,10 @@ def generate_job_report(ws_path, action_name, file_results=None):
         else:
             error_rows = "<p>No errors reported. Clean run.</p>"
 
-        # (HTML generation logic preserved)
+        # Calculate breakdown times
+        t_ingest = str(timedelta(seconds=int(s.get('ingest_time', 0))))
+        t_batch = str(timedelta(seconds=int(s.get('batch_time', 0))))
+        
         html = f"""
         <html>
         <head>
@@ -107,18 +113,15 @@ def generate_job_report(ws_path, action_name, file_results=None):
                 .title h1 {{ margin: 0; color: #2c3e50; font-size: 24px; }}
                 .title span {{ color: #7f8c8d; font-size: 14px; }}
                 .badge {{ background: #0078d7; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }}
-                
                 .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
                 .card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }}
                 .card-label {{ font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }}
                 .card-value {{ font-size: 20px; font-weight: 600; color: #212529; }}
                 .highlight {{ color: #28a745; }}
-                
                 table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
                 th {{ text-align: left; border-bottom: 2px solid #dee2e6; padding: 10px; color: #495057; }}
                 td {{ border-bottom: 1px solid #dee2e6; padding: 10px; }}
                 .error-row {{ background-color: #fff5f5; color: #c0392b; }}
-                
                 .footer {{ margin-top: 40px; font-size: 11px; color: #adb5bd; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }}
             </style>
         </head>
@@ -137,19 +140,19 @@ def generate_job_report(ws_path, action_name, file_results=None):
                 <div class="grid">
                     <div class="card">
                         <div class="card-label">Files Processed</div>
-                        <div class="card-value">{len(file_results) if file_results else s.get('total_scanned', 0)}</div>
+                        <div class="card-value">{len(file_results) if file_results else s.get('total_scanned', 0)} <span style="font-size:12px;color:#999">(Skipped: {skipped})</span></div>
                     </div>
                     <div class="card">
                         <div class="card-label">Storage Reclaimed</div>
                         <div class="card-value highlight">{saved_mb} MB ({saved_pct}%)</div>
                     </div>
                     <div class="card">
-                        <div class="card-label">Failed / Skipped</div>
+                        <div class="card-label">Failed</div>
                         <div class="card-value" style="color: {'red' if errors else '#212529'}">{len(errors)}</div>
                     </div>
                     <div class="card">
-                        <div class="card-label">Duration</div>
-                        <div class="card-value">{str(timedelta(seconds=int(s.get('batch_time', 0) + s.get('ingest_time', 0))))}</div>
+                        <div class="card-label">Batch Duration</div>
+                        <div class="card-value">{t_batch}</div>
                     </div>
                 </div>
 
@@ -173,11 +176,10 @@ def generate_job_report(ws_path, action_name, file_results=None):
         return None
 
 # ==============================================================================
-#   WORKER CLASS (REFACTORED FOR EVENTS)
+#   WORKER CLASS
 # ==============================================================================
 class Worker:
     def __init__(self, callback): 
-        # REFACTORED: Accepts a generic callback instead of a queue
         self.callback = callback 
         self.stop_sig = False
         self.pause_event = threading.Event()
@@ -201,7 +203,6 @@ class Worker:
         self.pause_event.set()
 
     def log(self, m, err=False):
-        # REFACTORED: Uses Event System
         level = "ERROR" if err else "INFO"
         self.emit(AppEvent.log(m, level))
         log_app(m, level, structured_data={"ws": self.current_ws})
@@ -213,24 +214,20 @@ class Worker:
         except: pass
 
     def prog_main(self, v, t): 
-        # REFACTORED
         self.emit(AppEvent.progress(v, t))
     
     def prog_sub(self, v, t, status_only=False): 
-        # REFACTORED
         tid = threading.get_ident()
         now = time.time()
         
         if tid not in self._last_update:
             self._last_update[tid] = 0
             
-        if (now - self._last_update[tid]) > 0.1: # Max 10 updates/sec per thread
-            # Emitting structured slot data
+        if (now - self._last_update[tid]) > 0.1: 
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": tid, "text": t, "percent": v}))
             self._last_update[tid] = now
 
     def get_hash(self, path, mode):
-        # (Logic preserved from v118)
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
         if path.suffix.lower() == '.pdf' and mode != "Lightning":
             try:
@@ -252,7 +249,6 @@ class Worker:
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
     def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
-        # (Logic preserved from v118)
         master = ws / "01_Master_Files" / file_uid
         base_cache = ws / "02_Ready_For_Redistribution"
         
@@ -287,12 +283,14 @@ class Worker:
             self.stop_sig = False
             self.resume()
             
-            d = Path(d_str); start_time = time.time()
+            d = Path(d_str)
+            start_time = time.time()
             ws = WORKSPACES_ROOT / f"{d.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            m_dir = ws / "01_Master_Files"; m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
-            self.current_ws = str(ws); self.log(f"Inventory Start: {d}")
+            m_dir = ws / "01_Master_Files"
+            m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
+            self.current_ws = str(ws)
+            self.log(f"Inventory Start: {d}")
             
-            # REFACTORED
             self.emit(AppEvent(EventType.JOB_DATA, str(ws)))
             self.set_job_status(ws, "SCANNING", "Ingesting...")
             
@@ -301,14 +299,16 @@ class Worker:
             
             seen = {}; quarantined = 0
             
-            # REFACTORED
             self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             for i, f in enumerate(files):
                 if self.stop_sig: break
-                if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                if not self.pause_event.is_set(): 
+                    self.prog_sub(None, "Paused...", True)
+                    self.pause_event.wait()
                 
-                self.prog_main((i/len(files))*100, f"Scanning {i}/{len(files)}")
+                # FIX: 100% Math Calculation
+                self.prog_main(((i+1)/len(files))*100, f"Scanning {i+1}/{len(files)}")
                 self.prog_sub(None, f"Hashing: {f.name}", True)
                 
                 try:
@@ -349,7 +349,6 @@ class Worker:
             self.set_job_status(ws, "INGESTED", f"Masters: {total}")
             self.log(f"Done. Masters: {total}")
             
-            # REFACTORED
             self.emit(AppEvent(EventType.JOB_DATA, str(ws)))
             self.emit(AppEvent(EventType.DONE))
             
@@ -358,11 +357,9 @@ class Worker:
             self.emit(AppEvent(EventType.DONE))
 
     def process_file_task(self, f, bots, options, base_dst):
-        # (Logic preserved from v118, updated logs/events only)
         if self.stop_sig: return None
-        result = {'file': f.name, 'orig_size': f.stat().st_size, 'new_size': 0, 'ok': False}
+        result = {'file': f.name, 'orig_size': f.stat().st_size, 'new_size': 0, 'ok': False, 'skipped': False}
         try:
-            # REFACTORED
             self.emit(AppEvent.status("PROCESSING", f"Refining: {f.name}", "blue"))
             
             ext = f.suffix.lower()
@@ -383,8 +380,14 @@ class Worker:
             
             final_dst_dir = base_dst / target_folder
             final_dst_dir.mkdir(parents=True, exist_ok=True)
-            
             dst_file = final_dst_dir / f.name
+
+            # FIX: Skip if already exists
+            if dst_file.exists() and dst_file.stat().st_size > 0:
+                result['new_size'] = dst_file.stat().st_size
+                result['ok'] = True
+                result['skipped'] = True
+                return result
 
             if ext == '.pdf':
                 mode = options.get('pdf_mode', 'none')
@@ -396,8 +399,13 @@ class Worker:
             elif ext in {'.docx','.xlsx'}:
                 if options.get('sanitize'): ok = bots['office'].sanitize(f, dst_file)
 
+            # FIX: Pause/Stop Safety Net - DO NOT COPY if stopped
+            if self.stop_sig or not self.pause_event.is_set():
+                # If we stopped, we don't copy the original. We just fail the task safely.
+                return None
+
             if not ok and not dst_file.exists(): 
-                 shutil.copy2(f, dst_file)
+                shutil.copy2(f, dst_file)
             
             if dst_file.exists():
                 result['new_size'] = dst_file.stat().st_size
@@ -416,11 +424,11 @@ class Worker:
             self.resume()
             
             ws = Path(ws_p); self.current_ws = str(ws)
-            start_time = time.time(); src = ws/"01_Master_Files"; dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
+            start_time = time.time(); src = ws/"01_Master_Files"
+            dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
             self.log(f"Refinement Start. Opts: {options}")
             self.set_job_status(ws, "PROCESSING", "Refining...")
 
-            # Use imported Processors
             bots = {
                 'pdf': PdfProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event),
                 'img': ImageProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event),
@@ -446,7 +454,6 @@ class Worker:
                 max_workers = max(1, max_workers)
                 self.log(f"Auto-Throttled Workers: {max_workers}")
 
-            # REFACTORED
             self.emit(AppEvent(EventType.WORKER_CONFIG, max_workers))
             
             file_results = []
@@ -454,7 +461,8 @@ class Worker:
                 futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     if self.stop_sig: break
-                    self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
+                    # FIX: 100% Math
+                    self.prog_main(((i+1)/len(fs))*100, f"Refining {i+1}/{len(fs)}")
                     try: 
                         r = future.result()
                         if r: file_results.append(r)
@@ -473,8 +481,6 @@ class Worker:
             
             self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
             self.prog_main(100, "Done")
-            
-            # REFACTORED: Send notification instead of direct open_file (though standard behavior can be handled in adapter)
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Batch Complete", "msg": "Batch processing finished.", "open_path": str(dst)}))
             
@@ -487,14 +493,14 @@ class Worker:
             self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time()
-            out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; q = out/"Quarantine"
+            out = ws / "03_Organized_Output"
+            m = out/"Unique_Masters"; q = out/"Quarantine"
             for p in [m,q]: p.mkdir(parents=True, exist_ok=True)
             
             self.log(f"Unique Export ({priority_mode})")
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
-            # REFACTORED
             self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             dup_csv = out / "duplicates_report.csv"
@@ -504,8 +510,7 @@ class Worker:
                 
                 for i, (h, data) in enumerate(man.items()):
                     if self.stop_sig: break
-                    self.prog_main((i/total)*100, "Exporting Unique...")
-                    # REFACTORED
+                    self.prog_main(((i+1)/total)*100, "Exporting Unique...")
                     self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Exporting: {data['name']}", "percent": None}))
                     
                     if data.get("status") == "QUARANTINE": 
@@ -571,7 +576,7 @@ class Worker:
 
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
-                self.prog_main((i/len(man))*100, f"Recon {i+1}")
+                self.prog_main(((i+1)/len(man))*100, f"Recon {i+1}")
                 self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Copying: {d['name']}", "percent": None}))
                 
                 if d.get("status") == "QUARANTINE": continue
@@ -592,8 +597,7 @@ class Worker:
 
             q_src = ws / "00_Quarantine"
             if q_src.exists():
-                q_dst = dst / "_QUARANTINED_FILES"; 
-                q_dst.mkdir(parents=True, exist_ok=True) 
+                q_dst = dst / "_QUARANTINED_FILES"; q_dst.mkdir(parents=True, exist_ok=True) 
                 for qf in q_src.iterdir(): shutil.copy2(qf, q_dst / qf.name)
 
             update_stats_time(ws, "dist_time", time.time() - start_time)
@@ -633,7 +637,7 @@ class Worker:
                     total = len(man)
                     for i, (h, data) in enumerate(man.items()):
                         if self.stop_sig: break
-                        self.prog_main((i/total)*100, "Writing CSV...")
+                        self.prog_main(((i+1)/total)*100, "Writing CSV...")
                         
                         uid = data.get('id', '?')
                         status = data.get('status', 'OK')
@@ -681,7 +685,6 @@ class Worker:
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
             
             if not pdf: 
-                # REFACTORED: Status + Done
                 self.emit(AppEvent.status("PREVIEW", "No PDF found.", "red"))
                 self.emit(AppEvent(EventType.DONE))
                 return
@@ -750,7 +753,6 @@ class Worker:
             shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
             shutil.rmtree(temp_dir, ignore_errors=True)
             
-            # REFACTORED
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Debug Export", "msg": f"Saved to {dest_zip.name}", "open_path": str(base_dir)}))
             
         except Exception as e:

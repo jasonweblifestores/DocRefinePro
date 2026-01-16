@@ -31,9 +31,9 @@ Write-Host "👉 Please run: .\dist\DocRefine_Debug\DocRefine_Debug.exe" -Foregr
 ==================== START FILE: build_release.ps1 ====================
 # build_release.ps1
 # ------------------------------------------------------------------------------
-# DOCREFINE PRO BUILDER (v119+ PySide6 Edition)
+# DOCREFINE PRO BUILDER (v128 Spec-First Edition)
 # ------------------------------------------------------------------------------
-$Version = "v119"
+$Version = "v128"
 $ErrorActionPreference = "Stop"
 
 Write-Host "🚀 STARTING PRODUCTION BUILD [$Version]..." -ForegroundColor Cyan
@@ -44,16 +44,11 @@ if (Test-Path "dist") { Remove-Item -Path "dist" -Recurse -Force }
 if (Test-Path "build") { Remove-Item -Path "build" -Recurse -Force }
 
 # 2. BUILD COMMAND
-Write-Host "🔨 Compiling binary..." -ForegroundColor Yellow
+Write-Host "🔨 Compiling binary using Spec file..." -ForegroundColor Yellow
 
-# Note: We use 'python -m PyInstaller' to ensure we use the active environment
-python -m PyInstaller --noconfirm --onedir --noconsole --clean `
-    --name "DocRefinePro" `
-    --collect-all "PySide6" `
-    --hidden-import "PySide6.QtXml" `
-    --hidden-import "PySide6.QtNetwork" `
-    --paths "." `
-    main.py
+# v128 Update: Removed CLI overrides (--collect-all). 
+# We now rely 100% on DocRefinePro.spec for inclusion/exclusion logic.
+python -m PyInstaller DocRefinePro.spec --noconfirm --clean
 
 # 3. VERIFICATION
 $BinPath = "dist/DocRefinePro/DocRefinePro.exe"
@@ -71,6 +66,22 @@ if (-not (Test-Path $BinPath)) {
 
 ==================== START FILE: CHANGELOG.md ====================
 # DocRefine Pro - Changelog
+
+## [v128.4] - 2026-01-16
+### Architecture & Optimization
+* **Spec-First Build System:** Migrated from CLI overrides to a pure Python Spec file architecture for consistent cross-platform building.
+* **Mac Diet (Surgical):** Reduced macOS app bundle size from **1.3GB to ~200MB** via:
+    * **Pre-Build:** Filtering `hiddenimports` to prevent PyInstaller hooks from loading unwanted Qt frameworks (WebEngine, Quick, 3D).
+    * **Post-Build:** "Nuclear" stripping script that physically removes any surviving bloat frameworks and cleans up broken symlinks to prevent installer crashes.
+* **Stability:** Fixed Windows build crash caused by tuple unpacking errors in the Spec file.
+* **Maintenance:** Added `tools/inventory.py` for project auditing.
+
+## [v128] - 2026-01-16
+### Architecture
+* **Build System Overhaul:** Switched to a "Spec-First" build architecture.
+* **Mac Diet:** Implemented aggressive binary filtering at the PyInstaller Spec level to block `QtWebEngine`, `QtQuick`, and `Qt3D` *before* bundling. This targets the 1.3GB bloat issue directly.
+* **Inventory Control:** Added `tools/inventory.py` for project auditing.
+* **Cleanup:** Removed deprecated CLI overrides from build scripts.
 
 ## [v127] - 2026-01-15
 ### Fixed
@@ -213,38 +224,76 @@ Pause
 # -*- mode: python ; coding: utf-8 -*-
 import sys
 import os
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_all
 
-# 1. OPTIMIZATION: Targeted PySide6 Collection
-# Fixed: Removed 'include_pycache' which is unsupported in PyInstaller 6.18+
-hiddenimports = ['PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets']
-datas = collect_data_files('PySide6')
+# ... (Standard headers)
 
-# 2. OPTIMIZATION: Explicit Exclusions
-# Removing unused Chromium and 3D modules saves ~450MB
-excluded_modules = [
-    'PySide6.QtWebEngine', 'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',
-    'PySide6.Qt3D', 'PySide6.QtDesigner', 'PySide6.QtNetwork', 'PySide6.QtSql',
-    'PySide6.QtQuick', 'PySide6.QtQml', 'PySide6.QtVirtualKeyboard'
+# 1. Collect PySide6
+pyside_datas, pyside_binaries, pyside_hidden = collect_all('PySide6')
+
+# 2. Define Exclusion List
+EXCLUSION_PATTERNS = [
+    'PySide6.QtWebEngine', 'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineQuick',
+    'QtWebEngine', 'QtWebEngineCore', 'QtWebEngineWidgets', 'QtWebEngineQuick',
+    'PySide6.QtQuick', 'PySide6.QtQuickWidgets', 'PySide6.QtQuick3D', 'PySide6.QtQuickControls2',
+    'QtQuick', 'QtQuickWidgets', 'QtQuick3D', 'QtQuickControls2',
+    'PySide6.QtQml', 'PySide6.QtQml.WorkerScript', 'QtQml',
+    'PySide6.Qt3DCore', 'PySide6.Qt3DInput', 'PySide6.Qt3DLogic', 'PySide6.Qt3DRender', 'PySide6.Qt3DAnimation', 'PySide6.Qt3DExtras',
+    'Qt3DCore', 'Qt3DInput', 'Qt3DLogic', 'Qt3DRender', 'Qt3DAnimation', 'Qt3DExtras',
+    'PySide6.QtVirtualKeyboard', 'QtVirtualKeyboard',
+    'PySide6.QtSerialBus', 'PySide6.QtSerialPort', 'QtSerialBus', 'QtSerialPort',
+    'PySide6.QtSensors', 'QtSensors',
+    'PySide6.QtCharts', 'QtCharts',
+    'PySide6.QtDataVisualization', 'QtDataVisualization',
+    'PySide6.QtTest', 'QtTest',
+    'PySide6.QtTextToSpeech', 'QtTextToSpeech',
+    'PySide6.QtDesigner', 'QtDesigner',
+    'PySide6.QtHelp', 'QtHelp',
+    'PySide6.QtMultimedia', 'PySide6.QtMultimediaWidgets', 'QtMultimedia', 'QtMultimediaWidgets',
+    'PySide6.QtLocation', 'QtLocation',
+    'PySide6.QtPositioning', 'QtPositioning',
+    'PySide6.QtNetworkAuth', 'QtNetworkAuth',
+    'PySide6.QtScxml', 'QtScxml',
+    'PySide6.QtRemoteObjects', 'QtRemoteObjects',
+    'PySide6.QtStateMachine', 'QtStateMachine',
+    'opengl32sw', 'd3dcompiler'
 ]
 
-# 3. Safe Icon Logic
-target_icon = 'resources/app_icon.ico'
-if not os.path.exists(target_icon):
-    target_icon = None
+# 3. Filter Binaries (CRASH FIX: Handle tuple sizes safely)
+filtered_binaries = []
+for binary in pyside_binaries:
+    is_bad = False
+    for item in binary:
+        if isinstance(item, str) and any(bad in item for bad in EXCLUSION_PATTERNS):
+            is_bad = True
+            break
+    if not is_bad:
+        filtered_binaries.append(binary)
+
+# 4. Filter Hidden Imports
+filtered_hidden_imports = [
+    h for h in pyside_hidden 
+    if not any(bad in h for bad in EXCLUSION_PATTERNS)
+]
 
 block_cipher = None
+target_icon = 'resources/app_icon.ico'
+if not os.path.exists(target_icon): target_icon = None
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
-    datas=datas,
-    hiddenimports=hiddenimports,
+    binaries=filtered_binaries, 
+    datas=pyside_datas,
+    hiddenimports=[
+        'docrefine.gui.app_qt', 
+        'docrefine.processing', 
+        'docrefine.worker'
+    ] + filtered_hidden_imports, 
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=excluded_modules,
+    excludes=EXCLUSION_PATTERNS,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -261,8 +310,8 @@ exe = EXE(
     name='DocRefinePro',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,     # Discards symbols to reduce size
-    upx=True,       # High compression for binaries
+    strip=True,
+    upx=True,
     console=False,
     icon=target_icon,
 )
@@ -441,41 +490,98 @@ PySide6
 
 
 ==================== START FILE: strip_mac.py ====================
-import shutil
 import os
+import shutil
 from pathlib import Path
 
-# Targeted bloat frameworks to delete
-BLOAT = [
-    "QtDesigner", "QtNetwork", "QtDBus", "QtQml", "QtQuick", 
-    "QtVirtualKeyboard", "QtWebEngine", "Qt3D", "QtCharts", 
-    "QtSensors", "QtMultimedia", "QtTest", "QtTextToSpeech",
-    "QtSql", "QtStateMachine"
+# The Target: Your built macOS App Bundle
+APP_PATH = Path("dist/DocRefinePro.app")
+FRAMEWORKS_DIR = APP_PATH / "Contents" / "Frameworks"
+PLUGINS_DIR = APP_PATH / "Contents" / "Resources" / "PySide6" / "plugins"
+
+# The Hit List: Modules verified in logs as BLOAT
+BLOAT_PATTERNS = [
+    "QtWebEngine", "QtQuick", "QtQml", "Qt3D", 
+    "QtVirtualKeyboard", "QtSerialBus", "QtSerialPort",
+    "QtSensors", "QtCharts", "QtDataVisualization",
+    "QtTest", "QtTextToSpeech", "QtDesigner", "QtHelp",
+    "QtMultimedia", "QtLocation", "QtPositioning",
+    "QtNetworkAuth", "QtScxml", "QtRemoteObjects",
+    "QtStateMachine", "QtXml", "QtSql"
 ]
 
-app_path = Path("dist/DocRefinePro.app/Contents/Frameworks")
+def get_size(path):
+    total = 0
+    if not path.exists(): return 0
+    if path.is_file(): return path.stat().st_size
+    for entry in os.scandir(path):
+        if entry.is_file(): total += entry.stat().st_size
+        elif entry.is_dir(): total += get_size(Path(entry.path))
+    return total
 
-print(f"--- STARTING INDUSTRIAL STRIPPING AT {app_path} ---")
+def nuke_path(path):
+    if not path.exists() and not path.is_symlink(): return 0
+    deleted = 0
+    try:
+        # If it's a directory, get size and remove tree
+        if path.is_dir() and not path.is_symlink():
+            deleted += get_size(path)
+            shutil.rmtree(path)
+        # If it's a file or symlink, just unlink
+        else:
+            if not path.is_symlink():
+                deleted += path.stat().st_size
+            path.unlink()
+    except Exception as e:
+        print(f"Error nuking {path}: {e}")
+    return deleted
 
-if app_path.exists():
-    for folder in app_path.iterdir():
-        # Check if this folder is in our hit list
-        if any(b in folder.name for b in BLOAT):
-            print(f"CRITICAL SLIMMING: Targeting {folder.name}")
-            try:
-                # FIX: Check if it's a symlink FIRST
-                if folder.is_symlink() or os.path.islink(folder):
-                    print(f"   -> Unlinking symlink: {folder.name}")
-                    folder.unlink()
-                else:
-                    print(f"   -> Deleting directory: {folder.name}")
-                    shutil.rmtree(folder)
-            except Exception as e:
-                print(f"   !! FAILED to remove {folder.name}: {e}")
-else:
-    print(f"ERROR: Frameworks path not found at {app_path}")
-    
-print("--- STRIPPING COMPLETE ---")
+def cleanup_broken_symlinks():
+    print("🧹 SCANNING FOR BROKEN SYMLINKS...")
+    broken_count = 0
+    for root, dirs, files in os.walk(APP_PATH):
+        for filename in files:
+            p = Path(root) / filename
+            if p.is_symlink():
+                if not p.exists(): # Checks if target exists
+                    print(f"   ✂️ Removing broken link: {p.name}")
+                    p.unlink()
+                    broken_count += 1
+    print(f"   Fixed {broken_count} broken links.")
+
+def nuke_bloat():
+    print(f"🚀 STARTING SURGICAL REMOVAL ON: {APP_PATH}")
+    if not APP_PATH.exists():
+        print(f"❌ CRITICAL: App bundle not found at {APP_PATH}"); return
+
+    deleted_size = 0
+
+    # 1. SCAN FRAMEWORKS
+    if FRAMEWORKS_DIR.exists():
+        for item in FRAMEWORKS_DIR.iterdir():
+            if any(pattern in item.name for pattern in BLOAT_PATTERNS):
+                print(f"   💣 NUKE FRAMEWORK: {item.name}")
+                deleted_size += nuke_path(item)
+
+    # 2. SCAN PLUGINS
+    if PLUGINS_DIR.exists():
+        for root, dirs, files in os.walk(PLUGINS_DIR):
+            for d in dirs[:]: 
+                if any(pattern in d for pattern in BLOAT_PATTERNS):
+                    full_path = Path(root) / d
+                    print(f"   💣 NUKE PLUGIN: {d}")
+                    deleted_size += nuke_path(full_path)
+                    dirs.remove(d)
+                    
+    # 3. GARBAGE COLLECTION (Crucial Step)
+    cleanup_broken_symlinks()
+
+    print("-" * 60)
+    print(f"✅ CLEANUP COMPLETE. REMOVED: {deleted_size / 1024 / 1024:.2f} MB")
+    print("-" * 60)
+
+if __name__ == "__main__":
+    nuke_bloat()
 ==================== END FILE: strip_mac.py ====================
 
 
@@ -514,6 +620,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
+    # v128 Update: Spec-First Build (CLI overrides removed)
     - name: Build with PyInstaller
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
@@ -535,7 +642,7 @@ jobs:
         files: DocRefinePro_Win_${{ github.ref_name }}.zip
 
   # ====================================================
-  # JOB 2: MAC BUILD (Industrial Slimming v126)
+  # JOB 2: MAC BUILD (Surgical Stripping v128.4)
   # ====================================================
   build-mac:
     name: macOS Build
@@ -559,22 +666,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
+    # v128 Update: Spec-First Build (CLI overrides removed)
     - name: Build Mac App
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    - name: Post-Build Manual Stripping (v126 Industrial)
+    # v128.4 Update: The "Nuclear" Strip + Garbage Collection
+    # 1. Runs our python script to delete heavy frameworks and clean broken symlinks
+    # 2. Runs native 'strip' on binary symbols for whatever is left
+    - name: Post-Build Manual Stripping (v128.4)
       run: |
-        # Run the dedicated Python script for guaranteed path resolution
+        echo "Running surgical strip script..."
         python strip_mac.py
-        # Strip debug symbols from the Mach-O binary
+        
+        echo "Stripping remaining binary symbols..."
+        find dist/DocRefinePro.app -name "*.dylib" -exec strip -x {} \;
         strip "dist/DocRefinePro.app/Contents/MacOS/DocRefinePro"
-        echo "Industrial stripping complete."
 
     - name: Create DMG Installer
       run: |
         mkdir -p dist/dmg_content
-        cp -r "dist/DocRefinePro.app" dist/dmg_content
+        # Use -a to preserve structure and symlinks safely (CRITICAL FIX)
+        cp -a "dist/DocRefinePro.app" dist/dmg_content
         cp README.md dist/dmg_content/
         cp CHANGELOG.md dist/dmg_content/
         cp LICENSE dist/dmg_content/
@@ -604,7 +717,7 @@ jobs:
 ==================== START FILE: 53752cda3c39550673fc5dafb96c4bed\docrefine_version.json ====================
 {
     "download_url":  "https://drive.google.com/drive/folders/1_9IoOZK5dW6rsjUp5eq-3vT8LIOlKYkU?usp=sharing",
-    "latest_version":  "v127"
+    "latest_version":  "v128.4"
 }
 
 ==================== END FILE: 53752cda3c39550673fc5dafb96c4bed\docrefine_version.json ====================
@@ -647,7 +760,7 @@ if os.name == 'nt':
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v127"
+    CURRENT_VERSION = "v128.4"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -4483,4 +4596,70 @@ For the latest online version of the README.md see:
 <https://github.com/tesseract-ocr/tesseract/blob/main/README.md>
 
 ==================== END FILE: Tesseract-OCR\doc\README.md ====================
+
+
+==================== START FILE: tools\inventory.py ====================
+import os
+import datetime
+from pathlib import Path
+
+# ==============================================================================
+#   DOCREFINE PRO - PROJECT INVENTORY TOOL
+#   Run this to generate 'project_inventory.txt'
+# ==============================================================================
+
+SKIP_DIRS = {'.git', '__pycache__', 'venv', 'env', '.idea', '.vscode'}
+OUTPUT_FILE = "project_inventory.txt"
+
+def get_size_str(size_bytes):
+    if size_bytes < 1024: return f"{size_bytes} B"
+    elif size_bytes < 1024**2: return f"{size_bytes/1024:.2f} KB"
+    elif size_bytes < 1024**3: return f"{size_bytes/(1024**2):.2f} MB"
+    else: return f"{size_bytes/(1024**3):.2f} GB"
+
+def run_inventory():
+    root_dir = Path.cwd()
+    print(f"Scanning: {root_dir}")
+    print("This may take a moment...")
+
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        f.write(f"PROJECT INVENTORY SCAN\n")
+        f.write(f"Root: {root_dir}\n")
+        f.write(f"Date: {datetime.datetime.now()}\n")
+        f.write("="*80 + "\n\n")
+
+        total_size = 0
+        file_count = 0
+
+        for root, dirs, files in os.walk(root_dir):
+            # Filter excluded directories in-place
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            
+            level = root.replace(str(root_dir), '').count(os.sep)
+            indent = ' ' * 4 * (level)
+            rel_path = os.path.relpath(root, root_dir)
+            
+            if rel_path != ".":
+                f.write(f"{indent}[{os.path.basename(root)}/]\n")
+            
+            subindent = ' ' * 4 * (level + 1)
+            for fname in files:
+                fpath = Path(root) / fname
+                try:
+                    size = fpath.stat().st_size
+                    total_size += size
+                    file_count += 1
+                    f.write(f"{subindent}{fname}  ({get_size_str(size)})\n")
+                except Exception as e:
+                    f.write(f"{subindent}{fname}  [ERROR reading file]\n")
+
+        f.write("\n" + "="*80 + "\n")
+        f.write(f"TOTAL FILES: {file_count}\n")
+        f.write(f"TOTAL SIZE:  {get_size_str(total_size)}\n")
+
+    print(f"✅ Inventory saved to {OUTPUT_FILE}")
+
+if __name__ == "__main__":
+    run_inventory()
+==================== END FILE: tools\inventory.py ====================
 

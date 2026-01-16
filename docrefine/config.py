@@ -1,3 +1,4 @@
+# SAVE AS: docrefine/config.py
 import sys
 import os
 import subprocess
@@ -10,9 +11,6 @@ from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
-# ==============================================================================
-#   WINDOWS GHOST WINDOW FIX (Global Patch)
-# ==============================================================================
 if os.name == 'nt':
     try:
         _original_popen = subprocess.Popen
@@ -28,19 +26,16 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
-# ==============================================================================
-#   SYSTEM UTILITIES
-# ==============================================================================
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v128.4"
+    CURRENT_VERSION = "v128.5"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
     def get_resource_dir():
         if getattr(sys, 'frozen', False): return Path(sys._MEIPASS)
-        return Path(__file__).parent.parent # Adjusted for package structure
+        return Path(__file__).parent.parent
 
     @staticmethod
     def get_user_data_dir():
@@ -53,19 +48,13 @@ class SystemUtils:
 
     @staticmethod
     def find_doc_file(filename):
-        # 1. Look in bundled resources (PyInstaller)
         res = SystemUtils.get_resource_dir() / filename
         if res.exists(): return res
-        
-        # 2. Look next to executable (Portable/Distribution)
         if getattr(sys, 'frozen', False):
             exe_path = Path(sys.executable).parent / filename
             if exe_path.exists(): return exe_path
-        
-        # 3. Look in Project Root (Dev Mode - One level up from this file)
         cwd = Path(__file__).parent.parent / filename
         if cwd.exists(): return cwd
-        
         return None
 
     @staticmethod
@@ -113,9 +102,6 @@ class SystemUtils:
                 if brew_path.exists(): return str(brew_path)
         return None
 
-# ==============================================================================
-#   CONFIGURATION
-# ==============================================================================
 class Config:
     GITHUB_REPO = "jasonweblifestores/DocRefinePro" 
     DEFAULTS = { 
@@ -148,12 +134,8 @@ class Config:
             with open(self.path, 'w') as f: json.dump(self.data, f, indent=4)
         except Exception as e: print(f"Config Save Error: {e}")
 
-# Global Config Instance
 CFG = Config()
 
-# ==============================================================================
-#   LOGGING
-# ==============================================================================
 USER_DIR = SystemUtils.get_user_data_dir()
 LOG_PATH = USER_DIR / "app_debug.log"
 JSON_LOG_PATH = USER_DIR / "app_events.jsonl"
@@ -167,7 +149,8 @@ c_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
 logger.addHandler(c_handler)
 
 try:
-    f_handler = RotatingFileHandler(LOG_PATH, maxBytes=1024*1024, backupCount=5, encoding='utf-8')
+    # FIX: mode='w' creates fresh logs every session
+    f_handler = RotatingFileHandler(LOG_PATH, maxBytes=1024*1024, backupCount=5, encoding='utf-8', mode='w')
     f_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(f_handler)
 except: pass
