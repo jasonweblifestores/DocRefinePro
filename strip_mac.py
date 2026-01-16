@@ -1,35 +1,95 @@
-import shutil
 import os
+import shutil
 from pathlib import Path
 
-# Targeted bloat frameworks to delete
-BLOAT = [
-    "QtDesigner", "QtNetwork", "QtDBus", "QtQml", "QtQuick", 
-    "QtVirtualKeyboard", "QtWebEngine", "Qt3D", "QtCharts", 
-    "QtSensors", "QtMultimedia", "QtTest", "QtTextToSpeech",
-    "QtSql", "QtStateMachine"
+# The Target: Your built macOS App Bundle
+APP_PATH = Path("dist/DocRefinePro.app")
+FRAMEWORKS_DIR = APP_PATH / "Contents" / "Frameworks"
+PLUGINS_DIR = APP_PATH / "Contents" / "Resources" / "PySide6" / "plugins"
+
+# The Hit List: Modules verified in logs as BLOAT
+BLOAT_PATTERNS = [
+    "QtWebEngine", "QtQuick", "QtQml", "Qt3D", 
+    "QtVirtualKeyboard", "QtSerialBus", "QtSerialPort",
+    "QtSensors", "QtCharts", "QtDataVisualization",
+    "QtTest", "QtTextToSpeech", "QtDesigner", "QtHelp",
+    "QtMultimedia", "QtLocation", "QtPositioning",
+    "QtNetworkAuth", "QtScxml", "QtRemoteObjects",
+    "QtStateMachine", "QtXml", "QtSql"
 ]
 
-app_path = Path("dist/DocRefinePro.app/Contents/Frameworks")
+def get_size(path):
+    total = 0
+    if not path.exists(): return 0
+    if path.is_file(): return path.stat().st_size
+    for entry in os.scandir(path):
+        if entry.is_file(): total += entry.stat().st_size
+        elif entry.is_dir(): total += get_size(Path(entry.path))
+    return total
 
-print(f"--- STARTING INDUSTRIAL STRIPPING AT {app_path} ---")
-
-if app_path.exists():
-    for folder in app_path.iterdir():
-        # Check if this folder is in our hit list
-        if any(b in folder.name for b in BLOAT):
-            print(f"CRITICAL SLIMMING: Targeting {folder.name}")
-            try:
-                # FIX: Check if it's a symlink FIRST
-                if folder.is_symlink() or os.path.islink(folder):
-                    print(f"   -> Unlinking symlink: {folder.name}")
-                    folder.unlink()
-                else:
-                    print(f"   -> Deleting directory: {folder.name}")
-                    shutil.rmtree(folder)
-            except Exception as e:
-                print(f"   !! FAILED to remove {folder.name}: {e}")
-else:
-    print(f"ERROR: Frameworks path not found at {app_path}")
+def nuke_path(path):
+    """Smart delete that handles symlinks and their targets."""
+    if not path.exists(): return 0
     
-print("--- STRIPPING COMPLETE ---")
+    deleted_bytes = 0
+    
+    # If it's a symlink, resolve it first to find the payload
+    if path.is_symlink():
+        try:
+            target = path.resolve()
+            # Security check: Ensure target is inside our app bundle
+            if str(APP_PATH) in str(target) and target.exists():
+                print(f"   ↳ Following symlink to payload: {target.name}")
+                if target.is_dir():
+                    deleted_bytes += get_size(target)
+                    shutil.rmtree(target)
+                else:
+                    deleted_bytes += target.stat().st_size
+                    target.unlink()
+            path.unlink() # Delete the link itself
+        except Exception as e:
+            print(f"   ⚠️ Error resolving symlink {path.name}: {e}")
+            path.unlink()
+    
+    # Standard file/folder
+    elif path.is_dir():
+        deleted_bytes += get_size(path)
+        shutil.rmtree(path)
+    else:
+        deleted_bytes += path.stat().st_size
+        path.unlink()
+        
+    return deleted_bytes
+
+def nuke_bloat():
+    print(f"🚀 STARTING SURGICAL REMOVAL ON: {APP_PATH}")
+    if not APP_PATH.exists():
+        print(f"❌ CRITICAL: App bundle not found at {APP_PATH}"); return
+
+    deleted_size = 0
+
+    # 1. SCAN FRAMEWORKS
+    if FRAMEWORKS_DIR.exists():
+        print(f"🔍 Scanning Frameworks at {FRAMEWORKS_DIR}...")
+        for item in FRAMEWORKS_DIR.iterdir():
+            if any(pattern in item.name for pattern in BLOAT_PATTERNS):
+                print(f"   💣 NUKE: {item.name}")
+                deleted_size += nuke_path(item)
+
+    # 2. SCAN PLUGINS
+    if PLUGINS_DIR.exists():
+        print(f"🔍 Scanning Plugins at {PLUGINS_DIR}...")
+        for root, dirs, files in os.walk(PLUGINS_DIR):
+            for d in dirs[:]: 
+                if any(pattern in d for pattern in BLOAT_PATTERNS):
+                    full_path = Path(root) / d
+                    print(f"   💣 NUKE PLUGIN: {d}")
+                    deleted_size += nuke_path(full_path)
+                    dirs.remove(d)
+
+    print("-" * 60)
+    print(f"✅ CLEANUP COMPLETE. FREED: {deleted_size / 1024 / 1024:.2f} MB")
+    print("-" * 60)
+
+if __name__ == "__main__":
+    nuke_bloat()

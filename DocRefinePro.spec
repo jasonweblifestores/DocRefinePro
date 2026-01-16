@@ -4,56 +4,65 @@ import os
 from PyInstaller.utils.hooks import collect_all
 
 # ==============================================================================
-#   DOCREFINE PRO v128 BUILD SPEC (Robust Filter Edition)
-#   Optimized for PySide6 bloat reduction
+#   DOCREFINE PRO v128.3 BUILD SPEC (Double-Tap Edition)
+#   1. Filter Binaries
+#   2. Filter Hidden Imports (CRITICAL FIX to stop Hooks)
+#   3. Explicit Excludes
 # ==============================================================================
 
 # 1. Collect PySide6
 pyside_datas, pyside_binaries, pyside_hidden = collect_all('PySide6')
 
-# 2. Exclusion Filters
+# 2. Define The "Hard Ban" List
 EXCLUSION_PATTERNS = [
-    'Qt6WebEngine', 'QtWebEngine', 
-    'Qt6Quick', 'QtQuick', 
-    'Qt6Qml', 'QtQml', 
-    'Qt63D', 'Qt3D',
-    'Qt6VirtualKeyboard', 'QtVirtualKeyboard',
-    'Qt6SerialBus', 'QtSerialBus',
-    'Qt6Designer', 'QtDesigner',
-    'Qt6Help', 'QtHelp',
-    'Qt6Test', 'QtTest',
-    'Qt6Sensors', 'QtSensors',
-    'Qt6Charts', 'QtCharts',
-    'Qt6DataVisualization', 'QtDataVisualization',
-    'opengl32sw', 'd3dcompiler',
+    'PySide6.QtWebEngine', 'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineQuick',
+    'QtWebEngine', 'QtWebEngineCore', 'QtWebEngineWidgets', 'QtWebEngineQuick',
+    'PySide6.QtQuick', 'PySide6.QtQuickWidgets', 'PySide6.QtQuick3D', 'PySide6.QtQuickControls2',
+    'QtQuick', 'QtQuickWidgets', 'QtQuick3D', 'QtQuickControls2',
+    'PySide6.QtQml', 'PySide6.QtQml.WorkerScript', 'QtQml',
+    'PySide6.Qt3DCore', 'PySide6.Qt3DInput', 'PySide6.Qt3DLogic', 'PySide6.Qt3DRender', 'PySide6.Qt3DAnimation', 'PySide6.Qt3DExtras',
+    'Qt3DCore', 'Qt3DInput', 'Qt3DLogic', 'Qt3DRender', 'Qt3DAnimation', 'Qt3DExtras',
+    'PySide6.QtVirtualKeyboard', 'QtVirtualKeyboard',
+    'PySide6.QtSerialBus', 'PySide6.QtSerialPort', 'QtSerialBus', 'QtSerialPort',
+    'PySide6.QtSensors', 'QtSensors',
+    'PySide6.QtCharts', 'QtCharts',
+    'PySide6.QtDataVisualization', 'QtDataVisualization',
+    'PySide6.QtTest', 'QtTest',
+    'PySide6.QtTextToSpeech', 'QtTextToSpeech',
+    'PySide6.QtDesigner', 'QtDesigner',
+    'PySide6.QtHelp', 'QtHelp',
+    'PySide6.QtMultimedia', 'PySide6.QtMultimediaWidgets', 'QtMultimedia', 'QtMultimediaWidgets',
+    'PySide6.QtLocation', 'QtLocation',
+    'PySide6.QtPositioning', 'QtPositioning',
+    'PySide6.QtNetworkAuth', 'QtNetworkAuth',
+    'PySide6.QtScxml', 'QtScxml',
+    'PySide6.QtRemoteObjects', 'QtRemoteObjects',
+    'PySide6.QtStateMachine', 'QtStateMachine',
+    'opengl32sw', 'd3dcompiler'
 ]
 
-def filter_binaries(bin_list):
-    """Returns a filtered list of binaries, robust to tuple size."""
-    kept = []
-    for binary in bin_list:
-        # binary might be (dest, src) or (dest, src, type)
-        # We iterate to find if ANY part of the tuple matches our ban list
-        is_bad = False
-        for item in binary:
-            if isinstance(item, str) and any(bad in item for bad in EXCLUSION_PATTERNS):
-                print(f"  [Spec Filter] Dropping: {os.path.basename(item)}")
-                is_bad = True
-                break
-        
-        if not is_bad:
-            kept.append(binary)
-    return kept
+# 3. Filter Binaries (Robust)
+filtered_binaries = []
+for binary in pyside_binaries:
+    is_bad = False
+    for item in binary:
+        if isinstance(item, str) and any(bad in item for bad in EXCLUSION_PATTERNS):
+            is_bad = True
+            break
+    if not is_bad:
+        filtered_binaries.append(binary)
 
-# 3. Apply Filter
-filtered_binaries = filter_binaries(pyside_binaries)
+# 4. Filter Hidden Imports (The Missing Link)
+# This stops collect_all from forcing WebEngine back in via imports
+filtered_hidden_imports = [
+    h for h in pyside_hidden 
+    if not any(bad in h for bad in EXCLUSION_PATTERNS)
+]
 
-# 4. Standard App Setup
+# 5. Standard App Setup
 block_cipher = None
-
 target_icon = 'resources/app_icon.ico'
-if not os.path.exists(target_icon):
-    target_icon = None
+if not os.path.exists(target_icon): target_icon = None
 
 a = Analysis(
     ['main.py'],
@@ -62,19 +71,13 @@ a = Analysis(
     datas=pyside_datas,
     hiddenimports=[
         'docrefine.gui.app_qt', 
-        'docrefine.processing',
+        'docrefine.processing', 
         'docrefine.worker'
-    ] + pyside_hidden,
+    ] + filtered_hidden_imports, # <--- USE FILTERED LIST
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        'tkinter', 
-        'matplotlib', 
-        'scipy', 
-        'notebook', 
-        'pandas'
-    ],
+    excludes=EXCLUSION_PATTERNS,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

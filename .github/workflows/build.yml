@@ -32,6 +32,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
+    # v128 Update: Spec-First Build (CLI overrides removed)
     - name: Build with PyInstaller
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
@@ -53,7 +54,7 @@ jobs:
         files: DocRefinePro_Win_${{ github.ref_name }}.zip
 
   # ====================================================
-  # JOB 2: MAC BUILD (Industrial Slimming v126)
+  # JOB 2: MAC BUILD (Surgical Stripping v128.3)
   # ====================================================
   build-mac:
     name: macOS Build
@@ -77,17 +78,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install psutil Pillow pytesseract pdf2image pypdf pyinstaller PySide6
 
+    # v128 Update: Spec-First Build (CLI overrides removed)
     - name: Build Mac App
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    - name: Post-Build Manual Stripping (v126 Industrial)
+    # v128.3 Update: The "Double-Tap" Strip
+    # 1. Runs our python script to delete heavy frameworks (WebEngine, Quick, etc)
+    # 2. Runs native 'strip' on binary symbols for whatever is left
+    - name: Post-Build Manual Stripping (Nuclear Option)
       run: |
-        # Run the dedicated Python script for guaranteed path resolution
+        echo "Running surgical strip script..."
         python strip_mac.py
-        # Strip debug symbols from the Mach-O binary
+        
+        echo "Stripping remaining binary symbols..."
+        find dist/DocRefinePro.app -name "*.dylib" -exec strip -x {} \;
         strip "dist/DocRefinePro.app/Contents/MacOS/DocRefinePro"
-        echo "Industrial stripping complete."
 
     - name: Create DMG Installer
       run: |
