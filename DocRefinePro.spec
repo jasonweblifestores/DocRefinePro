@@ -4,16 +4,14 @@ import os
 from PyInstaller.utils.hooks import collect_all
 
 # ==============================================================================
-#   DOCREFINE PRO v128 BUILD SPEC
-#   Optimized for PySide6 bloat reduction (No WebEngine, No QML)
+#   DOCREFINE PRO v128 BUILD SPEC (Robust Filter Edition)
+#   Optimized for PySide6 bloat reduction
 # ==============================================================================
 
-# 1. Collect PySide6, but keep reference so we can filter it
-#    collect_all returns: (datas, binaries, hiddenimports)
+# 1. Collect PySide6
 pyside_datas, pyside_binaries, pyside_hidden = collect_all('PySide6')
 
-# 2. Define Exclusion Filters (Substrings to match against filenames)
-#    If a binary contains any of these, it dies.
+# 2. Exclusion Filters
 EXCLUSION_PATTERNS = [
     'Qt6WebEngine', 'QtWebEngine', 
     'Qt6Quick', 'QtQuick', 
@@ -27,19 +25,24 @@ EXCLUSION_PATTERNS = [
     'Qt6Sensors', 'QtSensors',
     'Qt6Charts', 'QtCharts',
     'Qt6DataVisualization', 'QtDataVisualization',
-    'opengl32sw', 'd3dcompiler',  # Windows software renderers (heavy)
+    'opengl32sw', 'd3dcompiler',
 ]
 
 def filter_binaries(bin_list):
-    """Returns a filtered list of binaries, removing unwanted Qt modules."""
+    """Returns a filtered list of binaries, robust to tuple size."""
     kept = []
-    dropped_size = 0
-    for src, dst, kind in bin_list:
-        # Check exclusion
-        if any(bad in src for bad in EXCLUSION_PATTERNS):
-            print(f"  [Spec Filter] Dropping: {os.path.basename(src)}")
-            continue
-        kept.append((src, dst, kind))
+    for binary in bin_list:
+        # binary might be (dest, src) or (dest, src, type)
+        # We iterate to find if ANY part of the tuple matches our ban list
+        is_bad = False
+        for item in binary:
+            if isinstance(item, str) and any(bad in item for bad in EXCLUSION_PATTERNS):
+                print(f"  [Spec Filter] Dropping: {os.path.basename(item)}")
+                is_bad = True
+                break
+        
+        if not is_bad:
+            kept.append(binary)
     return kept
 
 # 3. Apply Filter
@@ -48,7 +51,6 @@ filtered_binaries = filter_binaries(pyside_binaries)
 # 4. Standard App Setup
 block_cipher = None
 
-# Safe Icon Logic
 target_icon = 'resources/app_icon.ico'
 if not os.path.exists(target_icon):
     target_icon = None
@@ -56,10 +58,10 @@ if not os.path.exists(target_icon):
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=filtered_binaries, # USE FILTERED LIST
-    datas=pyside_datas,         # Keep datas (translations etc are small enough)
+    binaries=filtered_binaries, 
+    datas=pyside_datas,
     hiddenimports=[
-        'docrefine.gui.app_qt', # Ensure our new GUI entry point is caught
+        'docrefine.gui.app_qt', 
         'docrefine.processing',
         'docrefine.worker'
     ] + pyside_hidden,
@@ -89,9 +91,9 @@ exe = EXE(
     name='DocRefinePro',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,     # Strip symbols
-    upx=True,       # UPX Compression
-    console=False,  # No Terminal
+    strip=True,
+    upx=True,
+    console=False,
     icon=target_icon,
 )
 
