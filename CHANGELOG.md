@@ -1,5 +1,12 @@
 # DocRefine Pro - Changelog
 
+## [v128] - 2026-01-16
+### Architecture
+* **Build System Overhaul:** Switched to a "Spec-First" build architecture.
+* **Mac Diet:** Implemented aggressive binary filtering at the PyInstaller Spec level to block `QtWebEngine`, `QtQuick`, and `Qt3D` *before* bundling. This targets the 1.3GB bloat issue directly.
+* **Inventory Control:** Added `tools/inventory.py` for project auditing.
+* **Cleanup:** Removed deprecated CLI overrides from build scripts.
+
 ## [v127] - 2026-01-15
 ### Fixed
 - **Mac Build:** Resolved `OSError` in stripping script by handling symlinks correctly.
