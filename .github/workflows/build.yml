@@ -54,7 +54,7 @@ jobs:
         files: DocRefinePro_Win_${{ github.ref_name }}.zip
 
   # ====================================================
-  # JOB 2: MAC BUILD (Surgical Stripping v128.3)
+  # JOB 2: MAC BUILD (Surgical Stripping v128.4)
   # ====================================================
   build-mac:
     name: macOS Build
@@ -83,10 +83,10 @@ jobs:
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    # v128.3 Update: The "Double-Tap" Strip
-    # 1. Runs our python script to delete heavy frameworks (WebEngine, Quick, etc)
+    # v128.4 Update: The "Nuclear" Strip + Garbage Collection
+    # 1. Runs our python script to delete heavy frameworks and clean broken symlinks
     # 2. Runs native 'strip' on binary symbols for whatever is left
-    - name: Post-Build Manual Stripping (Nuclear Option)
+    - name: Post-Build Manual Stripping (v128.4)
       run: |
         echo "Running surgical strip script..."
         python strip_mac.py
@@ -98,7 +98,8 @@ jobs:
     - name: Create DMG Installer
       run: |
         mkdir -p dist/dmg_content
-        cp -r "dist/DocRefinePro.app" dist/dmg_content
+        # Use -a to preserve structure and symlinks safely (CRITICAL FIX)
+        cp -a "dist/DocRefinePro.app" dist/dmg_content
         cp README.md dist/dmg_content/
         cp CHANGELOG.md dist/dmg_content/
         cp LICENSE dist/dmg_content/

@@ -28,38 +28,34 @@ def get_size(path):
     return total
 
 def nuke_path(path):
-    """Smart delete that handles symlinks and their targets."""
-    if not path.exists(): return 0
-    
-    deleted_bytes = 0
-    
-    # If it's a symlink, resolve it first to find the payload
-    if path.is_symlink():
-        try:
-            target = path.resolve()
-            # Security check: Ensure target is inside our app bundle
-            if str(APP_PATH) in str(target) and target.exists():
-                print(f"   ↳ Following symlink to payload: {target.name}")
-                if target.is_dir():
-                    deleted_bytes += get_size(target)
-                    shutil.rmtree(target)
-                else:
-                    deleted_bytes += target.stat().st_size
-                    target.unlink()
-            path.unlink() # Delete the link itself
-        except Exception as e:
-            print(f"   ⚠️ Error resolving symlink {path.name}: {e}")
+    if not path.exists() and not path.is_symlink(): return 0
+    deleted = 0
+    try:
+        # If it's a directory, get size and remove tree
+        if path.is_dir() and not path.is_symlink():
+            deleted += get_size(path)
+            shutil.rmtree(path)
+        # If it's a file or symlink, just unlink
+        else:
+            if not path.is_symlink():
+                deleted += path.stat().st_size
             path.unlink()
-    
-    # Standard file/folder
-    elif path.is_dir():
-        deleted_bytes += get_size(path)
-        shutil.rmtree(path)
-    else:
-        deleted_bytes += path.stat().st_size
-        path.unlink()
-        
-    return deleted_bytes
+    except Exception as e:
+        print(f"Error nuking {path}: {e}")
+    return deleted
+
+def cleanup_broken_symlinks():
+    print("🧹 SCANNING FOR BROKEN SYMLINKS...")
+    broken_count = 0
+    for root, dirs, files in os.walk(APP_PATH):
+        for filename in files:
+            p = Path(root) / filename
+            if p.is_symlink():
+                if not p.exists(): # Checks if target exists
+                    print(f"   ✂️ Removing broken link: {p.name}")
+                    p.unlink()
+                    broken_count += 1
+    print(f"   Fixed {broken_count} broken links.")
 
 def nuke_bloat():
     print(f"🚀 STARTING SURGICAL REMOVAL ON: {APP_PATH}")
@@ -70,15 +66,13 @@ def nuke_bloat():
 
     # 1. SCAN FRAMEWORKS
     if FRAMEWORKS_DIR.exists():
-        print(f"🔍 Scanning Frameworks at {FRAMEWORKS_DIR}...")
         for item in FRAMEWORKS_DIR.iterdir():
             if any(pattern in item.name for pattern in BLOAT_PATTERNS):
-                print(f"   💣 NUKE: {item.name}")
+                print(f"   💣 NUKE FRAMEWORK: {item.name}")
                 deleted_size += nuke_path(item)
 
     # 2. SCAN PLUGINS
     if PLUGINS_DIR.exists():
-        print(f"🔍 Scanning Plugins at {PLUGINS_DIR}...")
         for root, dirs, files in os.walk(PLUGINS_DIR):
             for d in dirs[:]: 
                 if any(pattern in d for pattern in BLOAT_PATTERNS):
@@ -86,9 +80,12 @@ def nuke_bloat():
                     print(f"   💣 NUKE PLUGIN: {d}")
                     deleted_size += nuke_path(full_path)
                     dirs.remove(d)
+                    
+    # 3. GARBAGE COLLECTION (Crucial Step)
+    cleanup_broken_symlinks()
 
     print("-" * 60)
-    print(f"✅ CLEANUP COMPLETE. FREED: {deleted_size / 1024 / 1024:.2f} MB")
+    print(f"✅ CLEANUP COMPLETE. REMOVED: {deleted_size / 1024 / 1024:.2f} MB")
     print("-" * 60)
 
 if __name__ == "__main__":

@@ -3,17 +3,12 @@ import sys
 import os
 from PyInstaller.utils.hooks import collect_all
 
-# ==============================================================================
-#   DOCREFINE PRO v128.3 BUILD SPEC (Double-Tap Edition)
-#   1. Filter Binaries
-#   2. Filter Hidden Imports (CRITICAL FIX to stop Hooks)
-#   3. Explicit Excludes
-# ==============================================================================
+# ... (Standard headers)
 
 # 1. Collect PySide6
 pyside_datas, pyside_binaries, pyside_hidden = collect_all('PySide6')
 
-# 2. Define The "Hard Ban" List
+# 2. Define Exclusion List
 EXCLUSION_PATTERNS = [
     'PySide6.QtWebEngine', 'PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineQuick',
     'QtWebEngine', 'QtWebEngineCore', 'QtWebEngineWidgets', 'QtWebEngineQuick',
@@ -41,7 +36,7 @@ EXCLUSION_PATTERNS = [
     'opengl32sw', 'd3dcompiler'
 ]
 
-# 3. Filter Binaries (Robust)
+# 3. Filter Binaries (CRASH FIX: Handle tuple sizes safely)
 filtered_binaries = []
 for binary in pyside_binaries:
     is_bad = False
@@ -52,14 +47,12 @@ for binary in pyside_binaries:
     if not is_bad:
         filtered_binaries.append(binary)
 
-# 4. Filter Hidden Imports (The Missing Link)
-# This stops collect_all from forcing WebEngine back in via imports
+# 4. Filter Hidden Imports
 filtered_hidden_imports = [
     h for h in pyside_hidden 
     if not any(bad in h for bad in EXCLUSION_PATTERNS)
 ]
 
-# 5. Standard App Setup
 block_cipher = None
 target_icon = 'resources/app_icon.ico'
 if not os.path.exists(target_icon): target_icon = None
@@ -73,7 +66,7 @@ a = Analysis(
         'docrefine.gui.app_qt', 
         'docrefine.processing', 
         'docrefine.worker'
-    ] + filtered_hidden_imports, # <--- USE FILTERED LIST
+    ] + filtered_hidden_imports, 
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
