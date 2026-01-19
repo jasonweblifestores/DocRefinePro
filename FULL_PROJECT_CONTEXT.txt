@@ -1,7 +1,44 @@
 ================================================================================
 PROJECT CONTEXT DUMP
-Source: DocWorkbench
+Source: DocRefine Pro (v128.5)
 ================================================================================
+
+
+==================== START FILE: .gitignore ====================
+# --- Build Artifacts (The Law: No Local Builds) ---
+build/
+dist/
+*.spec
+# We keep DocRefinePro.spec because GitHub Actions needs it for Windows
+!DocRefinePro.spec
+
+# --- Runtime Data ---
+Workspaces/
+__pycache__/
+*.py[cod]
+*.tmp
+
+# --- Logs ---
+*.log
+app_events.jsonl
+
+# --- Environment & Configs ---
+.env
+.venv/
+env/
+.vscode/
+.idea/
+.DS_Store
+
+# --- Duplicate handling ---
+# Ignore the root version file if you accidentally recreate it
+/docrefine_version.json
+
+# --- Gist Versioning Folder ---
+# CRITICAL FIX: Ignore this folder so the Main Repo doesn't 
+# try to treat it as a broken submodule during CI/CD.
+53752cda3c39550673fc5dafb96c4bed/
+==================== END FILE: .gitignore ====================
 
 
 ==================== START FILE: build_debug.ps1 ====================
@@ -66,6 +103,20 @@ if (-not (Test-Path $BinPath)) {
 
 ==================== START FILE: CHANGELOG.md ====================
 # DocRefine Pro - Changelog
+
+## [v129] - 2026-01-19
+### Maintenance
+* **Legacy Cleanup:** Permanently removed the deprecated Tkinter UI module (`docrefine/gui/app.py`).
+* **Architecture:** The application is now exclusively Qt/PySide6.
+
+## [v128.5] - 2026-01-16
+### UX & Stability
+* **Inspector First:** Changed default tab order to prioritize Forensic Inspection.
+* **Progress Fix:** Resolved issue where progress bar would hang at 99%.
+* **Pause Safety:** Fixed critical bug where pausing the refinement process caused files to be copied without processing.
+* **Smart Skip:** The engine now detects existing output files and skips them to save time.
+* **Log Hygiene:** App logs now reset on startup to prevent bloat.
+* **Timing:** Added detailed breakdown of Ingest vs. Refine times in the dashboard stats.
 
 ## [v128.4] - 2026-01-16
 ### Architecture & Optimization
@@ -388,13 +439,685 @@ coll = COLLECT(
     upx_exclude=[],
     name='DocRefine_Debug',
 )
-
 ==================== END FILE: DocRefine_Debug.spec ====================
 
 
-==================== START FILE: FULL_PROJECT_CONTEXT.txt ====================
+==================== START FILE: LICENSE ====================
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 3, 29 June 2007
 
-==================== END FILE: FULL_PROJECT_CONTEXT.txt ====================
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+                            Preamble
+
+  The GNU General Public License is a free, copyleft license for
+software and other kinds of works.
+
+  The licenses for most software and other practical works are designed
+to take away your freedom to share and change the works.  By contrast,
+the GNU General Public License is intended to guarantee your freedom to
+share and change all versions of a program--to make sure it remains free
+software for all its users.  We, the Free Software Foundation, use the
+GNU General Public License for most of our software; it applies also to
+any other work released this way by its authors.  You can apply it to
+your programs, too.
+
+  When we speak of free software, we are referring to freedom, not
+price.  Our General Public Licenses are designed to make sure that you
+have the freedom to distribute copies of free software (and charge for
+them if you wish), that you receive source code or can get it if you
+want it, that you can change the software or use pieces of it in new
+free programs, and that you know you can do these things.
+
+  To protect your rights, we need to prevent others from denying you
+these rights or asking you to surrender the rights.  Therefore, you have
+certain responsibilities if you distribute copies of the software, or if
+you modify it: responsibilities to respect the freedom of others.
+
+  For example, if you distribute copies of such a program, whether
+gratis or for a fee, you must pass on to the recipients the same
+freedoms that you received.  You must make sure that they, too, receive
+or can get the source code.  And you must show them these terms so they
+know their rights.
+
+  Developers that use the GNU GPL protect your rights with two steps:
+(1) assert copyright on the software, and (2) offer you this License
+giving you legal permission to copy, distribute and/or modify it.
+
+  For the developers' and authors' protection, the GPL clearly explains
+that there is no warranty for this free software.  For both users' and
+authors' sake, the GPL requires that modified versions be marked as
+changed, so that their problems will not be attributed erroneously to
+authors of previous versions.
+
+  Some devices are designed to deny users access to install or run
+modified versions of the software inside them, although the manufacturer
+can do so.  This is fundamentally incompatible with the aim of
+protecting users' freedom to change the software.  The systematic
+pattern of such abuse occurs in the area of products for individuals to
+use, which is precisely where it is most unacceptable.  Therefore, we
+have designed this version of the GPL to prohibit the practice for those
+products.  If such problems arise substantially in other domains, we
+stand ready to extend this provision to those domains in future versions
+of the GPL, as needed to protect the freedom of users.
+
+  Finally, every program is threatened constantly by software patents.
+States should not allow patents to restrict development and use of
+software on general-purpose computers, but in those that do, we wish to
+avoid the special danger that patents applied to a free program could
+make it effectively proprietary.  To prevent this, the GPL assures that
+patents cannot be used to render the program non-free.
+
+  The precise terms and conditions for copying, distribution and
+modification follow.
+
+                       TERMS AND CONDITIONS
+
+  0. Definitions.
+
+  "This License" refers to version 3 of the GNU General Public License.
+
+  "Copyright" also means copyright-like laws that apply to other kinds of
+works, such as semiconductor masks.
+
+  "The Program" refers to any copyrightable work licensed under this
+License.  Each licensee is addressed as "you".  "Licensees" and
+"recipients" may be individuals or organizations.
+
+  To "modify" a work means to copy from or adapt all or part of the work
+in a fashion requiring copyright permission, other than the making of an
+exact copy.  The resulting work is called a "modified version" of the
+earlier work or a work "based on" the earlier work.
+
+  A "covered work" means either the unmodified Program or a work based
+on the Program.
+
+  To "propagate" a work means to do anything with it that, without
+permission, would make you directly or secondarily liable for
+infringement under applicable copyright law, except executing it on a
+computer or modifying a private copy.  Propagation includes copying,
+distribution (with or without modification), making available to the
+public, and in some countries other activities as well.
+
+  To "convey" a work means any kind of propagation that enables other
+parties to make or receive copies.  Mere interaction with a user through
+a computer network, with no transfer of a copy, is not conveying.
+
+  An interactive user interface displays "Appropriate Legal Notices"
+to the extent that it includes a convenient and prominently visible
+feature that (1) displays an appropriate copyright notice, and (2)
+tells the user that there is no warranty for the work (except to the
+extent that warranties are provided), that licensees may convey the
+work under this License, and how to view a copy of this License.  If
+the interface presents a list of user commands or options, such as a
+menu, a prominent item in the list meets this criterion.
+
+  1. Source Code.
+
+  The "source code" for a work means the preferred form of the work
+for making modifications to it.  "Object code" means any non-source
+form of a work.
+
+  A "Standard Interface" means an interface that either is an official
+standard defined by a recognized standards body, or, in the case of
+interfaces specified for a particular programming language, one that
+is widely used among developers working in that language.
+
+  The "System Libraries" of an executable work include anything, other
+than the work as a whole, that (a) is included in the normal form of
+packaging a Major Component, but which is not part of that Major
+Component, and (b) serves only to enable use of the work with that
+Major Component, or to implement a Standard Interface for which an
+implementation is available to the public in source code form.  A
+"Major Component", in this context, means a major essential component
+(kernel, window system, and so on) of the specific operating system
+(if any) on which the executable work runs, or a compiler used to
+produce the work, or an object code interpreter used to run it.
+
+  The "Corresponding Source" for a work in object code form means all
+the source code needed to generate, install, and (for an executable
+work) run the object code and to modify the work, including scripts to
+control those activities.  However, it does not include the work's
+System Libraries, or general-purpose tools or generally available free
+programs which are used unmodified in performing those activities but
+which are not part of the work.  For example, Corresponding Source
+includes interface definition files associated with source files for
+the work, and the source code for shared libraries and dynamically
+linked subprograms that the work is specifically designed to require,
+such as by intimate data communication or control flow between those
+subprograms and other parts of the work.
+
+  The Corresponding Source need not include anything that users
+can regenerate automatically from other parts of the Corresponding
+Source.
+
+  The Corresponding Source for a work in source code form is that
+same work.
+
+  2. Basic Permissions.
+
+  All rights granted under this License are granted for the term of
+copyright on the Program, and are irrevocable provided the stated
+conditions are met.  This License explicitly affirms your unlimited
+permission to run the unmodified Program.  The output from running a
+covered work is covered by this License only if the output, given its
+content, constitutes a covered work.  This License acknowledges your
+rights of fair use or other equivalent, as provided by copyright law.
+
+  You may make, run and propagate covered works that you do not
+convey, without conditions so long as your license otherwise remains
+in force.  You may convey covered works to others for the sole purpose
+of having them make modifications exclusively for you, or provide you
+with facilities for running those works, provided that you comply with
+the terms of this License in conveying all material for which you do
+not control copyright.  Those thus making or running the covered works
+for you must do so exclusively on your behalf, under your direction
+and control, on terms that prohibit them from making any copies of
+your copyrighted material outside their relationship with you.
+
+  Conveying under any other circumstances is permitted solely under
+the conditions stated below.  Sublicensing is not allowed; section 10
+makes it unnecessary.
+
+  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+
+  No covered work shall be deemed part of an effective technological
+measure under any applicable law fulfilling obligations under article
+11 of the WIPO copyright treaty adopted on 20 December 1996, or
+similar laws prohibiting or restricting circumvention of such
+measures.
+
+  When you convey a covered work, you waive any legal power to forbid
+circumvention of technological measures to the extent such circumvention
+is effected by exercising rights under this License with respect to
+the covered work, and you disclaim any intention to limit operation or
+modification of the work as a means of enforcing, against the work's
+users, your or third parties' legal rights to forbid circumvention of
+technological measures.
+
+  4. Conveying Verbatim Copies.
+
+  You may convey verbatim copies of the Program's source code as you
+receive it, in any medium, provided that you conspicuously and
+appropriately publish on each copy an appropriate copyright notice;
+keep intact all notices stating that this License and any
+non-permissive terms added in accord with section 7 apply to the code;
+keep intact all notices of the absence of any warranty; and give all
+recipients a copy of this License along with the Program.
+
+  You may charge any price or no price for each copy that you convey,
+and you may offer support or warranty protection for a fee.
+
+  5. Conveying Modified Source Versions.
+
+  You may convey a work based on the Program, or the modifications to
+produce it from the Program, in the form of source code under the
+terms of section 4, provided that you also meet all of these conditions:
+
+    a) The work must carry prominent notices stating that you modified
+    it, and giving a relevant date.
+
+    b) The work must carry prominent notices stating that it is
+    released under this License and any conditions added under section
+    7.  This requirement modifies the requirement in section 4 to
+    "keep intact all notices".
+
+    c) You must license the entire work, as a whole, under this
+    License to anyone who comes into possession of a copy.  This
+    License will therefore apply, along with any applicable section 7
+    additional terms, to the whole of the work, and all its parts,
+    regardless of how they are packaged.  This License gives no
+    permission to license the work in any other way, but it does not
+    invalidate such permission if you have separately received it.
+
+    d) If the work has interactive user interfaces, each must display
+    Appropriate Legal Notices; however, if the Program has interactive
+    interfaces that do not display Appropriate Legal Notices, your
+    work need not make them do so.
+
+  A compilation of a covered work with other separate and independent
+works, which are not by their nature extensions of the covered work,
+and which are not combined with it such as to form a larger program,
+in or on a volume of a storage or distribution medium, is called an
+"aggregate" if the compilation and its resulting copyright are not
+used to limit the access or legal rights of the compilation's users
+beyond what the individual works permit.  Inclusion of a covered work
+in an aggregate does not cause this License to apply to the other
+parts of the aggregate.
+
+  6. Conveying Non-Source Forms.
+
+  You may convey a covered work in object code form under the terms
+of sections 4 and 5, provided that you also convey the
+machine-readable Corresponding Source under the terms of this License,
+in one of these ways:
+
+    a) Convey the object code in, or embodied in, a physical product
+    (including a physical distribution medium), accompanied by the
+    Corresponding Source fixed on a durable physical medium
+    customarily used for software interchange.
+
+    b) Convey the object code in, or embodied in, a physical product
+    (including a physical distribution medium), accompanied by a
+    written offer, valid for at least three years and valid for as
+    long as you offer spare parts or customer support for that product
+    model, to give anyone who possesses the object code either (1) a
+    copy of the Corresponding Source for all the software in the
+    product that is covered by this License, on a durable physical
+    medium customarily used for software interchange, for a price no
+    more than your reasonable cost of physically performing this
+    conveying of source, or (2) access to copy the
+    Corresponding Source from a network server at no charge.
+
+    c) Convey individual copies of the object code with a copy of the
+    written offer to provide the Corresponding Source.  This
+    alternative is allowed only occasionally and noncommercially, and
+    only if you received the object code with such an offer, in accord
+    with subsection 6b.
+
+    d) Convey the object code by offering access from a designated
+    place (gratis or for a charge), and offer equivalent access to the
+    Corresponding Source in the same way through the same place at no
+    further charge.  You need not require recipients to copy the
+    Corresponding Source along with the object code.  If the place to
+    copy the object code is a network server, the Corresponding Source
+    may be on a different server (operated by you or a third party)
+    that supports equivalent copying facilities, provided you maintain
+    clear directions next to the object code saying where to find the
+    Corresponding Source.  Regardless of what server hosts the
+    Corresponding Source, you remain obligated to ensure that it is
+    available for as long as needed to satisfy these requirements.
+
+    e) Convey the object code using peer-to-peer transmission, provided
+    you inform other peers where the object code and Corresponding
+    Source of the work are being offered to the general public at no
+    charge under subsection 6d.
+
+  A separable portion of the object code, whose source code is excluded
+from the Corresponding Source as a System Library, need not be
+included in conveying the object code work.
+
+  A "User Product" is either (1) a "consumer product", which means any
+tangible personal property which is normally used for personal, family,
+or household purposes, or (2) anything designed or sold for incorporation
+into a dwelling.  In determining whether a product is a consumer product,
+doubtful cases shall be resolved in favor of coverage.  For a particular
+product received by a particular user, "normally used" refers to a
+typical or common use of that class of product, regardless of the status
+of the particular user or of the way in which the particular user
+actually uses, or expects or is expected to use, the product.  A product
+is a consumer product regardless of whether the product has substantial
+commercial, industrial or non-consumer uses, unless such uses represent
+the only significant mode of use of the product.
+
+  "Installation Information" for a User Product means any methods,
+procedures, authorization keys, or other information required to install
+and execute modified versions of a covered work in that User Product from
+a modified version of its Corresponding Source.  The information must
+suffice to ensure that the continued functioning of the modified object
+code is in no case prevented or interfered with solely because
+modification has been made.
+
+  If you convey an object code work under this section in, or with, or
+specifically for use in, a User Product, and the conveying occurs as
+part of a transaction in which the right of possession and use of the
+User Product is transferred to the recipient in perpetuity or for a
+fixed term (regardless of how the transaction is characterized), the
+Corresponding Source conveyed under this section must be accompanied
+by the Installation Information.  But this requirement does not apply
+if neither you nor any third party retains the ability to install
+modified object code on the User Product (for example, the work has
+been installed in ROM).
+
+  The requirement to provide Installation Information does not include a
+requirement to continue to provide support service, warranty, or updates
+for a work that has been modified or installed by the recipient, or for
+the User Product in which it has been modified or installed.  Access to a
+network may be denied when the modification itself materially and
+adversely affects the operation of the network or violates the rules and
+protocols for communication across the network.
+
+  Corresponding Source conveyed, and Installation Information provided,
+in accord with this section must be in a format that is publicly
+documented (and with an implementation available to the public in
+source code form), and must require no special password or key for
+unpacking, reading or copying.
+
+  7. Additional Terms.
+
+  "Additional permissions" are terms that supplement the terms of this
+License by making exceptions from one or more of its conditions.
+Additional permissions that are applicable to the entire Program shall
+be treated as though they were included in this License, to the extent
+that they are valid under applicable law.  If additional permissions
+apply only to part of the Program, that part may be used separately
+under those permissions, but the entire Program remains governed by
+this License without regard to the additional permissions.
+
+  When you convey a copy of a covered work, you may at your option
+remove any additional permissions from that copy, or from any part of
+it.  (Additional permissions may be written to require their own
+removal in certain cases when you modify the work.)  You may place
+additional permissions on material, added by you to a covered work,
+for which you have or can give appropriate copyright permission.
+
+  Notwithstanding any other provision of this License, for material you
+add to a covered work, you may (if authorized by the copyright holders of
+that material) supplement the terms of this License with terms:
+
+    a) Disclaiming warranty or limiting liability differently from the
+    terms of sections 15 and 16 of this License; or
+
+    b) Requiring preservation of specified reasonable legal notices or
+    author attributions in that material or in the Appropriate Legal
+    Notices displayed by works containing it; or
+
+    c) Prohibiting misrepresentation of the origin of that material, or
+    requiring that modified versions of such material be marked in
+    reasonable ways as different from the original version; or
+
+    d) Limiting the use for publicity purposes of names of licensors or
+    authors of the material; or
+
+    e) Declining to grant rights under trademark law for use of some
+    trade names, trademarks, or service marks; or
+
+    f) Requiring indemnification of licensors and authors of that
+    material by anyone who conveys the material (or modified versions of
+    it) with contractual assumptions of liability to the recipient, for
+    any liability that these contractual assumptions directly impose on
+    those licensors and authors.
+
+  All other non-permissive additional terms are considered "further
+restrictions" within the meaning of section 10.  If the Program as you
+received it, or any part of it, contains a notice stating that it is
+governed by this License along with a term that is a further
+restriction, you may remove that term.  If a license document contains
+a further restriction but permits relicensing or conveying under this
+License, you may add to a covered work material governed by the terms
+of that license document, provided that the further restriction does
+not survive such relicensing or conveying.
+
+  If you add terms to a covered work in accord with this section, you
+must place, in the relevant source files, a statement of the
+additional terms that apply to those files, or a notice indicating
+where to find the applicable terms.
+
+  Additional terms, permissive or non-permissive, may be stated in the
+form of a separately written license, or stated as exceptions;
+the above requirements apply either way.
+
+  8. Termination.
+
+  You may not propagate or modify a covered work except as expressly
+provided under this License.  Any attempt otherwise to propagate or
+modify it is void, and will automatically terminate your rights under
+this License (including any patent licenses granted under the third
+paragraph of section 11).
+
+  However, if you cease all violation of this License, then your
+license from a particular copyright holder is reinstated (a)
+provisionally, unless and until the copyright holder explicitly and
+finally terminates your license, and (b) permanently, if the copyright
+holder fails to notify you of the violation by some reasonable means
+prior to 60 days after the cessation.
+
+  Moreover, your license from a particular copyright holder is
+reinstated permanently if the copyright holder notifies you of the
+violation by some reasonable means, this is the first time you have
+received notice of violation of this License (for any work) from that
+copyright holder, and you cure the violation prior to 30 days after
+your receipt of the notice.
+
+  Termination of your rights under this section does not terminate the
+licenses of parties who have received copies or rights from you under
+this License.  If your rights have been terminated and not permanently
+reinstated, you do not qualify to receive new licenses for the same
+material under section 10.
+
+  9. Acceptance Not Required for Having Copies.
+
+  You are not required to accept this License in order to receive or
+run a copy of the Program.  Ancillary propagation of a covered work
+occurring solely as a consequence of using peer-to-peer transmission
+to receive a copy likewise does not require acceptance.  However,
+nothing other than this License grants you permission to propagate or
+modify any covered work.  These actions infringe copyright if you do
+not accept this License.  Therefore, by modifying or propagating a
+covered work, you indicate your acceptance of this License to do so.
+
+  10. Automatic Licensing of Downstream Recipients.
+
+  Each time you convey a covered work, the recipient automatically
+receives a license from the original licensors, to run, modify and
+propagate that work, subject to this License.  You are not responsible
+for enforcing compliance by third parties with this License.
+
+  An "entity transaction" is a transaction transferring control of an
+organization, or substantially all assets of one, or subdividing an
+organization, or merging organizations.  If propagation of a covered
+work results from an entity transaction, each party to that
+transaction who receives a copy of the work also receives whatever
+licenses to the work the party's predecessor in interest had or could
+give under the previous paragraph, plus a right to possession of the
+Corresponding Source of the work from the predecessor in interest, if
+the predecessor has it or can get it with reasonable efforts.
+
+  You may not impose any further restrictions on the exercise of the
+rights granted or affirmed under this License.  For example, you may
+not impose a license fee, royalty, or other charge for exercise of
+rights granted under this License, and you may not initiate litigation
+(including a cross-claim or counterclaim in a lawsuit) alleging that
+any patent claim is infringed by making, using, selling, offering for
+sale, or importing the Program or any portion of it.
+
+  11. Patents.
+
+  A "contributor" is a copyright holder who authorizes use under this
+License of the Program or a work on which the Program is based.  The
+work thus licensed is called the contributor's "contributor version".
+
+  A contributor's "essential patent claims" are all patent claims
+owned or controlled by the contributor, whether already acquired or
+hereafter acquired, that would be infringed by some manner, permitted
+by this License, of making, using, or selling its contributor version,
+but do not include claims that would be infringed only as a
+consequence of further modification of the contributor version.  For
+purposes of this definition, "control" includes the right to grant
+patent sublicenses in a manner consistent with the requirements of
+this License.
+
+  Each contributor grants you a non-exclusive, worldwide, royalty-free
+patent license under the contributor's essential patent claims, to
+make, use, sell, offer for sale, import and otherwise run, modify and
+propagate the contents of its contributor version.
+
+  In the following three paragraphs, a "patent license" is any express
+agreement or commitment, however denominated, not to enforce a patent
+(such as an express permission to practice a patent or covenant not to
+sue for patent infringement).  To "grant" such a patent license to a
+party means to make such an agreement or commitment not to enforce a
+patent against the party.
+
+  If you convey a covered work, knowingly relying on a patent license,
+and the Corresponding Source of the work is not available for anyone
+to copy, free of charge and under the terms of this License, through a
+publicly available network server or other readily accessible means,
+then you must either (1) cause the Corresponding Source to be so
+available, or (2) arrange to deprive yourself of the benefit of the
+patent license for this particular work, or (3) arrange, in a manner
+consistent with the requirements of this License, to extend the patent
+license to downstream recipients.  "Knowingly relying" means you have
+actual knowledge that, but for the patent license, your conveying the
+covered work in a country, or your recipient's use of the covered work
+in a country, would infringe one or more identifiable patents in that
+country that you have reason to believe are valid.
+
+  If, pursuant to or in connection with a single transaction or
+arrangement, you convey, or propagate by procuring conveyance of, a
+covered work, and grant a patent license to some of the parties
+receiving the covered work authorizing them to use, propagate, modify
+or convey a specific copy of the covered work, then the patent license
+you grant is automatically extended to all recipients of the covered
+work and works based on it.
+
+  A patent license is "discriminatory" if it does not include within
+the scope of its coverage, prohibits the exercise of, or is
+conditioned on the non-exercise of one or more of the rights that are
+specifically granted under this License.  You may not convey a covered
+work if you are a party to an arrangement with a third party that is
+in the business of distributing software, under which you make payment
+to the third party based on the extent of your activity of conveying
+the work, and under which the third party grants, to any of the
+parties who would receive the covered work from you, a discriminatory
+patent license (a) in connection with copies of the covered work
+conveyed by you (or copies made from those copies), or (b) primarily
+for and in connection with specific products or compilations that
+contain the covered work, unless you entered into that arrangement,
+or that patent license was granted, prior to 28 March 2007.
+
+  Nothing in this License shall be construed as excluding or limiting
+any implied license or other defenses to infringement that may
+otherwise be available to you under applicable patent law.
+
+  12. No Surrender of Others' Freedom.
+
+  If conditions are imposed on you (whether by court order, agreement or
+otherwise) that contradict the conditions of this License, they do not
+excuse you from the conditions of this License.  If you cannot convey a
+covered work so as to satisfy simultaneously your obligations under this
+License and any other pertinent obligations, then as a consequence you may
+not convey it at all.  For example, if you agree to terms that obligate you
+to collect a royalty for further conveying from those to whom you convey
+the Program, the only way you could satisfy both those terms and this
+License would be to refrain entirely from conveying the Program.
+
+  13. Use with the GNU Affero General Public License.
+
+  Notwithstanding any other provision of this License, you have
+permission to link or combine any covered work with a work licensed
+under version 3 of the GNU Affero General Public License into a single
+combined work, and to convey the resulting work.  The terms of this
+License will continue to apply to the part which is the covered work,
+but the special requirements of the GNU Affero General Public License,
+section 13, concerning interaction through a network will apply to the
+combination as such.
+
+  14. Revised Versions of this License.
+
+  The Free Software Foundation may publish revised and/or new versions of
+the GNU General Public License from time to time.  Such new versions will
+be similar in spirit to the present version, but may differ in detail to
+address new problems or concerns.
+
+  Each version is given a distinguishing version number.  If the
+Program specifies that a certain numbered version of the GNU General
+Public License "or any later version" applies to it, you have the
+option of following the terms and conditions either of that numbered
+version or of any later version published by the Free Software
+Foundation.  If the Program does not specify a version number of the
+GNU General Public License, you may choose any version ever published
+by the Free Software Foundation.
+
+  If the Program specifies that a proxy can decide which future
+versions of the GNU General Public License can be used, that proxy's
+public statement of acceptance of a version permanently authorizes you
+to choose that version for the Program.
+
+  Later license versions may give you additional or different
+permissions.  However, no additional obligations are imposed on any
+author or copyright holder as a result of your choosing to follow a
+later version.
+
+  15. Disclaimer of Warranty.
+
+  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+
+  16. Limitation of Liability.
+
+  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.
+
+  17. Interpretation of Sections 15 and 16.
+
+  If the disclaimer of warranty and limitation of liability provided
+above cannot be given local legal effect according to their terms,
+reviewing courts shall apply local law that most closely approximates
+an absolute waiver of all civil liability in connection with the
+Program, unless a warranty or assumption of liability accompanies a
+copy of the Program in return for a fee.
+
+                     END OF TERMS AND CONDITIONS
+
+            How to Apply These Terms to Your New Programs
+
+  If you develop a new program, and you want it to be of the greatest
+possible use to the public, the best way to achieve this is to make it
+free software which everyone can redistribute and change under these terms.
+
+  To do so, attach the following notices to the program.  It is safest
+to attach them to the start of each source file to most effectively
+state the exclusion of warranty; and each file should have at least
+the "copyright" line and a pointer to where the full notice is found.
+
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) <year>  <name of author>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+Also add information on how to contact you by electronic and paper mail.
+
+  If the program does terminal interaction, make it output a short
+notice like this when it starts in an interactive mode:
+
+    <program>  Copyright (C) <year>  <name of author>
+    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+    This is free software, and you are welcome to redistribute it
+    under certain conditions; type `show c' for details.
+
+The hypothetical commands `show w' and `show c' should show the appropriate
+parts of the General Public License.  Of course, your program's commands
+might be different; for a GUI interface, you would use an "about box".
+
+  You should also get your employer (if you work as a programmer) or school,
+if any, to sign a "copyright disclaimer" for the program, if necessary.
+For more information on this, and how to apply and follow the GNU GPL, see
+<https://www.gnu.org/licenses/>.
+
+  The GNU General Public License does not permit incorporating your program
+into proprietary programs.  If your program is a subroutine library, you
+may consider it more useful to permit linking proprietary applications with
+the library.  If this is what you want to do, use the GNU Lesser General
+Public License instead of this License.  But first, please read
+<https://www.gnu.org/licenses/why-not-lgpl.html>.
+==================== END FILE: LICENSE ====================
 
 
 ==================== START FILE: main.py ====================
@@ -410,6 +1133,677 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Fatal Boot Error: {e}")
 ==================== END FILE: main.py ====================
+
+
+==================== START FILE: project_inventory.txt ====================
+PROJECT INVENTORY SCAN
+Root: C:\Users\jcddi\Desktop\DocWorkbench
+Date: 2026-01-19 08:45:34.053219
+================================================================================
+
+    .gitignore  (675 B)
+    build_debug.ps1  (851 B)
+    build_release.ps1  (1.18 KB)
+    CHANGELOG.md  (5.26 KB)
+    deploy.ps1  (2.03 KB)
+    DocRefinePro.spec  (3.40 KB)
+    DocRefine_Debug.spec  (1.04 KB)
+    FULL_PROJECT_CONTEXT.txt  (194.19 KB)
+    LICENSE  (34.98 KB)
+    main.py  (324 B)
+    pack_context.py  (2.28 KB)
+    project_inventory.txt  (0 B)
+    README.md  (2.63 KB)
+    requirements.txt  (67 B)
+    strip_mac.py  (3.20 KB)
+    [.github/]
+        [workflows/]
+            build.yml  (3.90 KB)
+    [53752cda3c39550673fc5dafb96c4bed/]
+        docrefine_version.json  (149 B)
+    [docrefine/]
+        config.py  (6.39 KB)
+        processing.py  (6.01 KB)
+        worker.py  (33.29 KB)
+        __init__.py  (0 B)
+        [core/]
+            events.py  (1.01 KB)
+        [gui/]
+            app.py  (53.16 KB)
+            app_qt.py  (7.67 KB)
+            dialogs.py  (8.49 KB)
+            forensic.py  (7.62 KB)
+            main_window.py  (20.34 KB)
+            qt_adapter.py  (2.08 KB)
+    [poppler/]
+        [Library/]
+            [bin/]
+                cairo.dll  (1000.50 KB)
+                charset.dll  (12.50 KB)
+                deflate.dll  (173.50 KB)
+                expat.dll  (258.00 KB)
+                fontconfig-1.dll  (279.50 KB)
+                freetype.dll  (670.00 KB)
+                iconv.dll  (1.04 MB)
+                jpeg8.dll  (669.00 KB)
+                lcms2.dll  (557.50 KB)
+                Lerc.dll  (507.50 KB)
+                libcrypto-3-x64.dll  (7.07 MB)
+                libcurl.dll  (692.00 KB)
+                libexpat.dll  (258.00 KB)
+                liblzma.dll  (182.50 KB)
+                libpng16.dll  (193.00 KB)
+                libssh2.dll  (252.00 KB)
+                libtiff.dll  (485.50 KB)
+                libzstd.dll  (643.00 KB)
+                openjp2.dll  (352.00 KB)
+                pdfattach.exe  (23.00 KB)
+                pdfdetach.exe  (46.00 KB)
+                pdffonts.exe  (25.00 KB)
+                pdfimages.exe  (51.50 KB)
+                pdfinfo.exe  (64.00 KB)
+                pdfseparate.exe  (24.50 KB)
+                pdftocairo.exe  (157.50 KB)
+                pdftohtml.exe  (128.00 KB)
+                pdftoppm.exe  (49.00 KB)
+                pdftops.exe  (47.50 KB)
+                pdftotext.exe  (68.50 KB)
+                pdfunite.exe  (37.50 KB)
+                pixman-1-0.dll  (586.50 KB)
+                poppler-cpp.dll  (174.00 KB)
+                poppler-glib.dll  (442.50 KB)
+                poppler.dll  (6.01 MB)
+                tiff.dll  (485.50 KB)
+                zlib.dll  (87.00 KB)
+                zstd.dll  (643.00 KB)
+                zstd.exe  (161.00 KB)
+            [include/]
+                [poppler/]
+                    Annot.h  (59.63 KB)
+                    AnnotStampImageHelper.h  (2.13 KB)
+                    Array.h  (3.38 KB)
+                    BBoxOutputDev.h  (2.33 KB)
+                    CachedFile.h  (4.14 KB)
+                    Catalog.h  (11.02 KB)
+                    CertificateInfo.h  (4.59 KB)
+                    CharTypes.h  (526 B)
+                    CryptoSignBackend.h  (4.63 KB)
+                    CurlCachedFile.h  (932 B)
+                    CurlPDFDocBuilder.h  (1.11 KB)
+                    DateInfo.h  (1.90 KB)
+                    Dict.h  (6.17 KB)
+                    Error.h  (3.77 KB)
+                    ErrorCodes.h  (1.95 KB)
+                    FILECacheLoader.h  (871 B)
+                    FileSpec.h  (2.67 KB)
+                    FontInfo.h  (2.98 KB)
+                    Form.h  (30.39 KB)
+                    Function.h  (8.75 KB)
+                    Gfx.h  (14.21 KB)
+                    GfxFont.h  (15.77 KB)
+                    GfxState.h  (69.04 KB)
+                    GfxState_helpers.h  (2.55 KB)
+                    GlobalParams.h  (9.21 KB)
+                    HashAlgorithm.h  (508 B)
+                    JPEG2000Stream.h  (2.05 KB)
+                    JSInfo.h  (1.85 KB)
+                    Lexer.h  (3.62 KB)
+                    Link.h  (18.05 KB)
+                    MarkedContentOutputDev.h  (3.39 KB)
+                    Movie.h  (3.39 KB)
+                    NameToUnicodeTable.h  (384.61 KB)
+                    Object.h  (21.19 KB)
+                    OptionalContent.h  (3.23 KB)
+                    Outline.h  (3.79 KB)
+                    OutputDev.h  (18.47 KB)
+                    Page.h  (11.30 KB)
+                    PageTransition.h  (3.00 KB)
+                    Parser.h  (2.71 KB)
+                    PDFDoc.h  (21.35 KB)
+                    PDFDocBuilder.h  (1.49 KB)
+                    PDFDocEncoding.h  (1.35 KB)
+                    PDFDocFactory.h  (1.92 KB)
+                    poppler-config.h  (4.38 KB)
+                    PopplerCache.h  (2.03 KB)
+                    poppler_private_export.h  (1.22 KB)
+                    ProfileData.h  (996 B)
+                    PSOutputDev.h  (25.41 KB)
+                    Rendition.h  (4.51 KB)
+                    SignatureInfo.h  (3.12 KB)
+                    Sound.h  (2.39 KB)
+                    SplashOutputDev.h  (16.51 KB)
+                    Stream-CCITT.h  (23.48 KB)
+                    Stream.h  (49.87 KB)
+                    StructElement.h  (11.82 KB)
+                    StructTreeRoot.h  (2.36 KB)
+                    TextOutputDev.h  (33.49 KB)
+                    UnicodeCClassTables.h  (104.64 KB)
+                    UnicodeCompTables.h  (39.88 KB)
+                    UnicodeDecompTables.h  (259.72 KB)
+                    UnicodeMap.h  (3.70 KB)
+                    UnicodeMapFuncs.h  (1.12 KB)
+                    UnicodeMapTables.h  (12.06 KB)
+                    UnicodeTypeTable.h  (1.70 KB)
+                    UTF.h  (6.00 KB)
+                    ViewerPreferences.h  (2.50 KB)
+                    XRef.h  (12.38 KB)
+                    [cpp/]
+                        poppler-destination.h  (1.82 KB)
+                        poppler-document.h  (4.86 KB)
+                        poppler-embedded-file.h  (1.72 KB)
+                        poppler-font-private.h  (2.20 KB)
+                        poppler-font.h  (2.16 KB)
+                        poppler-global.h  (3.47 KB)
+                        poppler-image.h  (1.91 KB)
+                        poppler-page-renderer.h  (2.05 KB)
+                        poppler-page-transition.h  (1.90 KB)
+                        poppler-page.h  (5.83 KB)
+                        poppler-rectangle.h  (1.83 KB)
+                        poppler-toc.h  (1.57 KB)
+                        poppler-version.h  (1.22 KB)
+                        poppler_cpp_export.h  (1.13 KB)
+                    [fofi/]
+                        FoFiBase.h  (2.45 KB)
+                        FoFiEncodings.h  (1.53 KB)
+                        FoFiIdentifier.h  (1.72 KB)
+                        FoFiTrueType.h  (8.60 KB)
+                        FoFiType1C.h  (9.02 KB)
+                    [glib/]
+                        poppler-action.h  (12.13 KB)
+                        poppler-annot.h  (21.28 KB)
+                        poppler-attachment.h  (4.65 KB)
+                        poppler-date.h  (1.02 KB)
+                        poppler-document.h  (21.89 KB)
+                        poppler-enums.h  (9.67 KB)
+                        poppler-features.h  (2.72 KB)
+                        poppler-form-field.h  (17.11 KB)
+                        poppler-layer.h  (1.89 KB)
+                        poppler-macros.h  (1.12 KB)
+                        poppler-media.h  (3.15 KB)
+                        poppler-movie.h  (3.20 KB)
+                        poppler-page.h  (16.02 KB)
+                        poppler-structure-element.h  (16.89 KB)
+                        poppler.h  (14.62 KB)
+                    [goo/]
+                        gfile.h  (4.69 KB)
+                        gmem.h  (4.71 KB)
+                        GooCheckedOps.h  (3.46 KB)
+                        GooLikely.h  (556 B)
+                        GooString.h  (9.09 KB)
+                        GooTimer.h  (1.38 KB)
+                        grandom.h  (441 B)
+                        gstrtod.h  (1.47 KB)
+                        ImgWriter.h  (1.13 KB)
+                        JpegWriter.h  (1.87 KB)
+                        PNGWriter.h  (1.67 KB)
+                        TiffWriter.h  (1.76 KB)
+                    [splash/]
+                        Splash.h  (16.04 KB)
+                        SplashBitmap.h  (5.26 KB)
+                        SplashClip.h  (4.20 KB)
+                        SplashErrorCodes.h  (1.44 KB)
+                        SplashFont.h  (4.41 KB)
+                        SplashFontEngine.h  (3.61 KB)
+                        SplashFontFile.h  (2.67 KB)
+                        SplashFontFileID.h  (1.36 KB)
+                        SplashGlyphBitmap.h  (690 B)
+                        SplashMath.h  (6.17 KB)
+                        SplashPath.h  (4.26 KB)
+                        SplashPattern.h  (3.31 KB)
+                        SplashTypes.h  (6.49 KB)
+            [lib/]
+                poppler-cpp.lib  (191.01 KB)
+                poppler-glib.lib  (160.02 KB)
+                poppler.lib  (14.50 MB)
+                [pkgconfig/]
+                    poppler-cpp.pc  (414 B)
+                    poppler-glib.pc  (520 B)
+                    poppler.pc  (465 B)
+            [share/]
+                [man/]
+                    [man1/]
+                        pdfattach.1  (1.10 KB)
+                        pdfdetach.1  (2.41 KB)
+                        pdffonts.1  (2.32 KB)
+                        pdfimages.1  (6.19 KB)
+                        pdfinfo.1  (3.81 KB)
+                        pdfseparate.1  (1.55 KB)
+                        pdftocairo.1  (11.42 KB)
+                        pdftohtml.1  (2.63 KB)
+                        pdftoppm.1  (6.51 KB)
+                        pdftops.1  (8.94 KB)
+                        pdftotext.1  (3.90 KB)
+                        pdfunite.1  (1.14 KB)
+        [share/]
+            [poppler/]
+                CMakeLists.txt  (9.11 KB)
+                COPYING  (1.52 KB)
+                COPYING.adobe  (1.53 KB)
+                COPYING.gpl2  (17.57 KB)
+                Makefile  (10.66 KB)
+                poppler-data.pc  (179 B)
+                poppler-data.pc.in  (158 B)
+                README  (1.00 KB)
+                [cidToUnicode/]
+                    Adobe-CNS1  (95.04 KB)
+                    Adobe-GB1  (147.88 KB)
+                    Adobe-Japan1  (112.93 KB)
+                    Adobe-Korea1  (89.61 KB)
+                [cMap/]
+                    [Adobe-CNS1/]
+                        Adobe-CNS1-0  (3.74 KB)
+                        Adobe-CNS1-1  (3.91 KB)
+                        Adobe-CNS1-2  (3.93 KB)
+                        Adobe-CNS1-3  (4.03 KB)
+                        Adobe-CNS1-4  (4.04 KB)
+                        Adobe-CNS1-5  (4.04 KB)
+                        Adobe-CNS1-6  (4.04 KB)
+                        Adobe-CNS1-7  (4.02 KB)
+                        Adobe-CNS1-B5pc  (8.85 KB)
+                        Adobe-CNS1-ETen-B5  (9.24 KB)
+                        Adobe-CNS1-H-CID  (3.28 KB)
+                        Adobe-CNS1-H-Host  (9.35 KB)
+                        Adobe-CNS1-H-Mac  (8.91 KB)
+                        Adobe-CNS1-UCS2  (260.28 KB)
+                        B5-H  (7.32 KB)
+                        B5-V  (2.86 KB)
+                        B5pc-H  (7.37 KB)
+                        B5pc-UCS2  (2.58 KB)
+                        B5pc-UCS2C  (266.55 KB)
+                        B5pc-V  (2.87 KB)
+                        CNS-EUC-H  (11.96 KB)
+                        CNS-EUC-V  (12.97 KB)
+                        CNS1-H  (5.48 KB)
+                        CNS1-V  (2.86 KB)
+                        CNS2-H  (4.17 KB)
+                        CNS2-V  (2.62 KB)
+                        ETen-B5-H  (7.52 KB)
+                        ETen-B5-UCS2  (270.14 KB)
+                        ETen-B5-V  (2.90 KB)
+                        ETenms-B5-H  (2.67 KB)
+                        ETenms-B5-V  (2.97 KB)
+                        ETHK-B5-H  (22.66 KB)
+                        ETHK-B5-V  (2.89 KB)
+                        HKdla-B5-H  (22.72 KB)
+                        HKdla-B5-V  (2.87 KB)
+                        HKdlb-B5-H  (20.44 KB)
+                        HKdlb-B5-V  (2.87 KB)
+                        HKgccs-B5-H  (13.40 KB)
+                        HKgccs-B5-V  (2.88 KB)
+                        HKm314-B5-H  (13.22 KB)
+                        HKm314-B5-V  (2.88 KB)
+                        HKm471-B5-H  (16.12 KB)
+                        HKm471-B5-V  (2.88 KB)
+                        HKscs-B5-H  (22.71 KB)
+                        HKscs-B5-V  (2.89 KB)
+                        UCS2-B5pc  (266.85 KB)
+                        UCS2-ETen-B5  (280.21 KB)
+                        UniCNS-UCS2-H  (318.70 KB)
+                        UniCNS-UCS2-V  (2.90 KB)
+                        UniCNS-UTF16-H  (247.32 KB)
+                        UniCNS-UTF16-V  (2.89 KB)
+                        UniCNS-UTF32-H  (317.05 KB)
+                        UniCNS-UTF32-V  (2.97 KB)
+                        UniCNS-UTF8-H  (283.26 KB)
+                        UniCNS-UTF8-V  (2.93 KB)
+                    [Adobe-GB1/]
+                        Adobe-GB1-0  (3.21 KB)
+                        Adobe-GB1-1  (3.37 KB)
+                        Adobe-GB1-2  (4.30 KB)
+                        Adobe-GB1-3  (4.30 KB)
+                        Adobe-GB1-4  (4.83 KB)
+                        Adobe-GB1-5  (4.93 KB)
+                        Adobe-GB1-GBK-EUC  (88.84 KB)
+                        Adobe-GB1-GBpc-EUC  (5.37 KB)
+                        Adobe-GB1-H-CID  (3.39 KB)
+                        Adobe-GB1-H-Host  (89.40 KB)
+                        Adobe-GB1-H-Mac  (5.36 KB)
+                        Adobe-GB1-UCS2  (216.03 KB)
+                        GB-EUC-H  (4.32 KB)
+                        GB-EUC-V  (3.03 KB)
+                        GB-H  (4.22 KB)
+                        GB-V  (3.00 KB)
+                        GBK-EUC-H  (81.15 KB)
+                        GBK-EUC-UCS2  (218.99 KB)
+                        GBK-EUC-V  (3.02 KB)
+                        GBK2K-H  (88.79 KB)
+                        GBK2K-V  (3.40 KB)
+                        GBKp-EUC-H  (81.14 KB)
+                        GBKp-EUC-V  (3.02 KB)
+                        GBpc-EUC-H  (4.35 KB)
+                        GBpc-EUC-UCS2  (2.67 KB)
+                        GBpc-EUC-UCS2C  (139.41 KB)
+                        GBpc-EUC-V  (3.04 KB)
+                        GBT-EUC-H  (45.68 KB)
+                        GBT-EUC-V  (3.04 KB)
+                        GBT-H  (45.57 KB)
+                        GBT-V  (3.01 KB)
+                        GBTpc-EUC-H  (45.71 KB)
+                        GBTpc-EUC-V  (3.05 KB)
+                        UCS2-GBK-EUC  (228.57 KB)
+                        UCS2-GBpc-EUC  (185.10 KB)
+                        UniGB-UCS2-H  (267.95 KB)
+                        UniGB-UCS2-V  (3.09 KB)
+                        UniGB-UTF16-H  (195.29 KB)
+                        UniGB-UTF16-V  (2.99 KB)
+                        UniGB-UTF32-H  (261.63 KB)
+                        UniGB-UTF32-V  (3.10 KB)
+                        UniGB-UTF8-H  (232.26 KB)
+                        UniGB-UTF8-V  (3.04 KB)
+                    [Adobe-Japan1/]
+                        78-EUC-H  (14.45 KB)
+                        78-EUC-V  (3.15 KB)
+                        78-H  (14.33 KB)
+                        78-RKSJ-H  (14.48 KB)
+                        78-RKSJ-V  (3.15 KB)
+                        78-V  (3.12 KB)
+                        78ms-RKSJ-H  (16.11 KB)
+                        78ms-RKSJ-V  (4.11 KB)
+                        83pv-RKSJ-H  (6.91 KB)
+                        90ms-RKSJ-H  (5.93 KB)
+                        90ms-RKSJ-UCS2  (103.70 KB)
+                        90ms-RKSJ-V  (4.13 KB)
+                        90msp-RKSJ-H  (5.86 KB)
+                        90msp-RKSJ-V  (4.11 KB)
+                        90pv-RKSJ-H  (7.63 KB)
+                        90pv-RKSJ-UCS2  (3.18 KB)
+                        90pv-RKSJ-UCS2C  (95.01 KB)
+                        90pv-RKSJ-V  (3.63 KB)
+                        Add-H  (14.51 KB)
+                        Add-RKSJ-H  (14.69 KB)
+                        Add-RKSJ-V  (3.73 KB)
+                        Add-V  (3.70 KB)
+                        Adobe-Japan1-0  (3.26 KB)
+                        Adobe-Japan1-1  (3.26 KB)
+                        Adobe-Japan1-2  (3.30 KB)
+                        Adobe-Japan1-3  (3.31 KB)
+                        Adobe-Japan1-4  (3.78 KB)
+                        Adobe-Japan1-5  (4.15 KB)
+                        Adobe-Japan1-6  (4.36 KB)
+                        Adobe-Japan1-7  (4.34 KB)
+                        Adobe-Japan1-90ms-RKSJ  (7.36 KB)
+                        Adobe-Japan1-90pv-RKSJ  (9.30 KB)
+                        Adobe-Japan1-H-CID  (3.57 KB)
+                        Adobe-Japan1-H-Host  (7.60 KB)
+                        Adobe-Japan1-H-Mac  (6.56 KB)
+                        Adobe-Japan1-PS-H  (22.88 KB)
+                        Adobe-Japan1-PS-V  (13.88 KB)
+                        Adobe-Japan1-UCS2  (287.22 KB)
+                        EUC-H  (4.96 KB)
+                        EUC-V  (3.15 KB)
+                        Ext-H  (15.06 KB)
+                        Ext-RKSJ-H  (15.24 KB)
+                        Ext-RKSJ-V  (3.40 KB)
+                        Ext-V  (3.37 KB)
+                        H  (4.83 KB)
+                        Hankaku  (2.75 KB)
+                        Hiragana  (2.73 KB)
+                        Hojo-EUC-H  (4.52 KB)
+                        Hojo-EUC-V  (2.65 KB)
+                        Hojo-H  (4.18 KB)
+                        Hojo-V  (2.62 KB)
+                        Katakana  (2.65 KB)
+                        NWP-H  (16.89 KB)
+                        NWP-V  (3.52 KB)
+                        RKSJ-H  (5.00 KB)
+                        RKSJ-V  (3.15 KB)
+                        Roman  (2.62 KB)
+                        UCS2-90ms-RKSJ  (146.19 KB)
+                        UCS2-90pv-RKSJ  (139.62 KB)
+                        UniHojo-UCS2-H  (81.63 KB)
+                        UniHojo-UCS2-V  (2.65 KB)
+                        UniHojo-UTF16-H  (61.47 KB)
+                        UniHojo-UTF16-V  (2.66 KB)
+                        UniHojo-UTF32-H  (82.83 KB)
+                        UniHojo-UTF32-V  (2.66 KB)
+                        UniHojo-UTF8-H  (71.97 KB)
+                        UniHojo-UTF8-V  (2.65 KB)
+                        UniJIS-UCS2-H  (164.65 KB)
+                        UniJIS-UCS2-HW-H  (2.75 KB)
+                        UniJIS-UCS2-HW-V  (6.44 KB)
+                        UniJIS-UCS2-V  (6.36 KB)
+                        UniJIS-UTF16-H  (183.81 KB)
+                        UniJIS-UTF16-V  (5.67 KB)
+                        UniJIS-UTF32-H  (239.69 KB)
+                        UniJIS-UTF32-V  (6.68 KB)
+                        UniJIS-UTF8-H  (211.39 KB)
+                        UniJIS-UTF8-V  (6.18 KB)
+                        UniJIS2004-UTF16-H  (183.89 KB)
+                        UniJIS2004-UTF16-V  (5.69 KB)
+                        UniJIS2004-UTF32-H  (239.77 KB)
+                        UniJIS2004-UTF32-V  (6.70 KB)
+                        UniJIS2004-UTF8-H  (211.46 KB)
+                        UniJIS2004-UTF8-V  (6.20 KB)
+                        UniJISPro-UCS2-HW-V  (6.57 KB)
+                        UniJISPro-UCS2-V  (6.46 KB)
+                        UniJISPro-UTF8-V  (7.29 KB)
+                        UniJISX0213-UTF32-H  (239.68 KB)
+                        UniJISX0213-UTF32-V  (6.64 KB)
+                        UniJISX02132004-UTF32-H  (239.76 KB)
+                        UniJISX02132004-UTF32-V  (6.67 KB)
+                        V  (3.12 KB)
+                        WP-Symbol  (3.02 KB)
+                    [Adobe-Japan2/]
+                        Adobe-Japan2-0  (3.09 KB)
+                    [Adobe-Korea1/]
+                        Adobe-Korea1-0  (3.35 KB)
+                        Adobe-Korea1-1  (3.99 KB)
+                        Adobe-Korea1-2  (3.99 KB)
+                        Adobe-Korea1-H-CID  (2.97 KB)
+                        Adobe-Korea1-H-Host  (16.41 KB)
+                        Adobe-Korea1-H-Mac  (11.99 KB)
+                        Adobe-Korea1-KSCms-UHC  (16.22 KB)
+                        Adobe-Korea1-KSCpc-EUC  (12.16 KB)
+                        Adobe-Korea1-UCS2  (143.37 KB)
+                        KSC-EUC-H  (11.45 KB)
+                        KSC-EUC-V  (2.96 KB)
+                        KSC-H  (11.36 KB)
+                        KSC-Johab-H  (82.28 KB)
+                        KSC-Johab-V  (2.98 KB)
+                        KSC-V  (2.94 KB)
+                        KSCms-UHC-H  (15.57 KB)
+                        KSCms-UHC-HW-H  (15.56 KB)
+                        KSCms-UHC-HW-V  (2.98 KB)
+                        KSCms-UHC-UCS2  (178.28 KB)
+                        KSCms-UHC-V  (2.98 KB)
+                        KSCpc-EUC-H  (12.26 KB)
+                        KSCpc-EUC-UCS2  (16.80 KB)
+                        KSCpc-EUC-UCS2C  (147.52 KB)
+                        KSCpc-EUC-V  (2.98 KB)
+                        UCS2-KSCms-UHC  (184.43 KB)
+                        UCS2-KSCpc-EUC  (144.26 KB)
+                        UniKS-UCS2-H  (162.12 KB)
+                        UniKS-UCS2-V  (3.00 KB)
+                        UniKS-UTF16-H  (120.06 KB)
+                        UniKS-UTF16-V  (2.96 KB)
+                        UniKS-UTF32-H  (161.14 KB)
+                        UniKS-UTF32-V  (3.06 KB)
+                        UniKS-UTF8-H  (142.43 KB)
+                        UniKS-UTF8-V  (3.00 KB)
+                    [Adobe-KR/]
+                        Adobe-KR-0  (2.81 KB)
+                        Adobe-KR-1  (2.94 KB)
+                        Adobe-KR-2  (3.43 KB)
+                        Adobe-KR-3  (3.45 KB)
+                        Adobe-KR-4  (3.47 KB)
+                        Adobe-KR-5  (3.49 KB)
+                        Adobe-KR-6  (3.64 KB)
+                        Adobe-KR-7  (4.00 KB)
+                        Adobe-KR-8  (4.27 KB)
+                        Adobe-KR-9  (4.31 KB)
+                        Adobe-KR-UCS2  (198.50 KB)
+                        UniAKR-UTF16-H  (182.20 KB)
+                        UniAKR-UTF32-H  (244.64 KB)
+                        UniAKR-UTF8-H  (214.87 KB)
+                [nameToUnicode/]
+                    Bulgarian  (630 B)
+                    Greek  (125 B)
+                    Thai  (3.00 KB)
+                [unicodeMap/]
+                    Big5  (130.34 KB)
+                    Big5ascii  (130.70 KB)
+                    EUC-CN  (66.00 KB)
+                    EUC-JP  (64.62 KB)
+                    GBK  (115.05 KB)
+                    ISO-2022-CN  (65.46 KB)
+                    ISO-2022-JP  (64.37 KB)
+                    ISO-2022-KR  (66.66 KB)
+                    ISO-8859-6  (524 B)
+                    ISO-8859-7  (584 B)
+                    ISO-8859-8  (605 B)
+                    ISO-8859-9  (626 B)
+                    KOI8-R  (904 B)
+                    Latin2  (1.31 KB)
+                    Shift-JIS  (64.44 KB)
+                    TIS-620  (451 B)
+                    Windows-1255  (638 B)
+    [Tesseract-OCR/]
+        ambiguous_words.1.html  (17.41 KB)
+        ambiguous_words.exe  (58.13 KB)
+        classifier_tester.1.html  (19.07 KB)
+        classifier_tester.exe  (201.13 KB)
+        cntraining.1.html  (17.73 KB)
+        cntraining.exe  (202.13 KB)
+        combine_lang_model.1.html  (20.56 KB)
+        combine_lang_model.exe  (136.13 KB)
+        combine_tessdata.1.html  (26.49 KB)
+        combine_tessdata.exe  (63.13 KB)
+        dawg2wordlist.1.html  (17.91 KB)
+        dawg2wordlist.exe  (56.63 KB)
+        libarchive-13.dll  (771.60 KB)
+        libb2-1.dll  (33.57 KB)
+        libbrotlicommon.dll  (140.04 KB)
+        libbrotlidec.dll  (60.00 KB)
+        libbz2-1.dll  (98.60 KB)
+        libcairo-2.dll  (1.17 MB)
+        libcrypto-3-x64.dll  (5.05 MB)
+        libcurl-4.dll  (982.58 KB)
+        libdatrie-1.dll  (33.58 KB)
+        libdeflate.dll  (92.40 KB)
+        libexpat-1.dll  (187.51 KB)
+        libffi-8.dll  (32.92 KB)
+        libfontconfig-1.dll  (341.98 KB)
+        libfreetype-6.dll  (769.49 KB)
+        libfribidi-0.dll  (152.74 KB)
+        libgcc_s_seh-1.dll  (148.17 KB)
+        libgif-7.dll  (40.40 KB)
+        libgio-2.0-0.dll  (1.75 MB)
+        libglib-2.0-0.dll  (1.41 MB)
+        libgmodule-2.0-0.dll  (26.16 KB)
+        libgobject-2.0-0.dll  (348.45 KB)
+        libgraphite2.dll  (148.96 KB)
+        libharfbuzz-0.dll  (1.29 MB)
+        libiconv-2.dll  (1.07 MB)
+        libicudt75.dll  (29.32 MB)
+        libicuin75.dll  (3.22 MB)
+        libicuuc75.dll  (1.84 MB)
+        libidn2-0.dll  (237.27 KB)
+        libintl-8.dll  (184.26 KB)
+        libjbig-0.dll  (60.63 KB)
+        libjpeg-8.dll  (902.35 KB)
+        libleptonica-6.dll  (2.65 MB)
+        libLerc.dll  (743.42 KB)
+        liblz4.dll  (154.93 KB)
+        liblzma-5.dll  (182.84 KB)
+        libopenjp2-7.dll  (451.36 KB)
+        libpango-1.0-0.dll  (401.49 KB)
+        libpangocairo-1.0-0.dll  (72.29 KB)
+        libpangoft2-1.0-0.dll  (100.36 KB)
+        libpangowin32-1.0-0.dll  (112.41 KB)
+        libpcre2-8-0.dll  (396.37 KB)
+        libpixman-1-0.dll  (692.56 KB)
+        libpng16-16.dll  (249.58 KB)
+        libpsl-5.dll  (101.34 KB)
+        libsharpyuv-0.dll  (56.50 KB)
+        libssh2-1.dll  (249.84 KB)
+        libstdc++-6.dll  (2.29 MB)
+        libtesseract-5.dll  (3.18 MB)
+        libthai-0.dll  (68.10 KB)
+        libtiff-6.dll  (586.90 KB)
+        libunistring-5.dll  (1.91 MB)
+        libwebp-7.dll  (726.15 KB)
+        libwebpmux-3.dll  (76.88 KB)
+        libwinpthread-1.dll  (59.91 KB)
+        libzstd.dll  (1.13 MB)
+        lstmeval.1.html  (19.06 KB)
+        lstmeval.exe  (297.63 KB)
+        lstmtraining.1.html  (22.11 KB)
+        lstmtraining.exe  (308.63 KB)
+        merge_unicharsets.1.html  (18.50 KB)
+        merge_unicharsets.exe  (54.63 KB)
+        mftraining.1.html  (18.97 KB)
+        mftraining.exe  (211.63 KB)
+        set_unicharset_properties.1.html  (18.66 KB)
+        set_unicharset_properties.exe  (247.13 KB)
+        shapeclustering.1.html  (18.99 KB)
+        shapeclustering.exe  (201.13 KB)
+        tesseract-uninstall.exe  (151.26 KB)
+        tesseract.1.html  (41.23 KB)
+        tesseract.exe  (84.13 KB)
+        text2image.1.html  (25.06 KB)
+        text2image.exe  (359.63 KB)
+        unicharambigs.5.html  (20.75 KB)
+        unicharset.5.html  (23.27 KB)
+        unicharset_extractor.1.html  (18.37 KB)
+        unicharset_extractor.exe  (142.13 KB)
+        winpath.exe  (17.19 KB)
+        wordlist2dawg.1.html  (19.04 KB)
+        wordlist2dawg.exe  (90.63 KB)
+        zlib1.dll  (117.98 KB)
+        [doc/]
+            AUTHORS  (787 B)
+            LICENSE  (11.09 KB)
+            README.md  (7.95 KB)
+        [tessdata/]
+            eng.traineddata  (3.92 MB)
+            jaxb-api-2.3.1.jar  (125.07 KB)
+            osd.traineddata  (10.07 MB)
+            pdf.ttf  (572 B)
+            piccolo2d-core-3.0.1.jar  (122.25 KB)
+            piccolo2d-extras-3.0.1.jar  (146.05 KB)
+            ScrollView.jar  (25.76 KB)
+            [configs/]
+                alto  (23 B)
+                ambigs.train  (146 B)
+                api_config  (26 B)
+                bigram  (129 B)
+                box.train  (311 B)
+                box.train.stderr  (311 B)
+                digits  (37 B)
+                get.images  (24 B)
+                hocr  (40 B)
+                inter  (59 B)
+                kannada  (101 B)
+                linebox  (70 B)
+                logfile  (25 B)
+                lstm.train  (282 B)
+                lstmbox  (26 B)
+                lstmdebug  (98 B)
+                makebox  (26 B)
+                page  (67 B)
+                pdf  (22 B)
+                quiet  (21 B)
+                rebox  (65 B)
+                strokewidth  (377 B)
+                tsv  (22 B)
+                txt  (166 B)
+                unlv  (45 B)
+                wordstrbox  (29 B)
+            [script/]
+            [tessconfigs/]
+                batch  (49 B)
+                batch.nochop  (37 B)
+                matdemo  (243 B)
+                msdemo  (368 B)
+                nobatch  (1 B)
+                segdemo  (295 B)
+    [tools/]
+        inventory.py  (2.26 KB)
+
+================================================================================
+TOTAL FILES: 618
+TOTAL SIZE:  139.69 MB
+==================== END FILE: project_inventory.txt ====================
 
 
 ==================== START FILE: README.md ====================
@@ -474,7 +1868,6 @@ Because this is an internal tool not signed by the Apple Store, macOS will likel
 
 ### 4. Support
 For bugs or feature requests, contact the development team directly (Jason Diaz - Task Specialist : jason@weblifestores.com).
-
 ==================== END FILE: README.md ====================
 
 
@@ -714,16 +2107,8 @@ jobs:
 ==================== END FILE: .github\workflows\build.yml ====================
 
 
-==================== START FILE: 53752cda3c39550673fc5dafb96c4bed\docrefine_version.json ====================
-{
-    "download_url":  "https://drive.google.com/drive/folders/1_9IoOZK5dW6rsjUp5eq-3vT8LIOlKYkU?usp=sharing",
-    "latest_version":  "v128.4"
-}
-
-==================== END FILE: 53752cda3c39550673fc5dafb96c4bed\docrefine_version.json ====================
-
-
 ==================== START FILE: docrefine\config.py ====================
+# SAVE AS: docrefine/config.py
 import sys
 import os
 import subprocess
@@ -736,9 +2121,6 @@ from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
-# ==============================================================================
-#   WINDOWS GHOST WINDOW FIX (Global Patch)
-# ==============================================================================
 if os.name == 'nt':
     try:
         _original_popen = subprocess.Popen
@@ -754,19 +2136,16 @@ if os.name == 'nt':
         subprocess.Popen = safe_popen
     except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
 
-# ==============================================================================
-#   SYSTEM UTILITIES
-# ==============================================================================
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
-    CURRENT_VERSION = "v128.4"
+    CURRENT_VERSION = "v128.5"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
     def get_resource_dir():
         if getattr(sys, 'frozen', False): return Path(sys._MEIPASS)
-        return Path(__file__).parent.parent # Adjusted for package structure
+        return Path(__file__).parent.parent
 
     @staticmethod
     def get_user_data_dir():
@@ -779,19 +2158,13 @@ class SystemUtils:
 
     @staticmethod
     def find_doc_file(filename):
-        # 1. Look in bundled resources (PyInstaller)
         res = SystemUtils.get_resource_dir() / filename
         if res.exists(): return res
-        
-        # 2. Look next to executable (Portable/Distribution)
         if getattr(sys, 'frozen', False):
             exe_path = Path(sys.executable).parent / filename
             if exe_path.exists(): return exe_path
-        
-        # 3. Look in Project Root (Dev Mode - One level up from this file)
         cwd = Path(__file__).parent.parent / filename
         if cwd.exists(): return cwd
-        
         return None
 
     @staticmethod
@@ -839,9 +2212,6 @@ class SystemUtils:
                 if brew_path.exists(): return str(brew_path)
         return None
 
-# ==============================================================================
-#   CONFIGURATION
-# ==============================================================================
 class Config:
     GITHUB_REPO = "jasonweblifestores/DocRefinePro" 
     DEFAULTS = { 
@@ -874,12 +2244,8 @@ class Config:
             with open(self.path, 'w') as f: json.dump(self.data, f, indent=4)
         except Exception as e: print(f"Config Save Error: {e}")
 
-# Global Config Instance
 CFG = Config()
 
-# ==============================================================================
-#   LOGGING
-# ==============================================================================
 USER_DIR = SystemUtils.get_user_data_dir()
 LOG_PATH = USER_DIR / "app_debug.log"
 JSON_LOG_PATH = USER_DIR / "app_events.jsonl"
@@ -893,7 +2259,8 @@ c_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
 logger.addHandler(c_handler)
 
 try:
-    f_handler = RotatingFileHandler(LOG_PATH, maxBytes=1024*1024, backupCount=5, encoding='utf-8')
+    # FIX: mode='w' creates fresh logs every session
+    f_handler = RotatingFileHandler(LOG_PATH, maxBytes=1024*1024, backupCount=5, encoding='utf-8', mode='w')
     f_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(f_handler)
 except: pass
@@ -1093,7 +2460,6 @@ from .processing import (
     convert_from_path
 )
 
-# 3rd Party Dependencies
 try:
     import psutil
     HAS_PSUTIL = True
@@ -1108,7 +2474,7 @@ except ImportError:
 SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.png', '.xls', '.xlsx', '.csv', '.jpeg'}
 
 # ==============================================================================
-#   HELPER FUNCTIONS (Preserved from v118)
+#   HELPER FUNCTIONS
 # ==============================================================================
 
 def sanitize_filename(name):
@@ -1117,14 +2483,14 @@ def sanitize_filename(name):
 def update_stats_time(ws, cat, sec):
     try:
         p = Path(ws) / "stats.json"
-        if not p.exists(): return
-        with open(p, 'r') as f: s = json.load(f)
+        s = {}
+        if p.exists():
+            with open(p, 'r') as f: s = json.load(f)
         s[cat] = s.get(cat, 0.0) + sec
         with open(p, 'w') as f: json.dump(s, f, indent=4)
     except: pass
 
 def generate_job_report(ws_path, action_name, file_results=None):
-    # Logic identical to v118, preserved for report generation
     try:
         ws = Path(ws_path)
         rpt_dir = ws / "04_Reports"
@@ -1140,9 +2506,13 @@ def generate_job_report(ws_path, action_name, file_results=None):
         total_orig = 0
         total_new = 0
         errors = []
+        skipped = 0
         
         if file_results:
             for res in file_results:
+                if res.get('skipped'): 
+                    skipped += 1
+                    continue
                 total_orig += res.get('orig_size', 0)
                 total_new += res.get('new_size', 0)
                 if not res.get('ok', True):
@@ -1163,7 +2533,10 @@ def generate_job_report(ws_path, action_name, file_results=None):
         else:
             error_rows = "<p>No errors reported. Clean run.</p>"
 
-        # (HTML generation logic preserved)
+        # Calculate breakdown times
+        t_ingest = str(timedelta(seconds=int(s.get('ingest_time', 0))))
+        t_batch = str(timedelta(seconds=int(s.get('batch_time', 0))))
+        
         html = f"""
         <html>
         <head>
@@ -1174,18 +2547,15 @@ def generate_job_report(ws_path, action_name, file_results=None):
                 .title h1 {{ margin: 0; color: #2c3e50; font-size: 24px; }}
                 .title span {{ color: #7f8c8d; font-size: 14px; }}
                 .badge {{ background: #0078d7; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }}
-                
                 .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
                 .card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }}
                 .card-label {{ font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }}
                 .card-value {{ font-size: 20px; font-weight: 600; color: #212529; }}
                 .highlight {{ color: #28a745; }}
-                
                 table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
                 th {{ text-align: left; border-bottom: 2px solid #dee2e6; padding: 10px; color: #495057; }}
                 td {{ border-bottom: 1px solid #dee2e6; padding: 10px; }}
                 .error-row {{ background-color: #fff5f5; color: #c0392b; }}
-                
                 .footer {{ margin-top: 40px; font-size: 11px; color: #adb5bd; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }}
             </style>
         </head>
@@ -1204,19 +2574,19 @@ def generate_job_report(ws_path, action_name, file_results=None):
                 <div class="grid">
                     <div class="card">
                         <div class="card-label">Files Processed</div>
-                        <div class="card-value">{len(file_results) if file_results else s.get('total_scanned', 0)}</div>
+                        <div class="card-value">{len(file_results) if file_results else s.get('total_scanned', 0)} <span style="font-size:12px;color:#999">(Skipped: {skipped})</span></div>
                     </div>
                     <div class="card">
                         <div class="card-label">Storage Reclaimed</div>
                         <div class="card-value highlight">{saved_mb} MB ({saved_pct}%)</div>
                     </div>
                     <div class="card">
-                        <div class="card-label">Failed / Skipped</div>
+                        <div class="card-label">Failed</div>
                         <div class="card-value" style="color: {'red' if errors else '#212529'}">{len(errors)}</div>
                     </div>
                     <div class="card">
-                        <div class="card-label">Duration</div>
-                        <div class="card-value">{str(timedelta(seconds=int(s.get('batch_time', 0) + s.get('ingest_time', 0))))}</div>
+                        <div class="card-label">Batch Duration</div>
+                        <div class="card-value">{t_batch}</div>
                     </div>
                 </div>
 
@@ -1240,11 +2610,10 @@ def generate_job_report(ws_path, action_name, file_results=None):
         return None
 
 # ==============================================================================
-#   WORKER CLASS (REFACTORED FOR EVENTS)
+#   WORKER CLASS
 # ==============================================================================
 class Worker:
     def __init__(self, callback): 
-        # REFACTORED: Accepts a generic callback instead of a queue
         self.callback = callback 
         self.stop_sig = False
         self.pause_event = threading.Event()
@@ -1268,7 +2637,6 @@ class Worker:
         self.pause_event.set()
 
     def log(self, m, err=False):
-        # REFACTORED: Uses Event System
         level = "ERROR" if err else "INFO"
         self.emit(AppEvent.log(m, level))
         log_app(m, level, structured_data={"ws": self.current_ws})
@@ -1280,24 +2648,20 @@ class Worker:
         except: pass
 
     def prog_main(self, v, t): 
-        # REFACTORED
         self.emit(AppEvent.progress(v, t))
     
     def prog_sub(self, v, t, status_only=False): 
-        # REFACTORED
         tid = threading.get_ident()
         now = time.time()
         
         if tid not in self._last_update:
             self._last_update[tid] = 0
             
-        if (now - self._last_update[tid]) > 0.1: # Max 10 updates/sec per thread
-            # Emitting structured slot data
+        if (now - self._last_update[tid]) > 0.1: 
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": tid, "text": t, "percent": v}))
             self._last_update[tid] = now
 
     def get_hash(self, path, mode):
-        # (Logic preserved from v118)
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
         if path.suffix.lower() == '.pdf' and mode != "Lightning":
             try:
@@ -1319,7 +2683,6 @@ class Worker:
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
     def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
-        # (Logic preserved from v118)
         master = ws / "01_Master_Files" / file_uid
         base_cache = ws / "02_Ready_For_Redistribution"
         
@@ -1354,12 +2717,14 @@ class Worker:
             self.stop_sig = False
             self.resume()
             
-            d = Path(d_str); start_time = time.time()
+            d = Path(d_str)
+            start_time = time.time()
             ws = WORKSPACES_ROOT / f"{d.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            m_dir = ws / "01_Master_Files"; m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
-            self.current_ws = str(ws); self.log(f"Inventory Start: {d}")
+            m_dir = ws / "01_Master_Files"
+            m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
+            self.current_ws = str(ws)
+            self.log(f"Inventory Start: {d}")
             
-            # REFACTORED
             self.emit(AppEvent(EventType.JOB_DATA, str(ws)))
             self.set_job_status(ws, "SCANNING", "Ingesting...")
             
@@ -1368,14 +2733,16 @@ class Worker:
             
             seen = {}; quarantined = 0
             
-            # REFACTORED
             self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             for i, f in enumerate(files):
                 if self.stop_sig: break
-                if not self.pause_event.is_set(): self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                if not self.pause_event.is_set(): 
+                    self.prog_sub(None, "Paused...", True)
+                    self.pause_event.wait()
                 
-                self.prog_main((i/len(files))*100, f"Scanning {i}/{len(files)}")
+                # FIX: 100% Math Calculation
+                self.prog_main(((i+1)/len(files))*100, f"Scanning {i+1}/{len(files)}")
                 self.prog_sub(None, f"Hashing: {f.name}", True)
                 
                 try:
@@ -1416,7 +2783,6 @@ class Worker:
             self.set_job_status(ws, "INGESTED", f"Masters: {total}")
             self.log(f"Done. Masters: {total}")
             
-            # REFACTORED
             self.emit(AppEvent(EventType.JOB_DATA, str(ws)))
             self.emit(AppEvent(EventType.DONE))
             
@@ -1425,11 +2791,9 @@ class Worker:
             self.emit(AppEvent(EventType.DONE))
 
     def process_file_task(self, f, bots, options, base_dst):
-        # (Logic preserved from v118, updated logs/events only)
         if self.stop_sig: return None
-        result = {'file': f.name, 'orig_size': f.stat().st_size, 'new_size': 0, 'ok': False}
+        result = {'file': f.name, 'orig_size': f.stat().st_size, 'new_size': 0, 'ok': False, 'skipped': False}
         try:
-            # REFACTORED
             self.emit(AppEvent.status("PROCESSING", f"Refining: {f.name}", "blue"))
             
             ext = f.suffix.lower()
@@ -1450,8 +2814,14 @@ class Worker:
             
             final_dst_dir = base_dst / target_folder
             final_dst_dir.mkdir(parents=True, exist_ok=True)
-            
             dst_file = final_dst_dir / f.name
+
+            # FIX: Skip if already exists
+            if dst_file.exists() and dst_file.stat().st_size > 0:
+                result['new_size'] = dst_file.stat().st_size
+                result['ok'] = True
+                result['skipped'] = True
+                return result
 
             if ext == '.pdf':
                 mode = options.get('pdf_mode', 'none')
@@ -1463,8 +2833,13 @@ class Worker:
             elif ext in {'.docx','.xlsx'}:
                 if options.get('sanitize'): ok = bots['office'].sanitize(f, dst_file)
 
+            # FIX: Pause/Stop Safety Net - DO NOT COPY if stopped
+            if self.stop_sig or not self.pause_event.is_set():
+                # If we stopped, we don't copy the original. We just fail the task safely.
+                return None
+
             if not ok and not dst_file.exists(): 
-                 shutil.copy2(f, dst_file)
+                shutil.copy2(f, dst_file)
             
             if dst_file.exists():
                 result['new_size'] = dst_file.stat().st_size
@@ -1483,11 +2858,11 @@ class Worker:
             self.resume()
             
             ws = Path(ws_p); self.current_ws = str(ws)
-            start_time = time.time(); src = ws/"01_Master_Files"; dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
+            start_time = time.time(); src = ws/"01_Master_Files"
+            dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
             self.log(f"Refinement Start. Opts: {options}")
             self.set_job_status(ws, "PROCESSING", "Refining...")
 
-            # Use imported Processors
             bots = {
                 'pdf': PdfProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event),
                 'img': ImageProcessor(lambda v,t,s=False: self.prog_sub(v,t,s), lambda: self.stop_sig, self.pause_event),
@@ -1513,7 +2888,6 @@ class Worker:
                 max_workers = max(1, max_workers)
                 self.log(f"Auto-Throttled Workers: {max_workers}")
 
-            # REFACTORED
             self.emit(AppEvent(EventType.WORKER_CONFIG, max_workers))
             
             file_results = []
@@ -1521,7 +2895,8 @@ class Worker:
                 futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     if self.stop_sig: break
-                    self.prog_main((i/len(fs))*100, f"Refining {i+1}/{len(fs)}")
+                    # FIX: 100% Math
+                    self.prog_main(((i+1)/len(fs))*100, f"Refining {i+1}/{len(fs)}")
                     try: 
                         r = future.result()
                         if r: file_results.append(r)
@@ -1540,8 +2915,6 @@ class Worker:
             
             self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
             self.prog_main(100, "Done")
-            
-            # REFACTORED: Send notification instead of direct open_file (though standard behavior can be handled in adapter)
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Batch Complete", "msg": "Batch processing finished.", "open_path": str(dst)}))
             
@@ -1554,14 +2927,14 @@ class Worker:
             self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time()
-            out = ws / "03_Organized_Output"; m = out/"Unique_Masters"; q = out/"Quarantine"
+            out = ws / "03_Organized_Output"
+            m = out/"Unique_Masters"; q = out/"Quarantine"
             for p in [m,q]: p.mkdir(parents=True, exist_ok=True)
             
             self.log(f"Unique Export ({priority_mode})")
             with open(ws/"manifest.json") as f: man = json.load(f)
             total = len(man)
             
-            # REFACTORED
             self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             dup_csv = out / "duplicates_report.csv"
@@ -1571,8 +2944,7 @@ class Worker:
                 
                 for i, (h, data) in enumerate(man.items()):
                     if self.stop_sig: break
-                    self.prog_main((i/total)*100, "Exporting Unique...")
-                    # REFACTORED
+                    self.prog_main(((i+1)/total)*100, "Exporting Unique...")
                     self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Exporting: {data['name']}", "percent": None}))
                     
                     if data.get("status") == "QUARANTINE": 
@@ -1638,7 +3010,7 @@ class Worker:
 
             for i, (h, d) in enumerate(man.items()):
                 if self.stop_sig: break
-                self.prog_main((i/len(man))*100, f"Recon {i+1}")
+                self.prog_main(((i+1)/len(man))*100, f"Recon {i+1}")
                 self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Copying: {d['name']}", "percent": None}))
                 
                 if d.get("status") == "QUARANTINE": continue
@@ -1659,8 +3031,7 @@ class Worker:
 
             q_src = ws / "00_Quarantine"
             if q_src.exists():
-                q_dst = dst / "_QUARANTINED_FILES"; 
-                q_dst.mkdir(parents=True, exist_ok=True) 
+                q_dst = dst / "_QUARANTINED_FILES"; q_dst.mkdir(parents=True, exist_ok=True) 
                 for qf in q_src.iterdir(): shutil.copy2(qf, q_dst / qf.name)
 
             update_stats_time(ws, "dist_time", time.time() - start_time)
@@ -1700,7 +3071,7 @@ class Worker:
                     total = len(man)
                     for i, (h, data) in enumerate(man.items()):
                         if self.stop_sig: break
-                        self.prog_main((i/total)*100, "Writing CSV...")
+                        self.prog_main(((i+1)/total)*100, "Writing CSV...")
                         
                         uid = data.get('id', '?')
                         status = data.get('status', 'OK')
@@ -1748,7 +3119,6 @@ class Worker:
             src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
             
             if not pdf: 
-                # REFACTORED: Status + Done
                 self.emit(AppEvent.status("PREVIEW", "No PDF found.", "red"))
                 self.emit(AppEvent(EventType.DONE))
                 return
@@ -1817,7 +3187,6 @@ class Worker:
             shutil.make_archive(str(dest_zip).replace(".zip", ""), 'zip', temp_dir)
             shutil.rmtree(temp_dir, ignore_errors=True)
             
-            # REFACTORED
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Debug Export", "msg": f"Saved to {dest_zip.name}", "open_path": str(base_dir)}))
             
         except Exception as e:
@@ -1864,1145 +3233,6 @@ class AppEvent:
     def status(stage: str, message: str, color_hint: str = "blue"):
         return AppEvent(EventType.STATUS_CHANGE, {"stage": stage, "msg": message, "color": color_hint})
 ==================== END FILE: docrefine\core\events.py ====================
-
-
-==================== START FILE: docrefine\gui\app.py ====================
-import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox, ttk, Menu
-import threading
-import queue
-import time
-import json
-import os
-import shutil
-import ssl
-import urllib.request
-import webbrowser
-import platform
-import uuid
-import re
-from pathlib import Path
-from datetime import datetime, timedelta
-from PIL import Image, ImageTk
-
-# 3rd Party (Optional UI dependencies)
-try:
-    import pytesseract
-except ImportError:
-    pass
-
-# Local Package Imports
-from ..config import CFG, SystemUtils, LOG_PATH, WORKSPACES_ROOT
-from ..worker import Worker, HAS_TESSERACT, POPPLER_BIN
-from ..processing import convert_from_path, pdfinfo_from_path
-
-# ==============================================================================
-#   UI HELPERS
-# ==============================================================================
-def get_tesseract_langs():
-    if not HAS_TESSERACT: return ["N/A"]
-    try:
-        raw_langs = pytesseract.get_languages(config='')
-        friendly_map = {
-            'eng': 'English', 'spa': 'Spanish', 'fra': 'French', 'deu': 'German',
-            'ita': 'Italian', 'por': 'Portuguese', 'chi_sim': 'Chinese (Simp)',
-            'jpn': 'Japanese', 'rus': 'Russian'
-        }
-        clean = []
-        for l in raw_langs:
-            if l == 'osd': continue
-            name = friendly_map.get(l, l)
-            if name != l: clean.append(f"{name} ({l})")
-            else: clean.append(l)
-        return sorted(clean)
-    except: return ["eng"]
-
-def parse_lang_code(selection):
-    if "(" in selection and ")" in selection:
-        return selection.split("(")[1].replace(")", "")
-    return selection
-
-def sanitize_filename(name):
-    return re.sub(r'[<>:"/\\|?*]', '_', name)
-
-# ==============================================================================
-#   SUB-WINDOWS
-# ==============================================================================
-class DocViewer:
-    def __init__(self, root, filename, title):
-        self.win = tk.Toplevel(root)
-        self.win.title(title)
-        self.win.geometry("800x600")
-        App.center_toplevel(self.win, root)
-        
-        target = SystemUtils.find_doc_file(filename)
-        
-        if not target:
-            tk.Label(self.win, text=f"File '{filename}' not found.", font=("Segoe UI", 12, "bold"), fg="red").pack(pady=20)
-            tk.Label(self.win, text="Please ensure the file is present in the application folder.", font=("Segoe UI", 10)).pack()
-            return
-            
-        txt = scrolledtext.ScrolledText(self.win, wrap="word", font=("Consolas", 10), padx=10, pady=10)
-        txt.pack(fill="both", expand=True)
-        
-        try:
-            content = target.read_text(encoding='utf-8')
-            txt.insert("1.0", content)
-        except Exception as e:
-            txt.insert("1.0", f"Error reading file: {e}")
-            
-        txt.config(state="disabled")
-
-class ForensicComparator:
-    def __init__(self, root, ws_path, manifest, master_path, dup_candidates):
-        self.win = tk.Toplevel(root)
-        self.win.title("Forensic Verification (Sync View)")
-        self.win.geometry("1400x800")
-        App.center_toplevel(self.win, root)
-        
-        self.ws_path = ws_path
-        self.manifest = manifest
-        self.master_path = master_path
-        self.dups = dup_candidates
-        self.dup_idx = 0
-        self.page = 1
-        self.total_pages = 1
-        self.zoom = 1.0
-        self.last_scroll_time = 0
-        
-        self.top = tk.Frame(self.win, bg="#eee", pady=5)
-        self.top.pack(fill="x")
-        
-        self.lbl_info = tk.Frame(self.win)
-        self.lbl_info.pack(fill="x", pady=2)
-        tk.Label(self.lbl_info, text=f"MASTER: {master_path.name}", font=("Consolas", 9, "bold"), fg="#2c3e50").pack(side="left", fill="x", expand=True)
-        tk.Label(self.lbl_info, text="CANDIDATE (DUPLICATE)", font=("Consolas", 9, "bold"), fg="#c0392b").pack(side="left", fill="x", expand=True)
-
-        self.mid = tk.Frame(self.win)
-        self.mid.pack(fill="both", expand=True)
-        
-        self.c1 = tk.Canvas(self.mid, bg="#444", scrollregion=(0,0,1000,1000))
-        self.c1.pack(side="left", fill="both", expand=True)
-        
-        self.sep = ttk.Separator(self.mid, orient="vertical")
-        self.sep.pack(side="left", fill="y", padx=5)
-        
-        self.c2 = tk.Canvas(self.mid, bg="#444", scrollregion=(0,0,1000,1000))
-        self.c2.pack(side="left", fill="both", expand=True)
-        
-        self._build_toolbar()
-        
-        self.is_pdf = self.master_path.suffix.lower() == '.pdf'
-        if self.is_pdf:
-            try: self.total_pages = pdfinfo_from_path(str(self.master_path), poppler_path=POPPLER_BIN).get('Pages', 1)
-            except: self.total_pages = 1
-            
-        self.load_images()
-        self.bind_events()
-
-    def _build_toolbar(self):
-        f_page = tk.Frame(self.top); f_page.pack(side="left", padx=10)
-        tk.Button(f_page, text="< Prev Page", command=self.prev_page).pack(side="left")
-        self.lbl_page = tk.Label(f_page, text="Page 1/1", width=10)
-        self.lbl_page.pack(side="left", padx=5)
-        tk.Button(f_page, text="Next Page >", command=self.next_page).pack(side="left")
-        
-        f_zoom = tk.Frame(self.top); f_zoom.pack(side="left", padx=20)
-        tk.Button(f_zoom, text="- Zoom", command=lambda: self.do_zoom(0.8)).pack(side="left")
-        self.lbl_zoom = tk.Label(f_zoom, text="100%", width=6)
-        self.lbl_zoom.pack(side="left")
-        tk.Button(f_zoom, text="Zoom +", command=lambda: self.do_zoom(1.2)).pack(side="left")
-        tk.Button(f_zoom, text="[Fit Width]", command=self.fit_width).pack(side="left", padx=5)
-        
-        f_dup = tk.Frame(self.top); f_dup.pack(side="right", padx=10)
-        tk.Button(f_dup, text="< Prev Copy", command=self.prev_dup).pack(side="left")
-        self.lbl_dup = tk.Label(f_dup, text="Copy 1/1", width=15)
-        self.lbl_dup.pack(side="left", padx=5)
-        tk.Button(f_dup, text="Next Copy >", command=self.next_dup).pack(side="left")
-        tk.Button(f_dup, text="Open File", command=self.open_current_dup).pack(side="left", padx=5)
-        
-        kw_uniq = {"bg": "green", "fg": "white"} if not SystemUtils.IS_MAC else {}
-        tk.Button(f_dup, text="MARK AS UNIQUE", command=self.mark_as_unique, **kw_uniq).pack(side="left", padx=10)
-
-    def load_images(self):
-        self.lbl_page.config(text=f"Page {self.page}/{self.total_pages}")
-        self.lbl_zoom.config(text=f"{int(self.zoom*100)}%")
-        self.lbl_dup.config(text=f"Copy {self.dup_idx+1}/{len(self.dups)}")
-        
-        if self.dups:
-            path_str = str(self.dups[self.dup_idx])
-            if len(path_str) > 60: path_str = "..." + path_str[-57:]
-            tk.Label(self.lbl_info.winfo_children()[1], text=path_str).pack_forget() 
-            self.lbl_info.winfo_children()[1].config(text=f"CANDIDATE: {path_str}")
-
-        self.img1 = self._render(self.master_path)
-        self.show_img(self.c1, self.img1)
-        
-        if self.dups:
-            dup_path = self.dups[self.dup_idx]
-            self.img2 = self._render(dup_path)
-            self.show_img(self.c2, self.img2)
-        else:
-            self.c2.delete("all")
-
-    def _render(self, path):
-        try:
-            if not Path(path).exists(): return None
-            img = None
-            if Path(path).suffix.lower() == '.pdf':
-                imgs = convert_from_path(str(path), dpi=int(72*self.zoom), first_page=self.page, last_page=self.page, poppler_path=POPPLER_BIN)
-                if imgs: img = imgs[0]
-            else:
-                img = Image.open(str(path))
-                w, h = img.size
-                img = img.resize((int(w*self.zoom), int(h*self.zoom)))
-            
-            return ImageTk.PhotoImage(img) if img else None
-        except: return None
-
-    def show_img(self, cv, photo):
-        cv.delete("all")
-        if photo:
-            cv.create_image(0,0, image=photo, anchor="nw")
-            cv.config(scrollregion=cv.bbox("all"))
-
-    def bind_events(self):
-        self.c1.bind("<MouseWheel>", self.on_scroll_page)
-        self.c2.bind("<MouseWheel>", self.on_scroll_page)
-        self.c1.bind("<Button-4>", self.on_scroll_page)
-        self.c1.bind("<Button-5>", self.on_scroll_page)
-        self.c1.bind("<ButtonPress-1>", self.scroll_start)
-        self.c1.bind("<B1-Motion>", self.scroll_move)
-        self.c2.bind("<ButtonPress-1>", self.scroll_start)
-        self.c2.bind("<B1-Motion>", self.scroll_move)
-
-    def on_scroll_page(self, event):
-        now = time.time()
-        if now - self.last_scroll_time < 0.4: return
-        self.last_scroll_time = now
-
-        d = 0
-        if event.num == 5 or event.delta < 0: d = 1 
-        elif event.num == 4 or event.delta > 0: d = -1 
-        
-        if d == 1: self.next_page()
-        elif d == -1: self.prev_page()
-
-    def scroll_start(self, event):
-        self.c1.scan_mark(event.x, event.y)
-        self.c2.scan_mark(event.x, event.y)
-
-    def scroll_move(self, event):
-        self.c1.scan_dragto(event.x, event.y, gain=1)
-        self.c2.scan_dragto(event.x, event.y, gain=1)
-
-    def do_zoom(self, factor):
-        self.zoom *= factor
-        self.load_images()
-
-    def fit_width(self):
-        try:
-            cw = self.c1.winfo_width()
-            if cw > 50:
-                self.zoom = (cw - 20) / 600.0
-                self.load_images()
-        except: pass
-
-    def next_page(self):
-        if self.page < self.total_pages:
-            self.page += 1
-            self.load_images()
-
-    def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            self.load_images()
-
-    def next_dup(self):
-        if self.dup_idx < len(self.dups)-1:
-            self.dup_idx += 1
-            self.load_images()
-
-    def prev_dup(self):
-        if self.dup_idx > 0:
-            self.dup_idx -= 1
-            self.load_images()
-
-    def open_current_dup(self):
-        if self.dups:
-            SystemUtils.reveal_file(self.dups[self.dup_idx])
-
-    def mark_as_unique(self):
-        if not self.dups: return
-        target_path = self.dups[self.dup_idx]
-        
-        if messagebox.askyesno("Promote File", f"Mark '{target_path.name}' as a unique Master file?\n\nIt will be removed from this duplicate list and treated as a distinct document."):
-            try:
-                root_path = None
-                original_hash = None
-                
-                for h, data in self.manifest.items():
-                    r_p = data.get('root')
-                    if r_p:
-                        try:
-                            rel_p = str(target_path.relative_to(r_p))
-                            if rel_p in data['copies']:
-                                original_hash = h
-                                root_path = r_p
-                                break
-                        except: continue
-
-                if original_hash:
-                    rel_p = str(target_path.relative_to(root_path))
-                    if rel_p in self.manifest[original_hash]['copies']:
-                        self.manifest[original_hash]['copies'].remove(rel_p)
-
-                    new_uid = f"{uuid.uuid4()}_{sanitize_filename(target_path.name)}"
-                    new_key = f"PROMOTED_{uuid.uuid4()}"
-                    
-                    self.manifest[new_key] = {
-                        "master": rel_p,
-                        "copies": [rel_p],
-                        "name": target_path.name,
-                        "root": root_path,
-                        "uid": new_uid,
-                        "id": "PROMOTED",
-                        "status": "OK"
-                    }
-                    
-                    m_dir = self.ws_path / "01_Master_Files"
-                    shutil.copy2(target_path, m_dir / new_uid)
-
-                    with open(self.ws_path / "manifest.json", 'w') as f:
-                        json.dump(self.manifest, f, indent=4)
-
-                    del self.dups[self.dup_idx]
-                    if not self.dups:
-                        messagebox.showinfo("Done", "All duplicates handled.")
-                        self.win.destroy()
-                    else:
-                        if self.dup_idx >= len(self.dups): self.dup_idx -= 1
-                        self.load_images()
-                else:
-                    messagebox.showerror("Error", "Could not locate file in manifest structure.")
-
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
-
-# ==============================================================================
-#   MAIN APPLICATION
-# ==============================================================================
-class App:
-    def __init__(self, root):
-        self.root = root
-        self.root.title(f"DocRefine Pro {SystemUtils.CURRENT_VERSION} ({platform.system()})")
-        
-        self.apply_smart_geometry(CFG.get("last_geometry"))
-        
-        self.q = queue.Queue(); self.worker = Worker(self.q)
-        self.start_t = 0; self.running = False; self.paused = False
-        self.current_manifest = {}
-        self.slot_widgets = {} 
-        self.slot_frames = []
-        self.context_menu = None 
-        
-        self.is_mac = SystemUtils.IS_MAC
-        self.Btn = ttk.Button if self.is_mac else tk.Button
-        self.style = ttk.Style()
-        
-        if self.is_mac: 
-            self.style.theme_use('clam')
-            self.style.configure("Treeview", background="white", foreground="black", fieldbackground="white")
-            self.style.map("Treeview", background=[('selected', '#0078d7')])
-
-        # --- LAYOUT ---
-        left = tk.Frame(root, width=350); left.pack(side="left", fill="both", padx=10, pady=10)
-        tk.Label(left, text="Workspace Dashboard", font=("Segoe UI", 12, "bold")).pack(pady=5)
-        
-        kw_new = {"bg": "#e3f2fd"} if not self.is_mac else {}
-        self.btn_new = self.Btn(left, text="+ New Ingest Job", command=self.ask_ingest_mode, **kw_new)
-        self.btn_new.pack(fill="x", pady=2)
-        
-        btn_row = tk.Frame(left); btn_row.pack(fill="x", pady=5)
-        self.btn_refresh = self.Btn(btn_row, text="↻ Refresh", command=self.load_jobs); self.btn_refresh.pack(side="left", fill="x", expand=True)
-        kw_del = {"bg": "#ffcdd2"} if not self.is_mac else {}
-        self.btn_del = self.Btn(btn_row, text="🗑 Delete", command=self.safe_delete_job, **kw_del); self.btn_del.pack(side="right")
-        
-        self.btn_upd = self.Btn(left, text="Check Updates", command=lambda: threading.Thread(target=self.check_updates, args=(True,), daemon=True).start())
-        self.btn_upd.pack(anchor="w", pady=2)
-        
-        self.btn_settings = self.Btn(left, text="⚙ Settings", command=self.open_settings)
-        self.btn_settings.pack(anchor="w", pady=2)
-
-        self.btn_log = self.Btn(left, text="View App Log", command=self.open_app_log); self.btn_log.pack(anchor="w", pady=5)
-        self.btn_open = self.Btn(left, text="Open Folder", command=self.open_f, state="disabled"); self.btn_open.pack(fill="x", pady=5)
-        
-        self.stats_fr = tk.LabelFrame(left, text="Stats", padx=5, pady=5); self.stats_fr.pack(fill="x")
-        self.lbl_stats = tk.Label(self.stats_fr, text="Select a job...", anchor="w", justify="left"); self.lbl_stats.pack(fill="x")
-        
-        self.tree = ttk.Treeview(left, columns=("Name","Status","LastActive"), show="headings")
-        for c, w in [("Name",140),("Status",70),("LastActive",110)]:
-            self.tree.heading(c, text=c, command=lambda _c=c: self.sort_tree(self.tree,_c,False)); self.tree.column(c, width=w)
-        self.tree.pack(fill="both", expand=True); self.tree.bind("<<TreeviewSelect>>", self.on_sel)
-        
-        right = tk.Frame(root); right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
-        self.nb = ttk.Notebook(right); self.nb.pack(fill="both", expand=True)
-        
-        self.tab_process = tk.Frame(self.nb); self.nb.add(self.tab_process, text=" 1. Refine ")
-        self._build_refine()
-        self.tab_dist = tk.Frame(self.nb); self.nb.add(self.tab_dist, text=" 2. Export ")
-        self._build_export() 
-        self.tab_inspect = tk.Frame(self.nb); self.nb.add(self.tab_inspect, text=" 🔍 Inspector ")
-        self._build_inspect()
-        
-        mon = tk.LabelFrame(right, text="Process Monitor", padx=10, pady=10); mon.pack(fill="x", pady=10)
-        head = tk.Frame(mon); head.pack(fill="x")
-        
-        status_fg = "blue" if not self.is_mac else "black"
-        self.lbl_status = tk.Label(head, text="Ready", fg=status_fg, anchor="w", font=("Segoe UI", 9, "bold")); 
-        self.lbl_status.pack(side="left", fill="x", expand=True)
-        self.lbl_timer = tk.Label(head, text="00:00:00", font=("Consolas", 10)); self.lbl_timer.pack(side="right", padx=10)
-        
-        self.btn_receipt = self.Btn(head, text="View Receipt", command=self.open_receipt, state="disabled")
-        self.btn_receipt.pack(side="right", padx=10)
-        
-        kw_stop = {"bg": "red", "fg": "white"} if not self.is_mac else {}
-        self.btn_stop = self.Btn(head, text="STOP", command=self.stop, state="disabled", **kw_stop); self.btn_stop.pack(side="right")
-        self.btn_pause = self.Btn(head, text="PAUSE", command=self.toggle_pause, state="disabled", width=8); self.btn_pause.pack(side="right", padx=5)
-
-        tk.Label(mon, text="Overall Batch:", font=("Segoe UI", 8), anchor="w").pack(fill="x", pady=(5,0))
-        self.p_main = tk.DoubleVar(); ttk.Progressbar(mon, variable=self.p_main).pack(fill="x", pady=2)
-        
-        self.frame_slots = tk.Frame(mon, pady=5)
-        self.frame_slots.pack(fill="x")
-        
-        self.log_box = scrolledtext.ScrolledText(mon, height=8, bg="white", fg="black", insertbackground="black")
-        self.log_box.pack(fill="both", expand=True)
-        
-        self.load_jobs()
-        self.restore_session()
-        
-        self.poll()
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-        
-        threading.Thread(target=self.check_updates, args=(False,), daemon=True).start()
-
-    def apply_smart_geometry(self, saved_geo):
-        try:
-            sw = self.root.winfo_screenwidth()
-            sh = self.root.winfo_screenheight()
-            
-            if SystemUtils.IS_MAC: sh -= 120 
-            else: sh -= 60 
-            
-            if SystemUtils.IS_MAC: w, h = 1280, 850
-            else: w, h = 1024, 700
-            
-            x, y = 0, 0
-            
-            if saved_geo:
-                parts = re.split(r'[x+]', saved_geo)
-                if len(parts) == 4:
-                    w, h, x, y = map(int, parts)
-            
-            if w > (sw * 0.95): 
-                w = int(sw * 0.8)
-                h = int(sh * 0.8)
-                x = (sw // 2) - (w // 2)
-                y = (sh // 2) - (h // 2)
-            else:
-                w = min(w, sw)
-                h = min(h, sh)
-            
-            self.root.geometry(f"{w}x{h}+{x}+{y}")
-        except:
-            if SystemUtils.IS_MAC: self.root.geometry("1280x850")
-            else: self.root.geometry("1024x700")
-
-    @staticmethod
-    def center_toplevel(win, parent):
-        try:
-            win.withdraw() 
-            win.update_idletasks() 
-            
-            pw = parent.winfo_width()
-            ph = parent.winfo_height()
-            px = parent.winfo_rootx()
-            py = parent.winfo_rooty()
-            
-            cw = win.winfo_width()
-            ch = win.winfo_height()
-            
-            x = px + (pw // 2) - (cw // 2)
-            y = py + (ph // 2) - (ch // 2)
-            
-            win.geometry(f"+{x}+{y}")
-            win.deiconify() 
-        except: 
-            win.deiconify()
-
-    def _build_refine(self):
-        tk.Label(self.tab_process, text="Content Refinement (Modifies Files)", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=(10,5),padx=10)
-        
-        self.chk_frame = tk.Frame(self.tab_process); self.chk_frame.pack(fill="x",padx=10)
-        self.chk_vars = {} 
-        
-        self.f_pdf_ctrl = tk.Frame(self.tab_process)
-        tk.Label(self.f_pdf_ctrl, text="PDF Action:", font=("Segoe UI", 9)).pack(anchor="w", padx=10, pady=(10,0))
-        self.pdf_mode_var = tk.StringVar(value="No Action")
-        self.cb_pdf = ttk.Combobox(self.f_pdf_ctrl, textvariable=self.pdf_mode_var, values=["No Action", "Flatten Only (Fast)", "Flatten + OCR (Slow)"], state="readonly")
-        self.cb_pdf.pack(fill="x", padx=10, pady=2)
-        
-        ctrl = tk.Frame(self.tab_process); ctrl.pack(fill="x",pady=15,padx=10)
-        
-        tk.Label(ctrl, text="Processing & Preview Quality:").pack(side="left")
-        self.dpi_var = tk.StringVar(value="Medium (Standard)")
-        self.cb_dpi = ttk.Combobox(ctrl, textvariable=self.dpi_var, values=["Low (Fast)", "Medium (Standard)", "High (Slow)"], width=18, state="readonly")
-        self.cb_dpi.pack(side="left",padx=5)
-        
-        self.btn_prev = self.Btn(ctrl, text="Generate Preview", command=self.safe_preview, state="disabled"); self.btn_prev.pack(side="left",padx=15)
-        
-        kw_run = {"bg": "#e8f5e9"} if not self.is_mac else {}
-        self.btn_run = self.Btn(ctrl, text="Run Refinement", command=self.safe_start_batch, state="disabled", **kw_run); self.btn_run.pack(side="right")
-
-    def _build_export(self):
-        tk.Label(self.tab_dist, text="Final Export Strategies", font=("Segoe UI",10,"bold")).pack(anchor="w",pady=10,padx=10)
-        f = tk.Frame(self.tab_dist); f.pack(fill="x",padx=10)
-        
-        tk.Label(f, text="Source Priority:", font=("Segoe UI", 9)).pack(anchor="w", pady=(0,2))
-        
-        default_prio = CFG.get("default_export_prio")
-        self.prio_var = tk.StringVar(value=default_prio)
-        self.cb_prio = ttk.Combobox(f, textvariable=self.prio_var, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30)
-        self.cb_prio.pack(anchor="w", pady=(0,10))
-        
-        self.var_ext = tk.BooleanVar(); tk.Checkbutton(f, text="Override Source: External Folder", variable=self.var_ext).pack(anchor="w")
-        
-        f_a = tk.LabelFrame(self.tab_dist, text="Option A: Unique Masters", padx=10, pady=10)
-        f_a.pack(fill="x", padx=10, pady=5)
-        tk.Label(f_a, text="Export a clean folder containing one copy of every unique file.", justify="left", fg="#555").pack(anchor="w")
-        
-        ra = tk.Frame(f_a); ra.pack(fill="x", pady=5)
-        kw_org = {"bg": "#fff8e1"} if not self.is_mac else {}
-        self.btn_org = self.Btn(ra, text="Export Unique Files", command=self.safe_start_organize, state="disabled", **kw_org); self.btn_org.pack(side="right")
-        self.btn_dup_rpt = self.Btn(ra, text="View Dup Report", command=self.open_dup_report, state="disabled"); self.btn_dup_rpt.pack(side="right", padx=10)
-
-        f_b = tk.LabelFrame(self.tab_dist, text="Option B: Reconstruct Original Structure", padx=10, pady=10)
-        f_b.pack(fill="x", padx=10, pady=5)
-        tk.Label(f_b, text="Re-create the original folder structure.", justify="left", fg="#555").pack(anchor="w")
-        kw_dist = {"bg": "#fff3e0"} if not self.is_mac else {}
-        self.btn_dist = self.Btn(f_b, text="Run Reconstruction", command=self.safe_start_dist, state="disabled", **kw_dist); self.btn_dist.pack(anchor="e", pady=5)
-
-        f_c = tk.LabelFrame(self.tab_dist, text="Option C: Reports & Logs", padx=10, pady=10)
-        f_c.pack(fill="x", padx=10, pady=5)
-        
-        rc = tk.Frame(f_c); rc.pack(fill="x", pady=5)
-        self.btn_open_csv = self.Btn(rc, text="Open Full CSV", command=self.open_full_csv, state="disabled"); self.btn_open_csv.pack(side="right", padx=(10,0))
-        self.btn_full_csv = self.Btn(rc, text="Export Full Inventory CSV", command=self.safe_start_full_export, state="disabled"); self.btn_full_csv.pack(side="right")
-        tk.Label(rc, text="List every single scanned file and its location.", fg="#555").pack(side="left")
-
-    def _build_inspect(self):
-        h = tk.Frame(self.tab_inspect); h.pack(fill="x", padx=5, pady=5)
-        tk.Label(h, text="Filter:").pack(side="left")
-        
-        self.search_var = tk.StringVar()
-        self.search_var.trace("w", self.filter_inspection)
-        self.entry_search = ttk.Entry(h, textvariable=self.search_var)
-        self.entry_search.pack(side="left", fill="x", expand=True, padx=5)
-        
-        tk.Label(self.tab_inspect, text="Double-click a row to open file / view error.", font=("Segoe UI", 8), fg="#666").pack(anchor="w", padx=5)
-
-        f = tk.Frame(self.tab_inspect); f.pack(fill="both",expand=True,padx=5,pady=(0,5))
-        self.insp_tree = ttk.Treeview(f, columns=("ID","Name","Status","Copies"), show="headings")
-        for c,w in [("ID",60),("Name",200),("Status",80),("Copies",50)]:
-            self.insp_tree.heading(c, text=c, command=lambda _c=c: self.sort_tree(self.insp_tree,_c,False)); self.insp_tree.column(c, width=w)
-        vsb = ttk.Scrollbar(f, orient="vertical", command=self.insp_tree.yview); self.insp_tree.configure(yscrollcommand=vsb.set)
-        self.insp_tree.pack(side="left",fill="both",expand=True); vsb.pack(side="right",fill="y")
-        
-        self.insp_tree.bind("<Double-1>", self.on_inspect_click)
-        
-        self.context_menu = Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Open File", command=self.open_selected_file) 
-        self.context_menu.add_command(label="Reveal in Folder", command=self.reveal_in_folder)
-        self.context_menu.add_separator()
-        self.context_menu.add_command(label="Compare Duplicates...", command=self.on_compare_click)
-        
-        if self.is_mac:
-            self.insp_tree.bind("<Button-2>", self.show_context_menu)
-            self.insp_tree.bind("<Control-1>", self.show_context_menu)
-        else:
-            self.insp_tree.bind("<Button-3>", self.show_context_menu)
-
-    def show_context_menu(self, event):
-        try:
-            item = self.insp_tree.identify_row(event.y)
-            if item:
-                self.insp_tree.selection_set(item)
-                self.context_menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            self.context_menu.grab_release()
-
-    def open_selected_file(self):
-        item_id = self.insp_tree.selection()
-        if not item_id: return
-        self.on_inspect_click(None)
-
-    def reveal_in_folder(self):
-        ws = self.get_ws()
-        if not ws: return
-        item_id = self.insp_tree.selection()
-        if not item_id: return
-        
-        # CHANGED: Look up by ID (Col 0) instead of Name (Col 1) for safety
-        file_id = self.insp_tree.item(item_id[0], 'values')[0] 
-        
-        data = next((v for k,v in self.current_manifest.items() if v.get('id') == file_id), None)
-        
-        if data:
-            path = ws/"01_Master_Files"/data['uid']
-            if path.exists(): 
-                SystemUtils.reveal_file(path)
-            else:
-                messagebox.showwarning("File Missing", f"Could not find master file at:\n{path}")
-        else:
-             messagebox.showerror("Error", "Could not locate file in manifest.")
-
-    def on_compare_click(self):
-        ws = self.get_ws()
-        item_id = self.insp_tree.selection()
-        if not ws or not item_id: return
-        
-        name = self.insp_tree.item(item_id[0], 'values')[1]
-        data = next((v for k,v in self.current_manifest.items() if v.get('name') == name), None)
-        
-        if not data or len(data.get('copies', [])) < 2:
-            messagebox.showinfo("Compare", "No duplicates to compare.")
-            return
-            
-        master_file = ws/"01_Master_Files"/data['uid']
-        
-        root = data.get('root')
-        if not root or not Path(root).exists():
-            root = filedialog.askdirectory(title=f"Locate Source Folder for {name}")
-            if not root: return
-        
-        duplicates = []
-        for c in data['copies']:
-            if c != data['master']:
-                path = Path(root) / c
-                if path.exists(): duplicates.append(path)
-        
-        if duplicates:
-            ForensicComparator(self.root, ws, self.current_manifest, master_file, duplicates)
-        else:
-            messagebox.showerror("Error", "Could not locate any duplicate files.")
-
-    def open_settings(self):
-        win = tk.Toplevel(self.root)
-        win.title("Preferences")
-        win.geometry("600x700")
-        
-        App.center_toplevel(win, self.root)
-        
-        lf_perf = tk.LabelFrame(win, text="Processing Engine", padx=10, pady=10)
-        lf_perf.pack(fill="x", padx=10, pady=5)
-        
-        tk.Label(lf_perf, text="Max Worker Threads (0 = Auto):", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
-        v_threads = tk.IntVar(value=CFG.get("max_threads"))
-        tk.Spinbox(lf_perf, from_=0, to=32, textvariable=v_threads, width=5).grid(row=0,column=1,sticky="e")
-        
-        tk.Label(lf_perf, text="Safety Cap (Max Pixels):", font=("Segoe UI", 9, "bold")).grid(row=2,column=0,sticky="w", pady=(10,0))
-        v_pixels = tk.StringVar(value=str(CFG.get("max_pixels")))
-        tk.Entry(lf_perf, textvariable=v_pixels, width=15).grid(row=2,column=1,sticky="e", pady=(10,0))
-
-        lf_def = tk.LabelFrame(win, text="Workflow Defaults", padx=10, pady=10)
-        lf_def.pack(fill="x", padx=10, pady=5)
-        
-        tk.Label(lf_def, text="Default Ingest Mode:", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
-        v_ingest = tk.StringVar(value=CFG.get("default_ingest_mode"))
-        ttk.Combobox(lf_def, textvariable=v_ingest, values=["Standard", "Lightning", "Deep"], state="readonly").grid(row=0,column=1,sticky="e")
-
-        tk.Label(lf_def, text="Default Export Priority:", font=("Segoe UI", 9, "bold")).grid(row=2,column=0,sticky="w", pady=(10,0))
-        v_export = tk.StringVar(value=CFG.get("default_export_prio"))
-        ttk.Combobox(lf_def, textvariable=v_export, values=["Auto (Best Available)", "Force: OCR (Searchable)", "Force: Flattened (Visual)", "Force: Original Masters"], state="readonly", width=30).grid(row=2,column=1,sticky="e", pady=(10,0))
-
-        lf_ocr = tk.LabelFrame(win, text="Optical Character Recognition (OCR)", padx=10, pady=10)
-        lf_ocr.pack(fill="x", padx=10, pady=5)
-        
-        tk.Label(lf_ocr, text="Tesseract Language:", font=("Segoe UI", 9, "bold")).grid(row=0,column=0,sticky="w")
-        langs = get_tesseract_langs()
-        v_lang = tk.StringVar(value=CFG.get("ocr_lang"))
-        
-        current = v_lang.get()
-        if "(" not in current and current in langs: pass 
-        else: 
-            match = next((l for l in langs if f"({current})" in l), None)
-            if match: v_lang.set(match)
-            
-        ttk.Combobox(lf_ocr, textvariable=v_lang, values=langs, state="readonly").grid(row=0,column=1,sticky="e")
-        
-        fr_btns = tk.Frame(lf_ocr)
-        fr_btns.grid(row=1, column=0, columnspan=2, pady=10, sticky="e")
-        
-        def open_lang_folder():
-            path = os.environ.get("TESSDATA_PREFIX")
-            if not path and HAS_TESSERACT:
-                try: path = str(Path(pytesseract.pytesseract.tesseract_cmd).parent / "tessdata")
-                except: path = None
-            if path and Path(path).exists(): SystemUtils.open_file(path)
-            else: messagebox.showerror("Error", "Could not locate tessdata folder automatically.")
-
-        def open_help():
-            webbrowser.open("https://github.com/tesseract-ocr/tessdata_best")
-
-        self.Btn(fr_btns, text="Open Language Folder", command=open_lang_folder).pack(side="left", padx=5)
-        self.Btn(fr_btns, text="Get Languages (Web)", command=open_help).pack(side="left", padx=5)
-
-        lf_support = tk.LabelFrame(win, text="Support & Diagnostics", padx=10, pady=10)
-        lf_support.pack(fill="x", padx=10, pady=5)
-        
-        def do_export_debug():
-            self.start_debug_export_thread(btn_export, win)
-
-        btn_export = self.Btn(lf_support, text="Export Debug Bundle (Zipped Logs)", command=do_export_debug)
-        btn_export.pack(fill="x", pady=2)
-        
-        # --- DOCUMENTATION BUTTONS ---
-        f_docs = tk.Frame(lf_support); f_docs.pack(fill="x", pady=5)
-        self.Btn(f_docs, text="View Changelog", command=lambda: DocViewer(win, "CHANGELOG.md", "Version History")).pack(side="left", fill="x", expand=True, padx=(0,5))
-        self.Btn(f_docs, text="View User Guide", command=lambda: DocViewer(win, "README.md", "User Guide")).pack(side="left", fill="x", expand=True, padx=(5,0))
-
-        def save():
-            CFG.set("max_threads", v_threads.get())
-            try: 
-                px_val = int(v_pixels.get())
-                if px_val <= 0: raise ValueError
-                CFG.set("max_pixels", px_val)
-            except: 
-                 CFG.set("max_pixels", 500000000)
-            
-            CFG.set("default_ingest_mode", v_ingest.get())
-            CFG.set("default_export_prio", v_export.get())
-            
-            code = parse_lang_code(v_lang.get())
-            CFG.set("ocr_lang", code)
-            
-            Image.MAX_IMAGE_PIXELS = int(CFG.get("max_pixels"))
-            self.prio_var.set(v_export.get())
-            messagebox.showinfo("Saved", "Preferences updated.")
-            win.destroy()
-            
-        btn_fr = tk.Frame(win); btn_fr.pack(pady=20)
-        self.Btn(btn_fr, text="Save & Close", command=save, bg="#e8f5e9").pack(side="left", padx=10)
-
-    def start_debug_export_thread(self, btn_ref, win_ref):
-        def _run():
-            ws = self.get_ws()
-            # Capture the path as a string safely on the main thread
-            ws_str = str(ws) if ws else None
-            # Delegate to worker without touching UI
-            self.worker.run_debug_export(ws_str)
-            self.q.put(("export_reset_btn", btn_ref))
-        
-        btn_ref.config(text="Exporting...", state="disabled")
-        threading.Thread(target=_run, daemon=True).start()
-
-    def on_close(self):
-        try:
-            CFG.set("last_geometry", self.root.geometry())
-            ws = self.get_ws()
-            if ws: CFG.set("last_workspace", str(ws))
-            current_tab = self.nb.index(self.nb.select())
-            CFG.set("last_tab", current_tab)
-        except: pass
-        self.root.destroy()
-        
-    def restore_session(self):
-        try:
-            last_ws = CFG.get("last_workspace")
-            if last_ws:
-                for item in self.tree.get_children():
-                    val = self.tree.item(item)['values'][0]
-                    if Path(last_ws).name == val:
-                        self.tree.selection_set(item)
-                        self.tree.see(item)
-                        break
-            tab_idx = CFG.get("last_tab")
-            if tab_idx is not None and tab_idx < 3: self.nb.select(tab_idx)
-        except: pass
-
-    def open_receipt(self):
-        ws = self.get_ws()
-        if not ws: return
-        rpt_dir = ws / "04_Reports"
-        if rpt_dir.exists():
-            files = sorted(rpt_dir.glob("*.html"), key=os.path.getmtime, reverse=True)
-            if files: SystemUtils.open_file(files[0])
-            else: messagebox.showinfo("No Receipt", "No job receipt found yet.")
-        else: messagebox.showinfo("No Receipt", "No job receipt found.")
-
-    def open_dup_report(self):
-        ws = self.get_ws()
-        if not ws: return
-        p = ws / "03_Organized_Output" / "duplicates_report.csv"
-        if p.exists(): SystemUtils.open_file(p)
-        else: messagebox.showinfo("Not Found", "No duplicates report found.")
-
-    def open_full_csv(self):
-        ws = self.get_ws()
-        if not ws: return
-        p = ws / "04_Reports" / "Full_Inventory_Manifest.csv"
-        if p.exists(): SystemUtils.open_file(p)
-        else: messagebox.showinfo("Not Found", "CSV not generated yet.")
-
-    def filter_inspection(self, *args):
-        query = self.search_var.get().lower()
-        self.insp_tree.delete(*self.insp_tree.get_children())
-        for k, v in self.current_manifest.items():
-            name = v.get('name', '').lower()
-            uid = v.get('id', '').lower()
-            if query in name or query in uid:
-                self._insert_inspect_row(v)
-
-    def _insert_inspect_row(self, v):
-        if v.get("status") == "QUARANTINE":
-            st = "⛔ Quarantined"
-            self.insp_tree.insert("", "end", values=("Q", v.get('orig_name', v.get('name','?')), st, "-"), tags=('q',))
-        else:
-            st = "Duplicate" if len(v.get('copies',[]))>1 else "Master"
-            self.insp_tree.insert("", "end", values=(v.get('id','?'), v.get('name','?'), st, len(v.get('copies',[]))), tags=('ok',))
-
-    def on_inspect_click(self, event):
-        item_id = self.insp_tree.selection()
-        if not item_id: return
-        vals = self.insp_tree.item(item_id[0], 'values')
-        name = vals[1]
-        data = next((v for k,v in self.current_manifest.items() if v.get('name') == name or v.get('orig_name') == name), None)
-        if not data: return
-        ws = self.get_ws()
-        if not ws: return
-        if data.get("status") == "QUARANTINE":
-            reason = data.get('error_reason', 'Unknown Error')
-            messagebox.showerror("Quarantine Info", f"File: {name}\nReason: {reason}")
-            q_file = next((f for f in (ws/"00_Quarantine").iterdir() if name in f.name), None)
-            if q_file: SystemUtils.open_file(q_file.parent)
-        else:
-            f_path = ws/"01_Master_Files"/data['uid']
-            if f_path.exists():
-                 SystemUtils.open_file(f_path)
-
-    def check_run_btn(self, *args):
-        if self.running: 
-            self.btn_run.config(state="disabled")
-            return
-            
-        any_checked = any(v.get() for v in self.chk_vars.values())
-        pdf_active = self.pdf_mode_var.get() != "No Action"
-        self.btn_run.config(state="normal" if (any_checked or pdf_active) else "disabled")
-
-    def check_updates(self, manual=False):
-        try:
-            base_url = SystemUtils.UPDATE_MANIFEST_URL
-            if "REPLACE" in base_url:
-                if manual: messagebox.showinfo("Update Check", "Update URL not configured.")
-                return
-            url = f"{base_url}?t={int(time.time())}" if "?" not in base_url else f"{base_url}&t={int(time.time())}"
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            with urllib.request.urlopen(url, context=ctx, timeout=5) as r:
-                if r.status == 200:
-                    data = json.loads(r.read().decode())
-                    rem_ver = data.get("latest_version", "v0")
-                    if rem_ver > SystemUtils.CURRENT_VERSION:
-                        self.q.put(("update_avail", rem_ver, data.get("download_url")))
-                    elif manual:
-                         messagebox.showinfo("Update Check", f"You are up to date ({SystemUtils.CURRENT_VERSION}).")
-        except Exception as e: 
-            if manual: messagebox.showerror("Update Check Failed", str(e))
-
-    def ask_ingest_mode(self):
-        top = tk.Toplevel(self.root)
-        top.title("New Job Setup")
-        top.geometry("450x500") 
-        
-        App.center_toplevel(top, self.root)
-        
-        tk.Label(top, text="Select Mode", font=("Segoe UI", 12, "bold")).pack(pady=15)
-        
-        mode = tk.StringVar(value=CFG.get("default_ingest_mode"))
-        modes = [
-            ("Standard (Recommended)", "Smart Text Hash (PDFs).\nStrict Binary Hash (Others)."),
-            ("Lightning (Fastest)", "Strict Binary Hash (All Files).\nExact digital copies only."),
-            ("Deep Scan (Slowest)", "Full Text Scan (PDFs).\nStrict Binary Hash (Others).")
-        ]
-        for m, desc in modes:
-            f = tk.Frame(top, pady=10, relief="groove", bd=1); f.pack(fill="x", padx=20, pady=5)
-            tk.Radiobutton(f, text=m, variable=mode, value=m.split(" ")[0], font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=5)
-            tk.Label(f, text=desc, fg="#555", justify="left").pack(anchor="w", padx=25)
-        
-        def go():
-            # new_id = uuid.uuid4() # (Unused, clean removal)
-            top.destroy(); d = filedialog.askdirectory()
-            if d: 
-                self.toggle(False)
-                threading.Thread(target=self.wrap, args=(self.worker.run_inventory, d, mode.get()), daemon=True).start()
-        
-        self.Btn(top, text="Select Folder & Start", command=go).pack(fill="x", padx=20, pady=20, side="bottom")
-
-    def toggle(self, enable, reset=True):
-        self.running = not enable; s = "normal" if enable else "disabled"
-        if not enable: self.start_t = time.time(); self.paused = False
-        self.tree.config(selectmode="browse" if enable else "none")
-        for c in [self.btn_new, self.btn_refresh, self.btn_del, self.btn_dist, self.btn_prev, self.btn_open, self.btn_org, self.btn_full_csv, self.btn_open_csv]: 
-            try: c.configure(state=s) 
-            except: pass
-        if enable: self.check_run_btn() 
-        else: self.btn_run.config(state="disabled")
-        self.btn_stop.config(state="normal" if not enable else "disabled")
-        self.btn_pause.config(state="normal" if not enable else "disabled")
-        if enable and reset: self.on_sel(None)
-
-    def stop(self):
-        if messagebox.askyesno("Confirm Stop", "Stopping now will abort the current operation completely.\nYou will need to restart the job.\n\nAre you sure?"):
-            self.worker.stop()
-            self.btn_stop.config(state="disabled")
-            self.btn_pause.config(state="disabled")
-
-    def toggle_pause(self):
-        if self.paused:
-            self.worker.resume()
-            if not self.is_mac: self.btn_pause.config(text="PAUSE", bg="SystemButtonFace")
-            else: self.btn_pause.config(text="PAUSE")
-            self.lbl_status.config(text="Resuming...", fg="blue")
-        else:
-            self.worker.pause()
-            if not self.is_mac: self.btn_pause.config(text="RESUME", bg="yellow")
-            else: self.btn_pause.config(text="RESUME")
-        self.paused = not self.paused
-
-    def load_jobs(self, sel=None):
-        self.tree.delete(*self.tree.get_children())
-        try: items = sorted(WORKSPACES_ROOT.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)
-        except: items = []
-        for d in items:
-            if d.is_dir():
-                s = "Empty"
-                if (d/"status.json").exists(): 
-                     with open(d/"status.json") as f: s = json.load(f).get("stage","?")
-                elif (d/"Final_Delivery").exists(): s = "DISTRIBUTED"
-                elif (d/"03_Organized_Output").exists(): s = "ORGANIZED"
-                elif (d/"02_Ready_For_Redistribution").exists(): s = "PROCESSED"
-                elif (d/"01_Master_Files").exists(): s = "INGESTED"
-                
-                item_id = self.tree.insert("", "end", values=(d.name, s, datetime.fromtimestamp(d.stat().st_mtime).strftime('%Y-%m-%d %H:%M')))
-                
-                if sel and str(d) == str(Path(sel)):
-                     self.tree.selection_set(item_id)
-                     self.tree.see(item_id)
-
-    def safe_start_batch(self):
-        ws = self.get_ws()
-        opts = {k: v.get() for k,v in self.chk_vars.items()}
-        
-        p_mode = self.pdf_mode_var.get()
-        if "OCR" in p_mode: opts['pdf_mode'] = 'ocr'
-        elif "Flatten" in p_mode: opts['pdf_mode'] = 'flatten'
-        else: opts['pdf_mode'] = 'none'
-        
-        d_raw = self.dpi_var.get()
-        if "Low" in d_raw: opts['dpi'] = 150
-        elif "High" in d_raw: opts['dpi'] = 600
-        else: opts['dpi'] = 300
-        
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_batch, str(ws), opts), daemon=True).start()
-
-    def safe_start_organize(self):
-        ws = self.get_ws()
-        prio = self.prio_var.get()
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_organize, str(ws), prio), daemon=True).start()
-        
-    def safe_start_dist(self):
-        ws=self.get_ws(); src=filedialog.askdirectory() if self.var_ext.get() else None
-        prio = self.prio_var.get()
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_distribute, str(ws), src, prio), daemon=True).start()
-
-    def safe_start_full_export(self):
-        ws = self.get_ws()
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_full_export, str(ws)), daemon=True).start()
-        
-    def safe_preview(self):
-        ws=self.get_ws()
-        d_raw = self.dpi_var.get()
-        dpi = 150 if "Low" in d_raw else (600 if "High" in d_raw else 300)
-        if ws: self.toggle(False); threading.Thread(target=self.wrap, args=(self.worker.run_preview, str(ws), dpi), daemon=True).start()
-    
-    def safe_delete_job(self):
-        ws = self.get_ws()
-        if ws and messagebox.askyesno("Confirm", "Delete Job?"):
-            def _del():
-                try: shutil.rmtree(ws)
-                except Exception as e: self.q.put(("error", f"Could not delete: {e}"))
-                finally: self.q.put(("job", None))
-            threading.Thread(target=_del, daemon=True).start()
-
-    def on_sel(self, e):
-        for w in self.chk_frame.winfo_children(): w.destroy()
-        self.chk_vars.clear()
-        self.btn_run.config(state="disabled")
-        self.btn_prev.config(state="disabled")
-        self.cb_dpi.config(state="disabled")
-        self.cb_pdf.config(state="disabled")
-        self.lbl_stats.config(text="Stats: Select a job...")
-        self.btn_receipt.config(state="disabled")
-        
-        self.dpi_var.set("Medium (Standard)")
-        self.pdf_mode_var.set("No Action")
-        
-        self.btn_dist.config(state="disabled")
-        self.btn_org.config(state="disabled")
-        self.btn_dup_rpt.config(state="disabled")
-        
-        self.btn_full_csv.config(state="disabled")
-        self.btn_open_csv.config(state="disabled")
-        
-        self.current_manifest = {}
-        self.insp_tree.delete(*self.insp_tree.get_children())
-        self.search_var.set("")
-
-        if self.running: return
-        ws = self.get_ws()
-        
-        if not ws: 
-            self.btn_open.config(state="disabled")
-            return
-        
-        self.btn_open.config(state="normal")
-        self.btn_dist.config(state="normal")
-        self.btn_org.config(state="normal")
-        self.btn_full_csv.config(state="normal")
-        
-        if (ws/"04_Reports").exists():
-            if list((ws/"04_Reports").glob("Audit_Certificate_*.html")):
-                self.btn_receipt.config(state="normal")
-            if (ws/"04_Reports"/"Full_Inventory_Manifest.csv").exists():
-                self.btn_open_csv.config(state="normal")
-            
-        if (ws/"03_Organized_Output"/"duplicates_report.csv").exists():
-            self.btn_dup_rpt.config(state="normal")
-
-        try:
-            with open(ws/"stats.json") as f: s = json.load(f)
-            total_seconds = int(
-                s.get('ingest_time',0) + 
-                s.get('batch_time',0) + 
-                s.get('dist_time',0) + 
-                s.get('organize_time',0)
-            )
-            self.lbl_stats.config(text=f"Files: {s.get('total_scanned',0)} | Masters: {s.get('masters',0)} | Q: {s.get('quarantined',0)} | Time: {str(timedelta(seconds=total_seconds))}")
-        except: self.lbl_stats.config(text="Stats: N/A")
-        
-        types = set()
-        if (ws/"01_Master_Files").exists(): types = {f.suffix.lower() for f in (ws/"01_Master_Files").rglob('*') if f.is_file()}
-        
-        def ac(l,k,desc): 
-            f = tk.Frame(self.chk_frame); f.pack(fill="x", pady=2)
-            v=tk.BooleanVar(); v.trace_add("write", self.check_run_btn)
-            c=tk.Checkbutton(f,text=l,variable=v, font=("Segoe UI", 9, "bold")); c.pack(anchor="w")
-            tk.Label(f, text=desc, font=("Segoe UI", 8), fg="#555").pack(anchor="w", padx=20)
-            self.chk_vars[k]=v
-        
-        if '.pdf' in types: 
-             self.f_pdf_ctrl.pack(fill="x", padx=10, pady=2) # Show
-             self.cb_pdf.config(state="readonly")
-             self.pdf_mode_var.trace_add("write", self.check_run_btn)
-             self.btn_prev.config(state="normal")
-        else:
-             self.f_pdf_ctrl.pack_forget() 
-
-        if any(x in types for x in ['.jpg','.png']): ac("Resize Images","resize","Resize to 1920px (HD Standard)."); ac("Images to PDF","img2pdf","Bundle loose images into one PDF.")
-        if any(x in types for x in ['.docx','.xlsx']): ac("Sanitize Office","sanitize","Remove author metadata and revision history.")
-        
-        if types:
-             self.cb_dpi.config(state="readonly")
-        
-        self.log_box.delete(1.0, tk.END)
-        if (ws/"session_log.txt").exists(): self.log_box.insert(tk.END, (ws/"session_log.txt").read_text(encoding="utf-8"))
-        
-        if (ws/"manifest.json").exists():
-            try:
-                with open(ws/"manifest.json") as f:
-                    self.current_manifest = json.load(f)
-                    for k,v in self.current_manifest.items():
-                        self._insert_inspect_row(v)
-            except: pass
-
-    def sort_tree(self, t, c, r):
-        l = [(t.set(k,c),k) for k in t.get_children('')]
-        try: l.sort(key=lambda x: int(x[0]), reverse=r)
-        except: l.sort(reverse=r)
-        for i, (_,k) in enumerate(l): t.move(k,'',i)
-        t.heading(c, command=lambda: self.sort_tree(t,c,not r))
-
-    def open_app_log(self): SystemUtils.open_file(LOG_PATH)
-    def open_f(self): SystemUtils.open_file(self.get_ws())
-    def get_ws(self): s = self.tree.selection(); return WORKSPACES_ROOT / self.tree.item(s[0])['values'][0] if s else None
-    def wrap(self, func, *args):
-        try: func(*args)
-        except Exception as e: self.q.put(("error", str(e))); self.q.put(("done",))
-    def poll(self):
-        try:
-            for _ in range(20):
-                if self.q.empty(): break
-                m = self.q.get_nowait()
-                if m[0]=='log': self.log_box.insert(tk.END, m[1]+"\n"); self.log_box.see(tk.END)
-                elif m[0]=='main_p': self.p_main.set(m[1]); self.lbl_status.config(text=m[2], fg="blue")
-                elif m[0]=='status_blue': self.lbl_status.config(text=m[1], fg="blue")
-                elif m[0]=='status': self.lbl_status.config(text=m[1], fg="orange")
-                elif m[0]=='job': self.load_jobs(m[1]) 
-                elif m[0]=='done': 
-                    self.toggle(True); 
-                    self.lbl_status.config(text="Done", fg="green"); 
-                    self.btn_pause.config(text="PAUSE", bg="SystemButtonFace", state="disabled")
-                elif m[0]=='preview_done':
-                    self.toggle(True, reset=False) 
-                    self.lbl_status.config(text="Preview Ready", fg="green")
-                elif m[0]=='update_avail':
-                    if messagebox.askyesno("Update Available", f"Version {m[1]} is available.\nDownload now?"): webbrowser.open(m[2])
-                elif m[0]=='auto_open': SystemUtils.open_file(m[1])
-                elif m[0]=='error': messagebox.showerror("Error", m[1])
-                elif m[0]=='slot_config':
-                    count = m[1]
-                    for w in self.frame_slots.winfo_children(): w.destroy()
-                    self.slot_widgets = {}
-                    self.slot_frames = []
-                    for i in range(count):
-                        f = tk.Frame(self.frame_slots, relief="sunken", bd=1, bg="white")
-                        f.pack(fill="x", padx=5, pady=1)
-                        self.slot_frames.append(f)
-                        tk.Label(f, text=f"Worker {i+1}:", font=("Consolas", 8), bg="#eee", width=10).pack(side="left")
-                        lbl = tk.Label(f, text="Idle", font=("Segoe UI", 8), anchor="w", bg="white")
-                        lbl.pack(side="left", fill="x", expand=True)
-                elif m[0]=='slot_update':
-                    tid, txt, _ = m[1], m[2], m[3]
-                    if tid not in self.slot_widgets:
-                        idx = len(self.slot_widgets)
-                        if idx < len(self.slot_frames):
-                             lbl = self.slot_frames[idx].winfo_children()[1]
-                             self.slot_widgets[tid] = lbl
-                    if tid in self.slot_widgets:
-                        self.slot_widgets[tid].config(text=txt)
-                elif m[0]=='export_success':
-                    messagebox.showinfo("Export Successful", f"Debug bundle saved to:\n{Path(m[1]).name}")
-                    SystemUtils.open_file(Path(m[1]).parent)
-                elif m[0]=='export_reset_btn':
-                    try: m[1].config(text="Export Debug Bundle (Zipped Logs)", state="normal")
-                    except: pass
-
-        except: pass
-        if self.running and not self.paused: self.lbl_timer.config(text=str(timedelta(seconds=int(time.time()-self.start_t))))
-        self.root.after(100, self.poll)
-==================== END FILE: docrefine\gui\app.py ====================
 
 
 ==================== START FILE: docrefine\gui\app_qt.py ====================
@@ -3622,6 +3852,7 @@ class ForensicDialog(QDialog):
 
 
 ==================== START FILE: docrefine\gui\main_window.py ====================
+# SAVE AS: docrefine/gui/main_window.py
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -3662,7 +3893,7 @@ class MainWindow(QMainWindow):
         self.accumulated_time = 0
         
         # Worker Slots Logic
-        self.slot_map = {} # TID -> Index
+        self.slot_map = {} 
         self.slot_widgets = []
         
         central = QWidget()
@@ -3699,11 +3930,19 @@ class MainWindow(QMainWindow):
         self.lbl_stat_files = QLabel("Files: -")
         self.lbl_stat_masters = QLabel("Masters: -")
         self.lbl_stat_q = QLabel("Quarantined: -")
-        self.lbl_stat_time = QLabel("Time: -")
+        
+        # Time breakdown
+        self.lbl_t_ingest = QLabel("Ingest: -")
+        self.lbl_t_refine = QLabel("Refine: -")
+        self.lbl_t_total = QLabel("Total: -")
+        
         v_stats.addWidget(self.lbl_stat_files)
         v_stats.addWidget(self.lbl_stat_masters)
         v_stats.addWidget(self.lbl_stat_q)
-        v_stats.addWidget(self.lbl_stat_time)
+        v_stats.addWidget(QLabel("--- Timing ---"))
+        v_stats.addWidget(self.lbl_t_ingest)
+        v_stats.addWidget(self.lbl_t_refine)
+        v_stats.addWidget(self.lbl_t_total)
         left_layout.addWidget(self.gb_stats)
 
         btn_row = QHBoxLayout()
@@ -3731,22 +3970,24 @@ class MainWindow(QMainWindow):
         self.tab_refine = QWidget(); self._build_refine_tab()
         self.tab_export = QWidget(); self._build_export_tab()
         self.tab_inspect = QWidget(); self._build_inspector_tab()
-        self.tabs.addTab(self.tab_refine, "1. Refine")
-        self.tabs.addTab(self.tab_export, "2. Export")
-        self.tabs.addTab(self.tab_inspect, "🔍 Inspector")
+        
+        # FIX: Reordered Tabs (Inspector First)
+        self.tabs.addTab(self.tab_inspect, "🔍 1. Inspector")
+        self.tabs.addTab(self.tab_refine, "2. Refine")
+        self.tabs.addTab(self.tab_export, "3. Export")
         right_layout.addWidget(self.tabs)
         
         monitor_frame = QFrame()
         monitor_frame.setFrameShape(QFrame.StyledPanel)
         mon_layout = QVBoxLayout(monitor_frame)
         
+        # FIX: Stable Monitor Layout
         head_layout = QHBoxLayout()
         self.lbl_status = QLabel("Ready")
         self.lbl_status.setStyleSheet("color: #0078d7; font-weight: bold;")
         head_layout.addWidget(self.lbl_status)
-        self.lbl_timer = QLabel("00:00:00")
-        self.lbl_timer.setStyleSheet("font-family: Consolas; font-weight: bold;")
-        head_layout.addWidget(self.lbl_timer)
+        
+        # Spacer pushes everything right
         head_layout.addStretch()
         
         self.btn_receipt = QPushButton("View Receipt")
@@ -3762,12 +4003,19 @@ class MainWindow(QMainWindow):
         self.btn_stop.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold;")
         self.btn_stop.setEnabled(False)
         head_layout.addWidget(self.btn_stop)
+        
+        # Timer at the very end (fixed width to prevent jitter)
+        self.lbl_timer = QLabel("00:00:00")
+        self.lbl_timer.setStyleSheet("font-family: Consolas; font-weight: bold; padding-left: 10px;")
+        self.lbl_timer.setFixedWidth(80)
+        self.lbl_timer.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        head_layout.addWidget(self.lbl_timer)
+
         mon_layout.addLayout(head_layout)
         
         self.progress_main = QProgressBar()
         mon_layout.addWidget(self.progress_main)
         
-        # Worker Slots
         self.slot_group = QGroupBox("Active Workers")
         self.slot_layout = QGridLayout(self.slot_group)
         mon_layout.addWidget(self.slot_group)
@@ -3958,7 +4206,9 @@ class MainWindow(QMainWindow):
         self.lbl_stat_files.setText("Files: -")
         self.lbl_stat_masters.setText("Masters: -")
         self.lbl_stat_q.setText("Quarantined: -")
-        self.lbl_stat_time.setText("Time: -")
+        self.lbl_t_ingest.setText("Ingest: -")
+        self.lbl_t_refine.setText("Refine: -")
+        self.lbl_t_total.setText("Total: -")
 
     def load_stats(self, ws_path):
         try:
@@ -3966,8 +4216,14 @@ class MainWindow(QMainWindow):
             self.lbl_stat_files.setText(f"Files Scanned: {s.get('total_scanned', 0)}")
             self.lbl_stat_masters.setText(f"Unique Masters: {s.get('masters', 0)}")
             self.lbl_stat_q.setText(f"Quarantined: {s.get('quarantined', 0)}")
-            sec = int(s.get('ingest_time',0) + s.get('batch_time',0))
-            self.lbl_stat_time.setText(f"Total Time: {str(timedelta(seconds=sec))}")
+            
+            t_ing = s.get('ingest_time', 0)
+            t_ref = s.get('batch_time', 0)
+            t_tot = t_ing + t_ref + s.get('dist_time',0) + s.get('organize_time',0)
+            
+            self.lbl_t_ingest.setText(f"Ingest: {str(timedelta(seconds=int(t_ing)))}")
+            self.lbl_t_refine.setText(f"Refine: {str(timedelta(seconds=int(t_ref)))}")
+            self.lbl_t_total.setText(f"Total: {str(timedelta(seconds=int(t_tot)))}")
         except: self.reset_stats()
 
     def update_refine_context(self, ws_path):
@@ -4029,12 +4285,11 @@ class MainWindow(QMainWindow):
 
     @Slot(int)
     def setup_slots(self, count):
-        # FIX: Full reset of mapping logic
         for i in reversed(range(self.slot_layout.count())): 
             self.slot_layout.itemAt(i).widget().setParent(None)
         
-        self.slot_map = {} # Reset TID map
-        self.slot_widgets = [] # Reset Widget list
+        self.slot_map = {} 
+        self.slot_widgets = [] 
         
         row = 0; col = 0
         for i in range(count):
@@ -4047,16 +4302,12 @@ class MainWindow(QMainWindow):
 
     @Slot(dict)
     def update_slot(self, data):
-        # FIX: Assign new TIDs to next available slot
         tid = data.get('tid')
-        
         if tid not in self.slot_map:
-            # New thread appeared
             next_idx = len(self.slot_map)
             if next_idx < len(self.slot_widgets):
                 self.slot_map[tid] = next_idx
-            else:
-                return # Should not happen if worker count logic matches
+            else: return 
         
         idx = self.slot_map[tid]
         self.slot_widgets[idx].setText(data.get('text'))
@@ -4145,457 +4396,6 @@ class DocRefineAdapter(QObject):
         elif event.type == EventType.DONE:
             self.sig_done.emit()
 ==================== END FILE: docrefine\gui\qt_adapter.py ====================
-
-
-==================== START FILE: poppler\share\poppler\CMakeLists.txt ====================
-cmake_minimum_required(VERSION 3.10.0 FATAL_ERROR)
-
-project(poppler-data NONE)
-
-set(VERSION "0.4.12")
-set(datadir ${CMAKE_INSTALL_PREFIX}/share)
-set(pkgdatadir ${datadir}/poppler)
-
-set(unicode-map-files
-  unicodeMap/Big5
-  unicodeMap/Big5ascii
-  unicodeMap/EUC-CN
-  unicodeMap/EUC-JP
-  unicodeMap/GBK
-  unicodeMap/ISO-2022-CN
-  unicodeMap/ISO-2022-JP
-  unicodeMap/ISO-2022-KR
-  unicodeMap/ISO-8859-6
-  unicodeMap/ISO-8859-7
-  unicodeMap/ISO-8859-8
-  unicodeMap/ISO-8859-9
-  unicodeMap/KOI8-R
-  unicodeMap/Latin2
-  unicodeMap/Shift-JIS
-  unicodeMap/TIS-620
-  unicodeMap/Windows-1255
-)
-install(FILES ${unicode-map-files} DESTINATION ${pkgdatadir}/unicodeMap)
-
-set(cMap-files-AC1
-  cMap/Adobe-CNS1/Adobe-CNS1-0
-  cMap/Adobe-CNS1/Adobe-CNS1-1
-  cMap/Adobe-CNS1/Adobe-CNS1-2
-  cMap/Adobe-CNS1/Adobe-CNS1-3
-  cMap/Adobe-CNS1/Adobe-CNS1-4
-  cMap/Adobe-CNS1/Adobe-CNS1-5
-  cMap/Adobe-CNS1/Adobe-CNS1-6
-  cMap/Adobe-CNS1/Adobe-CNS1-7
-  cMap/Adobe-CNS1/Adobe-CNS1-B5pc
-  cMap/Adobe-CNS1/Adobe-CNS1-ETen-B5
-  cMap/Adobe-CNS1/Adobe-CNS1-H-CID
-  cMap/Adobe-CNS1/Adobe-CNS1-H-Host
-  cMap/Adobe-CNS1/Adobe-CNS1-H-Mac
-  cMap/Adobe-CNS1/Adobe-CNS1-UCS2
-  cMap/Adobe-CNS1/B5-H
-  cMap/Adobe-CNS1/B5pc-H
-  cMap/Adobe-CNS1/B5pc-UCS2
-  cMap/Adobe-CNS1/B5pc-UCS2C
-  cMap/Adobe-CNS1/B5pc-V
-  cMap/Adobe-CNS1/B5-V
-  cMap/Adobe-CNS1/CNS1-H
-  cMap/Adobe-CNS1/CNS1-V
-  cMap/Adobe-CNS1/CNS2-H
-  cMap/Adobe-CNS1/CNS2-V
-  cMap/Adobe-CNS1/CNS-EUC-H
-  cMap/Adobe-CNS1/CNS-EUC-V
-  cMap/Adobe-CNS1/ETen-B5-H
-  cMap/Adobe-CNS1/ETen-B5-UCS2
-  cMap/Adobe-CNS1/ETen-B5-V
-  cMap/Adobe-CNS1/ETenms-B5-H
-  cMap/Adobe-CNS1/ETenms-B5-V
-  cMap/Adobe-CNS1/ETHK-B5-H
-  cMap/Adobe-CNS1/ETHK-B5-V
-  cMap/Adobe-CNS1/HKdla-B5-H
-  cMap/Adobe-CNS1/HKdla-B5-V
-  cMap/Adobe-CNS1/HKdlb-B5-H
-  cMap/Adobe-CNS1/HKdlb-B5-V
-  cMap/Adobe-CNS1/HKgccs-B5-H
-  cMap/Adobe-CNS1/HKgccs-B5-V
-  cMap/Adobe-CNS1/HKm314-B5-H
-  cMap/Adobe-CNS1/HKm314-B5-V
-  cMap/Adobe-CNS1/HKm471-B5-H
-  cMap/Adobe-CNS1/HKm471-B5-V
-  cMap/Adobe-CNS1/HKscs-B5-H
-  cMap/Adobe-CNS1/HKscs-B5-V
-  cMap/Adobe-CNS1/UCS2-B5pc
-  cMap/Adobe-CNS1/UCS2-ETen-B5
-  cMap/Adobe-CNS1/UniCNS-UCS2-H
-  cMap/Adobe-CNS1/UniCNS-UCS2-V
-  cMap/Adobe-CNS1/UniCNS-UTF16-H
-  cMap/Adobe-CNS1/UniCNS-UTF16-V
-  cMap/Adobe-CNS1/UniCNS-UTF32-H
-  cMap/Adobe-CNS1/UniCNS-UTF32-V
-  cMap/Adobe-CNS1/UniCNS-UTF8-H
-  cMap/Adobe-CNS1/UniCNS-UTF8-V
-)
-install(FILES ${cMap-files-AC1} DESTINATION ${pkgdatadir}/cMap/Adobe-CNS1)
-
-set(cMap-files-AG1
-  cMap/Adobe-GB1/Adobe-GB1-0
-  cMap/Adobe-GB1/Adobe-GB1-1
-  cMap/Adobe-GB1/Adobe-GB1-2
-  cMap/Adobe-GB1/Adobe-GB1-3
-  cMap/Adobe-GB1/Adobe-GB1-4
-  cMap/Adobe-GB1/Adobe-GB1-5
-  cMap/Adobe-GB1/Adobe-GB1-GBK-EUC
-  cMap/Adobe-GB1/Adobe-GB1-GBpc-EUC
-  cMap/Adobe-GB1/Adobe-GB1-H-CID
-  cMap/Adobe-GB1/Adobe-GB1-H-Host
-  cMap/Adobe-GB1/Adobe-GB1-H-Mac
-  cMap/Adobe-GB1/Adobe-GB1-UCS2
-  cMap/Adobe-GB1/GB-EUC-H
-  cMap/Adobe-GB1/GB-EUC-V
-  cMap/Adobe-GB1/GB-H
-  cMap/Adobe-GB1/GBK2K-H
-  cMap/Adobe-GB1/GBK2K-V
-  cMap/Adobe-GB1/GBK-EUC-H
-  cMap/Adobe-GB1/GBK-EUC-UCS2
-  cMap/Adobe-GB1/GBK-EUC-V
-  cMap/Adobe-GB1/GBKp-EUC-H
-  cMap/Adobe-GB1/GBKp-EUC-V
-  cMap/Adobe-GB1/GBpc-EUC-H
-  cMap/Adobe-GB1/GBpc-EUC-UCS2
-  cMap/Adobe-GB1/GBpc-EUC-UCS2C
-  cMap/Adobe-GB1/GBpc-EUC-V
-  cMap/Adobe-GB1/GBT-EUC-H
-  cMap/Adobe-GB1/GBT-EUC-V
-  cMap/Adobe-GB1/GBT-H
-  cMap/Adobe-GB1/GBTpc-EUC-H
-  cMap/Adobe-GB1/GBTpc-EUC-V
-  cMap/Adobe-GB1/GBT-V
-  cMap/Adobe-GB1/GB-V
-  cMap/Adobe-GB1/UCS2-GBK-EUC
-  cMap/Adobe-GB1/UCS2-GBpc-EUC
-  cMap/Adobe-GB1/UniGB-UCS2-H
-  cMap/Adobe-GB1/UniGB-UCS2-V
-  cMap/Adobe-GB1/UniGB-UTF16-H
-  cMap/Adobe-GB1/UniGB-UTF16-V
-  cMap/Adobe-GB1/UniGB-UTF32-H
-  cMap/Adobe-GB1/UniGB-UTF32-V
-  cMap/Adobe-GB1/UniGB-UTF8-H
-  cMap/Adobe-GB1/UniGB-UTF8-V
-)
-install(FILES ${cMap-files-AG1} DESTINATION ${pkgdatadir}/cMap/Adobe-GB1)
-
-set(cMap-files-AJ1
-  cMap/Adobe-Japan1/78-EUC-H
-  cMap/Adobe-Japan1/78-EUC-V
-  cMap/Adobe-Japan1/78-H
-  cMap/Adobe-Japan1/78ms-RKSJ-H
-  cMap/Adobe-Japan1/78ms-RKSJ-V
-  cMap/Adobe-Japan1/78-RKSJ-H
-  cMap/Adobe-Japan1/78-RKSJ-V
-  cMap/Adobe-Japan1/78-V
-  cMap/Adobe-Japan1/83pv-RKSJ-H
-  cMap/Adobe-Japan1/90msp-RKSJ-H
-  cMap/Adobe-Japan1/90msp-RKSJ-V
-  cMap/Adobe-Japan1/90ms-RKSJ-H
-  cMap/Adobe-Japan1/90ms-RKSJ-UCS2
-  cMap/Adobe-Japan1/90ms-RKSJ-V
-  cMap/Adobe-Japan1/90pv-RKSJ-H
-  cMap/Adobe-Japan1/90pv-RKSJ-UCS2
-  cMap/Adobe-Japan1/90pv-RKSJ-UCS2C
-  cMap/Adobe-Japan1/90pv-RKSJ-V
-  cMap/Adobe-Japan1/Add-H
-  cMap/Adobe-Japan1/Add-RKSJ-H
-  cMap/Adobe-Japan1/Add-RKSJ-V
-  cMap/Adobe-Japan1/Add-V
-  cMap/Adobe-Japan1/Adobe-Japan1-0
-  cMap/Adobe-Japan1/Adobe-Japan1-1
-  cMap/Adobe-Japan1/Adobe-Japan1-2
-  cMap/Adobe-Japan1/Adobe-Japan1-3
-  cMap/Adobe-Japan1/Adobe-Japan1-4
-  cMap/Adobe-Japan1/Adobe-Japan1-5
-  cMap/Adobe-Japan1/Adobe-Japan1-6
-  cMap/Adobe-Japan1/Adobe-Japan1-7
-  cMap/Adobe-Japan1/Adobe-Japan1-90ms-RKSJ
-  cMap/Adobe-Japan1/Adobe-Japan1-90pv-RKSJ
-  cMap/Adobe-Japan1/Adobe-Japan1-H-CID
-  cMap/Adobe-Japan1/Adobe-Japan1-H-Host
-  cMap/Adobe-Japan1/Adobe-Japan1-H-Mac
-  cMap/Adobe-Japan1/Adobe-Japan1-PS-H
-  cMap/Adobe-Japan1/Adobe-Japan1-PS-V
-  cMap/Adobe-Japan1/Adobe-Japan1-UCS2
-  cMap/Adobe-Japan1/EUC-H
-  cMap/Adobe-Japan1/EUC-V
-  cMap/Adobe-Japan1/Ext-H
-  cMap/Adobe-Japan1/Ext-RKSJ-H
-  cMap/Adobe-Japan1/Ext-RKSJ-V
-  cMap/Adobe-Japan1/Ext-V
-  cMap/Adobe-Japan1/H
-  cMap/Adobe-Japan1/Hankaku
-  cMap/Adobe-Japan1/Hiragana
-  cMap/Adobe-Japan1/Hojo-EUC-H
-  cMap/Adobe-Japan1/Hojo-EUC-V
-  cMap/Adobe-Japan1/Hojo-H
-  cMap/Adobe-Japan1/Hojo-V
-  cMap/Adobe-Japan1/Katakana
-  cMap/Adobe-Japan1/NWP-H
-  cMap/Adobe-Japan1/NWP-V
-  cMap/Adobe-Japan1/RKSJ-H
-  cMap/Adobe-Japan1/RKSJ-V
-  cMap/Adobe-Japan1/Roman
-  cMap/Adobe-Japan1/UCS2-90ms-RKSJ
-  cMap/Adobe-Japan1/UCS2-90pv-RKSJ
-  cMap/Adobe-Japan1/UniHojo-UCS2-H
-  cMap/Adobe-Japan1/UniHojo-UCS2-V
-  cMap/Adobe-Japan1/UniHojo-UTF16-H
-  cMap/Adobe-Japan1/UniHojo-UTF16-V
-  cMap/Adobe-Japan1/UniHojo-UTF32-H
-  cMap/Adobe-Japan1/UniHojo-UTF32-V
-  cMap/Adobe-Japan1/UniHojo-UTF8-H
-  cMap/Adobe-Japan1/UniHojo-UTF8-V
-  cMap/Adobe-Japan1/UniJIS2004-UTF16-H
-  cMap/Adobe-Japan1/UniJIS2004-UTF16-V
-  cMap/Adobe-Japan1/UniJIS2004-UTF32-H
-  cMap/Adobe-Japan1/UniJIS2004-UTF32-V
-  cMap/Adobe-Japan1/UniJIS2004-UTF8-H
-  cMap/Adobe-Japan1/UniJIS2004-UTF8-V
-  cMap/Adobe-Japan1/UniJISPro-UCS2-HW-V
-  cMap/Adobe-Japan1/UniJISPro-UCS2-V
-  cMap/Adobe-Japan1/UniJISPro-UTF8-V
-  cMap/Adobe-Japan1/UniJIS-UCS2-H
-  cMap/Adobe-Japan1/UniJIS-UCS2-HW-H
-  cMap/Adobe-Japan1/UniJIS-UCS2-HW-V
-  cMap/Adobe-Japan1/UniJIS-UCS2-V
-  cMap/Adobe-Japan1/UniJIS-UTF16-H
-  cMap/Adobe-Japan1/UniJIS-UTF16-V
-  cMap/Adobe-Japan1/UniJIS-UTF32-H
-  cMap/Adobe-Japan1/UniJIS-UTF32-V
-  cMap/Adobe-Japan1/UniJIS-UTF8-H
-  cMap/Adobe-Japan1/UniJIS-UTF8-V
-  cMap/Adobe-Japan1/UniJISX02132004-UTF32-H
-  cMap/Adobe-Japan1/UniJISX02132004-UTF32-V
-  cMap/Adobe-Japan1/UniJISX0213-UTF32-H
-  cMap/Adobe-Japan1/UniJISX0213-UTF32-V
-  cMap/Adobe-Japan1/V
-  cMap/Adobe-Japan1/WP-Symbol
-)
-install(FILES ${cMap-files-AJ1} DESTINATION ${pkgdatadir}/cMap/Adobe-Japan1)
-
-set(cMap-files-AJ2
-  cMap/Adobe-Japan2/Adobe-Japan2-0
-)
-install(FILES ${cMap-files-AJ2} DESTINATION ${pkgdatadir}/cMap/Adobe-Japan2)
-
-set(cMap-files-AK1
-  cMap/Adobe-Korea1/Adobe-Korea1-0
-  cMap/Adobe-Korea1/Adobe-Korea1-1
-  cMap/Adobe-Korea1/Adobe-Korea1-2
-  cMap/Adobe-Korea1/Adobe-Korea1-H-CID
-  cMap/Adobe-Korea1/Adobe-Korea1-H-Host
-  cMap/Adobe-Korea1/Adobe-Korea1-H-Mac
-  cMap/Adobe-Korea1/Adobe-Korea1-KSCms-UHC
-  cMap/Adobe-Korea1/Adobe-Korea1-KSCpc-EUC
-  cMap/Adobe-Korea1/Adobe-Korea1-UCS2
-  cMap/Adobe-Korea1/KSC-EUC-H
-  cMap/Adobe-Korea1/KSC-EUC-V
-  cMap/Adobe-Korea1/KSC-H
-  cMap/Adobe-Korea1/KSC-Johab-H
-  cMap/Adobe-Korea1/KSC-Johab-V
-  cMap/Adobe-Korea1/KSCms-UHC-H
-  cMap/Adobe-Korea1/KSCms-UHC-HW-H
-  cMap/Adobe-Korea1/KSCms-UHC-HW-V
-  cMap/Adobe-Korea1/KSCms-UHC-UCS2
-  cMap/Adobe-Korea1/KSCms-UHC-V
-  cMap/Adobe-Korea1/KSCpc-EUC-H
-  cMap/Adobe-Korea1/KSCpc-EUC-UCS2
-  cMap/Adobe-Korea1/KSCpc-EUC-UCS2C
-  cMap/Adobe-Korea1/KSCpc-EUC-V
-  cMap/Adobe-Korea1/KSC-V
-  cMap/Adobe-Korea1/UCS2-KSCms-UHC
-  cMap/Adobe-Korea1/UCS2-KSCpc-EUC
-  cMap/Adobe-Korea1/UniKS-UCS2-H
-  cMap/Adobe-Korea1/UniKS-UCS2-V
-  cMap/Adobe-Korea1/UniKS-UTF16-H
-  cMap/Adobe-Korea1/UniKS-UTF16-V
-  cMap/Adobe-Korea1/UniKS-UTF32-H
-  cMap/Adobe-Korea1/UniKS-UTF32-V
-  cMap/Adobe-Korea1/UniKS-UTF8-H
-  cMap/Adobe-Korea1/UniKS-UTF8-V
-)
-install(FILES ${cMap-files-AK1} DESTINATION ${pkgdatadir}/cMap/Adobe-Korea1)
-
-set(cMap-files-AKR
-  cMap/Adobe-KR/Adobe-KR-0
-  cMap/Adobe-KR/Adobe-KR-1
-  cMap/Adobe-KR/Adobe-KR-2
-  cMap/Adobe-KR/Adobe-KR-3
-  cMap/Adobe-KR/Adobe-KR-4
-  cMap/Adobe-KR/Adobe-KR-5
-  cMap/Adobe-KR/Adobe-KR-6
-  cMap/Adobe-KR/Adobe-KR-7
-  cMap/Adobe-KR/Adobe-KR-8
-  cMap/Adobe-KR/Adobe-KR-9
-  cMap/Adobe-KR/Adobe-KR-UCS2
-  cMap/Adobe-KR/UniAKR-UTF16-H
-  cMap/Adobe-KR/UniAKR-UTF32-H
-  cMap/Adobe-KR/UniAKR-UTF8-H
-)
-install(FILES ${cMap-files-AKR} DESTINATION ${pkgdatadir}/cMap/Adobe-KR)
-
-set(name-to-unicode-files
-  nameToUnicode/Bulgarian
-  nameToUnicode/Greek
-  nameToUnicode/Thai
-)
-install(FILES ${name-to-unicode-files} DESTINATION ${pkgdatadir}/nameToUnicode)
-
-set(cid-to-unicode-files
-  cidToUnicode/Adobe-GB1
-  cidToUnicode/Adobe-CNS1
-  cidToUnicode/Adobe-Japan1
-  cidToUnicode/Adobe-Korea1
-)
-install(FILES ${cid-to-unicode-files} DESTINATION ${pkgdatadir}/cidToUnicode)
-
-configure_file(poppler-data.pc.in poppler-data.pc @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/poppler-data.pc DESTINATION ${datadir}/pkgconfig)
-
-==================== END FILE: poppler\share\poppler\CMakeLists.txt ====================
-
-
-==================== START FILE: Tesseract-OCR\doc\README.md ====================
-# Tesseract OCR
-
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/tesseract-ocr/badge.svg)](https://scan.coverity.com/projects/tesseract-ocr)
-[![CodeQL](https://github.com/tesseract-ocr/tesseract/workflows/CodeQL/badge.svg)](https://github.com/tesseract-ocr/tesseract/security/code-scanning)
-[![OSS-Fuzz](https://img.shields.io/badge/oss--fuzz-fuzzing-brightgreen)](https://issues.oss-fuzz.com/issues?q=is:open%20title:tesseract-ocr)
-\
-[![GitHub license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://raw.githubusercontent.com/tesseract-ocr/tesseract/main/LICENSE)
-[![Downloads](https://img.shields.io/badge/download-all%20releases-brightgreen.svg)](https://github.com/tesseract-ocr/tesseract/releases/)
-
-## Table of Contents
-
-* [Tesseract OCR](#tesseract-ocr)
-  * [About](#about)
-  * [Brief history](#brief-history)
-  * [Installing Tesseract](#installing-tesseract)
-  * [Running Tesseract](#running-tesseract)
-  * [For developers](#for-developers)
-  * [Support](#support)
-  * [License](#license)
-  * [Dependencies](#dependencies)
-  * [Latest Version of README](#latest-version-of-readme)
-
-## About
-
-This package contains an **OCR engine** - `libtesseract` and a **command line program** - `tesseract`.
-
-Tesseract 4 adds a new neural net (LSTM) based [OCR engine](https://en.wikipedia.org/wiki/Optical_character_recognition) which is focused on line recognition, but also still supports the legacy Tesseract OCR engine of Tesseract 3 which works by recognizing character patterns. Compatibility with Tesseract 3 is enabled by using the Legacy OCR Engine mode (--oem 0).
-It also needs [traineddata](https://tesseract-ocr.github.io/tessdoc/Data-Files.html) files which support the legacy engine, for example those from the [tessdata](https://github.com/tesseract-ocr/tessdata) repository.
-
-Stefan Weil is the current lead developer. Ray Smith was the lead developer until 2018. The maintainer is Zdenko Podobny. For a list of contributors see [AUTHORS](https://github.com/tesseract-ocr/tesseract/blob/main/AUTHORS)
-and GitHub's log of [contributors](https://github.com/tesseract-ocr/tesseract/graphs/contributors).
-
-Tesseract has **unicode (UTF-8) support**, and can **recognize [more than 100 languages](https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html)** "out of the box".
-
-Tesseract supports **[various image formats](https://tesseract-ocr.github.io/tessdoc/InputFormats)** including PNG, JPEG and TIFF.
-
-Tesseract supports **various output formats**: plain text, hOCR (HTML), PDF, invisible-text-only PDF, TSV, ALTO and PAGE.
-
-You should note that in many cases, in order to get better OCR results, you'll need to **[improve the quality](https://tesseract-ocr.github.io/tessdoc/ImproveQuality.html) of the image** you are giving Tesseract.
-
-This project **does not include a GUI application**. If you need one, please see the [3rdParty](https://tesseract-ocr.github.io/tessdoc/User-Projects-%E2%80%93-3rdParty.html) documentation.
-
-Tesseract **can be trained to recognize other languages**.
-See [Tesseract Training](https://tesseract-ocr.github.io/tessdoc/Training-Tesseract.html) for more information.
-
-## Brief history
-
-Tesseract was originally developed at Hewlett-Packard Laboratories Bristol UK and at Hewlett-Packard Co, Greeley Colorado USA between 1985 and 1994, with some more changes made in 1996 to port to Windows, and some C++izing in 1998. In 2005 Tesseract was open sourced by HP. From 2006 until November 2018 it was developed by Google.
-
-Major version 5 is the current stable version and started with release
-[5.0.0](https://github.com/tesseract-ocr/tesseract/releases/tag/5.0.0) on November 30, 2021. Newer minor versions and bugfix versions are available from
-[GitHub](https://github.com/tesseract-ocr/tesseract/releases/).
-
-Latest source code is available from [main branch on GitHub](https://github.com/tesseract-ocr/tesseract/tree/main).
-Open issues can be found in [issue tracker](https://github.com/tesseract-ocr/tesseract/issues),
-and [planning documentation](https://tesseract-ocr.github.io/tessdoc/Planning.html).
-
-See **[Release Notes](https://tesseract-ocr.github.io/tessdoc/ReleaseNotes.html)**
-and **[Change Log](https://github.com/tesseract-ocr/tesseract/blob/main/ChangeLog)** for more details of the releases.
-
-## Installing Tesseract
-
-You can either [Install Tesseract via pre-built binary package](https://tesseract-ocr.github.io/tessdoc/Installation.html)
-or [build it from source](https://tesseract-ocr.github.io/tessdoc/Compiling.html).
-
-Before building Tesseract from source, please check that your system has a compiler which is one of the [supported compilers](https://tesseract-ocr.github.io/tessdoc/supported-compilers.html).
-
-## Running Tesseract
-
-Basic **[command line usage](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html)**:
-
-    tesseract imagename outputbase [-l lang] [--oem ocrenginemode] [--psm pagesegmode] [configfiles...]
-
-For more information about the various command line options use `tesseract --help` or `man tesseract`.
-
-Examples can be found in the [documentation](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html#simplest-invocation-to-ocr-an-image).
-
-## For developers
-
-Developers can use `libtesseract` [C](https://github.com/tesseract-ocr/tesseract/blob/main/include/tesseract/capi.h) or
-[C++](https://github.com/tesseract-ocr/tesseract/blob/main/include/tesseract/baseapi.h) API to build their own application. If you need bindings to `libtesseract` for other programming languages, please see the
-[wrapper](https://tesseract-ocr.github.io/tessdoc/AddOns.html#tesseract-wrappers) section in the AddOns documentation.
-
-Documentation of Tesseract generated from source code by doxygen can be found on [tesseract-ocr.github.io](https://tesseract-ocr.github.io/).
-
-## Support
-
-Before you submit an issue, please review **[the guidelines for this repository](https://github.com/tesseract-ocr/tesseract/blob/main/CONTRIBUTING.md)**.
-
-For support, first read the [documentation](https://tesseract-ocr.github.io/tessdoc/),
-particularly the [FAQ](https://tesseract-ocr.github.io/tessdoc/FAQ.html) to see if your problem is addressed there.
-If not, search the [Tesseract user forum](https://groups.google.com/g/tesseract-ocr), the [Tesseract developer forum](https://groups.google.com/g/tesseract-dev) and [past issues](https://github.com/tesseract-ocr/tesseract/issues), and if you still can't find what you need, ask for support in the mailing-lists.
-
-Mailing-lists:
-
-* [tesseract-ocr](https://groups.google.com/g/tesseract-ocr) - For tesseract users.
-* [tesseract-dev](https://groups.google.com/g/tesseract-dev) - For tesseract developers.
-
-Please report an issue only for a **bug**, not for asking questions.
-
-## License
-
-    The code in this repository is licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-**NOTE**: This software depends on other packages that may be licensed under different open source licenses.
-
-Tesseract uses [Leptonica library](http://leptonica.com/) which essentially
-uses a [BSD 2-clause license](http://leptonica.com/about-the-license.html).
-
-## Dependencies
-
-Tesseract uses [Leptonica library](https://github.com/DanBloomberg/leptonica)
-for opening input images (e.g. not documents like pdf).
-It is suggested to use leptonica with built-in support for [zlib](https://zlib.net),
-[png](https://sourceforge.net/projects/libpng) and
-[tiff](http://www.simplesystems.org/libtiff) (for multipage tiff).
-
-## Latest Version of README
-
-For the latest online version of the README.md see:
-
-<https://github.com/tesseract-ocr/tesseract/blob/main/README.md>
-
-==================== END FILE: Tesseract-OCR\doc\README.md ====================
 
 
 ==================== START FILE: tools\inventory.py ====================

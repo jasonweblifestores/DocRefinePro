@@ -1,5 +1,10 @@
 # DocRefine Pro - Changelog
 
+## [v129] - 2026-01-19
+### Maintenance
+* **Legacy Cleanup:** Permanently removed the deprecated Tkinter UI module (`docrefine/gui/app.py`).
+* **Architecture:** The application is now exclusively Qt/PySide6.
+
 ## [v128.5] - 2026-01-16
 ### UX & Stability
 * **Inspector First:** Changed default tab order to prioritize Forensic Inspection.

@@ -4,67 +4,85 @@ from pathlib import Path
 # --- CONFIGURATION ---
 OUTPUT_FILE = "FULL_PROJECT_CONTEXT.txt"
 
-# Folders to completely ignore
+# Folders to completely ignore (Recursion stops here)
 IGNORE_DIRS = {
-    ".git", "__pycache__", "dist", "build", "env", "venv", 
-    ".idea", ".vscode", "DocRefinePro.app", "dmg_content"
+    ".git", ".vscode", ".idea", "__pycache__", "venv", "env", 
+    "build", "dist", "Tesseract-OCR", "poppler", "DocRefinePro.app",
+    "53752cda3c39550673fc5dafb96c4bed" # The gist folder
 }
 
-# File extensions to include (Source Code)
-INCLUDE_EXT = {
-    ".py", ".spec", ".yml", ".yaml", ".json", ".md", ".txt", ".bat", ".ps1"
+# Files to ignore (Binaries, heavy assets, or the output file itself)
+IGNORE_EXTENSIONS = {
+    ".exe", ".dll", ".so", ".dylib", ".bin", ".zip", ".7z", ".rar", 
+    ".pdf", ".jpg", ".png", ".ico", ".icns", ".pyc", ".pyd", 
+    ".git", ".gitignore", ".DS_Store"
 }
 
-# Specific files to exclude
 IGNORE_FILES = {
-    "pack_context.py",  # Don't pack the packer itself
-    ".DS_Store",
-    "desktop.ini"
+    OUTPUT_FILE, 
+    "pack_context.py", 
+    "poetry.lock", 
+    "yarn.lock"
 }
+
+def is_text_file(file_path):
+    """Peek at the file to check if it's text or binary."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            f.read(1024)
+        return True
+    except (UnicodeDecodeError, PermissionError):
+        return False
 
 def pack_project():
-    root = Path.cwd()
-    output_path = root / OUTPUT_FILE
+    root_dir = Path.cwd()
+    print(f"📦 Packing project from: {root_dir}")
     
-    print(f"📦 Packing project from: {root}")
-    
-    with open(output_path, "w", encoding="utf-8") as out:
-        # Write Header
-        out.write("="*80 + "\n")
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as out:
+        out.write(f"================================================================================\n")
         out.write(f"PROJECT CONTEXT DUMP\n")
-        out.write(f"Source: {root.name}\n")
-        out.write("="*80 + "\n\n")
+        out.write(f"Source: DocRefine Pro (v128.5)\n")
+        out.write(f"================================================================================\n\n")
 
         file_count = 0
-        
-        for dirpath, dirnames, filenames in os.walk(root):
-            # 1. Modify dirnames in-place to skip ignored folders
-            dirnames[:] = [d for d in dirnames if d not in IGNORE_DIRS]
+        skipped_count = 0
+
+        for root, dirs, files in os.walk(root_dir):
+            # 1. Prune ignored directories in-place
+            dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
             
-            for f in filenames:
-                if f in IGNORE_FILES: continue
+            for file in files:
+                if file in IGNORE_FILES: continue
                 
-                path = Path(dirpath) / f
-                if path.suffix.lower() not in INCLUDE_EXT: continue
+                file_path = Path(root) / file
                 
-                # Calculate relative path for clarity
-                rel_path = path.relative_to(root)
-                
+                # 2. Skip binary extensions
+                if file_path.suffix.lower() in IGNORE_EXTENSIONS:
+                    continue
+
+                # 3. Skip heavy binary files detection
+                if not is_text_file(file_path):
+                    skipped_count += 1
+                    continue
+
+                # 4. Write Content
+                rel_path = file_path.relative_to(root_dir)
                 try:
-                    content = path.read_text(encoding="utf-8", errors="ignore")
+                    content = file_path.read_text(encoding='utf-8', errors='replace')
                     
-                    # Write File Banner
-                    out.write(f"\n{'='*20} START FILE: {rel_path} {'='*20}\n")
+                    out.write(f"\n==================== START FILE: {rel_path} ====================\n")
                     out.write(content)
-                    out.write(f"\n{'='*20} END FILE: {rel_path} {'='*20}\n\n")
+                    if not content.endswith("\n"): out.write("\n")
+                    out.write(f"==================== END FILE: {rel_path} ====================\n\n")
                     
-                    print(f"  + Added: {rel_path}")
+                    print(f" + Added: {rel_path}")
                     file_count += 1
                 except Exception as e:
-                    print(f"  ! Skipped {rel_path}: {e}")
+                    print(f" ! Error reading {rel_path}: {e}")
 
-    print(f"\n✅ Done! Packed {file_count} files into '{OUTPUT_FILE}'.")
-    print(f"👉 Upload '{OUTPUT_FILE}' to the Gem Knowledge section.")
+    print("-" * 50)
+    print(f"✅ DONE. Packed {file_count} files into {OUTPUT_FILE}")
+    print(f"🚫 Skipped {skipped_count} binary files.")
 
 if __name__ == "__main__":
     pack_project()
