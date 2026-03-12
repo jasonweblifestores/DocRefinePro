@@ -30,11 +30,11 @@ class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
     # ---------------------------------------------------------
-    # VERSION SYNC: Updated from v128.5 to v129
+    # VERSION SYNC: Updated from v129 to v130
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v129"
+    CURRENT_VERSION = "v130"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
-    
+
     @staticmethod
     def get_resource_dir():
         if getattr(sys, 'frozen', False): return Path(sys._MEIPASS)

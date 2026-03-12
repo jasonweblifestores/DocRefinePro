@@ -180,7 +180,23 @@ def run():
     
     window.btn_preview.clicked.connect(lambda: start_process(worker.run_preview, (get_selected_ws(), [150,300,600][window.cb_dpi.currentIndex()])))
     window.btn_org.clicked.connect(lambda: start_process(worker.run_organize, (get_selected_ws(), window.cb_prio.currentText())))
-    window.btn_dist.clicked.connect(lambda: start_process(worker.run_distribute, (get_selected_ws(), None, window.cb_prio.currentText())))
+    
+    # --- DISTRIBUTE FIX: Handle External Source Checkbox ---
+    def launch_distribute():
+        ws = get_selected_ws()
+        if not ws: return
+        
+        ext_src = None
+        if window.chk_ext_src.isChecked():
+            ext_src = QFileDialog.getExistingDirectory(window, "Select External Source Folder (e.g. Rebranded Files)")
+            if not ext_src: 
+                return # Abort process if the user cancels the folder selection dialog
+                
+        start_process(worker.run_distribute, (ws, ext_src, window.cb_prio.currentText()))
+
+    window.btn_dist.clicked.connect(launch_distribute)
+    # -------------------------------------------------------
+
     window.btn_csv.clicked.connect(lambda: start_process(worker.run_full_export, (get_selected_ws(),)))
 
     window.refresh_job_list()

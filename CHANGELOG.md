@@ -1,5 +1,9 @@
 # DocRefine Pro - Changelog
 
+## [v130] - 2026-03-12
+### Fixed
+* **Reconstruction Pipeline:** Wired up the "Override Source" checkbox to properly prompt for an external directory. This allows users to seamlessly inject externally modified files (like rebranded PDFs) into the redistribution engine, ignoring exact file extension mismatches as long as the base Unique ID matches.
+
 ## [v129] - 2026-01-19
 ### Maintenance
 * **Legacy Cleanup:** Permanently removed the deprecated Tkinter UI module (`docrefine/gui/app.py`).
