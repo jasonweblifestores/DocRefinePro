@@ -1,8 +1,9 @@
 # build_release.ps1
 # ------------------------------------------------------------------------------
-# DOCREFINE PRO BUILDER (v128 Spec-First Edition)
+# DOCREFINE PRO BUILDER (v129 Spec-First Edition)
 # ------------------------------------------------------------------------------
-$Version = "v128"
+# VERSION SYNC: Updated from v128 to v129
+$Version = "v129"
 $ErrorActionPreference = "Stop"
 
 Write-Host "🚀 STARTING PRODUCTION BUILD [$Version]..." -ForegroundColor Cyan
