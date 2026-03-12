@@ -105,6 +105,10 @@ if (-not (Test-Path $BinPath)) {
 ==================== START FILE: CHANGELOG.md ====================
 # DocRefine Pro - Changelog
 
+## [v130] - 2026-03-12
+### Fixed
+* **Reconstruction Pipeline:** Wired up the "Override Source" checkbox to properly prompt for an external directory. This allows users to seamlessly inject externally modified files (like rebranded PDFs) into the redistribution engine, ignoring exact file extension mismatches as long as the base Unique ID matches.
+
 ## [v129] - 2026-01-19
 ### Maintenance
 * **Legacy Cleanup:** Permanently removed the deprecated Tkinter UI module (`docrefine/gui/app.py`).
@@ -2141,11 +2145,11 @@ class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
     # ---------------------------------------------------------
-    # VERSION SYNC: Updated from v128.5 to v129
+    # VERSION SYNC: Updated from v129 to v130
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v129"
+    CURRENT_VERSION = "v130"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
-    
+
     @staticmethod
     def get_resource_dir():
         if getattr(sys, 'frozen', False): return Path(sys._MEIPASS)
@@ -3422,7 +3426,23 @@ def run():
     
     window.btn_preview.clicked.connect(lambda: start_process(worker.run_preview, (get_selected_ws(), [150,300,600][window.cb_dpi.currentIndex()])))
     window.btn_org.clicked.connect(lambda: start_process(worker.run_organize, (get_selected_ws(), window.cb_prio.currentText())))
-    window.btn_dist.clicked.connect(lambda: start_process(worker.run_distribute, (get_selected_ws(), None, window.cb_prio.currentText())))
+    
+    # --- DISTRIBUTE FIX: Handle External Source Checkbox ---
+    def launch_distribute():
+        ws = get_selected_ws()
+        if not ws: return
+        
+        ext_src = None
+        if window.chk_ext_src.isChecked():
+            ext_src = QFileDialog.getExistingDirectory(window, "Select External Source Folder (e.g. Rebranded Files)")
+            if not ext_src: 
+                return # Abort process if the user cancels the folder selection dialog
+                
+        start_process(worker.run_distribute, (ws, ext_src, window.cb_prio.currentText()))
+
+    window.btn_dist.clicked.connect(launch_distribute)
+    # -------------------------------------------------------
+
     window.btn_csv.clicked.connect(lambda: start_process(worker.run_full_export, (get_selected_ws(),)))
 
     window.refresh_job_list()
