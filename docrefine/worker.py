@@ -433,7 +433,20 @@ class Worker:
             self.resume()
             
             ws = Path(ws_p); self.current_ws = str(ws)
-            start_time = time.time(); src = ws/"01_Master_Files"
+            start_time = time.time()
+            
+            # --- CHAINED WORKFLOW ROUTING ---
+            if options.get("chain_flattened"):
+                src = ws / "02_Ready_For_Redistribution" / "Flattened"
+                if not src.exists() or not any(src.iterdir()):
+                    self.log("CRITICAL: Flattened cache is empty. Please run Flatten first.", True)
+                    self.emit(AppEvent(EventType.DONE))
+                    return
+                self.log("Routing: Sourcing files from Flattened cache (Chained Workflow).")
+            else:
+                src = ws / "01_Master_Files"
+            # --------------------------------
+            
             dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
             self.log(f"Refinement Start. Opts: {options}")
             self.set_job_status(ws, "PROCESSING", "Refining...")
@@ -470,7 +483,6 @@ class Worker:
                 futures = {executor.submit(self.process_file_task, f, bots, options, dst): f for f in fs}
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     if self.stop_sig: break
-                    # FIX: 100% Math
                     self.prog_main(((i+1)/len(fs))*100, f"Refining {i+1}/{len(fs)}")
                     try: 
                         r = future.result()

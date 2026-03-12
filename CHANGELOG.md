@@ -1,5 +1,9 @@
 # DocRefine Pro - Changelog
 
+## [v132] - 2026-03-12
+### Added
+* **Chained Workflow Bypass:** Added a new UI toggle in the Refine tab (`Source from Flattened Cache`) allowing users to execute sequential refinement actions (e.g. OCR) directly on files residing in the output cache rather than forcing a pull from the strict master hub. This fully supports intermediate manual editing steps like third-party visual rebranding.
+
 ## [v131] - 2026-03-12
 ### Fixed
 * **Reconstruction Safety:** Re-wrote `get_best_source` in the Worker module to support intelligent ID prefix matching for processed files. The engine now ignores minor filename variations or unexpected double extensions (e.g. `.pdf.pdf`) applied by external rebranding tools.

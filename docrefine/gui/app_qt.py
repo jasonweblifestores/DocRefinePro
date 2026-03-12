@@ -1,3 +1,4 @@
+# SAVE AS: docrefine/gui/app_qt.py
 import sys
 import threading
 import shutil
@@ -168,12 +169,15 @@ def run():
     def launch_refine():
         ws = get_selected_ws()
         if not ws: return
+        
+        # --- FIX: ADDED CHAINED WORKFLOW FLAG TO OPTIONS ---
         opts = {
             "resize": window.chk_resize.isChecked(),
             "img2pdf": window.chk_img2pdf.isChecked(),
             "sanitize": window.chk_sanitize.isChecked(),
             "pdf_mode": ['none','flatten','ocr'][window.cb_pdf_mode.currentIndex()],
-            "dpi": [150, 300, 600][window.cb_dpi.currentIndex()]
+            "dpi": [150, 300, 600][window.cb_dpi.currentIndex()],
+            "chain_flattened": window.chk_chain_flattened.isChecked()
         }
         start_process(worker.run_batch, (ws, opts), multi_threaded=True)
     window.btn_run_refine.clicked.connect(launch_refine)
@@ -181,22 +185,16 @@ def run():
     window.btn_preview.clicked.connect(lambda: start_process(worker.run_preview, (get_selected_ws(), [150,300,600][window.cb_dpi.currentIndex()])))
     window.btn_org.clicked.connect(lambda: start_process(worker.run_organize, (get_selected_ws(), window.cb_prio.currentText())))
     
-    # --- DISTRIBUTE FIX: Handle External Source Checkbox ---
     def launch_distribute():
         ws = get_selected_ws()
         if not ws: return
-        
         ext_src = None
         if window.chk_ext_src.isChecked():
             ext_src = QFileDialog.getExistingDirectory(window, "Select External Source Folder (e.g. Rebranded Files)")
-            if not ext_src: 
-                return # Abort process if the user cancels the folder selection dialog
-                
+            if not ext_src: return
         start_process(worker.run_distribute, (ws, ext_src, window.cb_prio.currentText()))
 
     window.btn_dist.clicked.connect(launch_distribute)
-    # -------------------------------------------------------
-
     window.btn_csv.clicked.connect(lambda: start_process(worker.run_full_export, (get_selected_ws(),)))
 
     window.refresh_job_list()

@@ -30,9 +30,9 @@ class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
     # ---------------------------------------------------------
-    # VERSION SYNC: Updated from v129 to v130
+    # VERSION SYNC: Updated from v131 to v132
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v130"
+    CURRENT_VERSION = "v132"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod

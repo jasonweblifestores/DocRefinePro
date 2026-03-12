@@ -105,6 +105,11 @@ if (-not (Test-Path $BinPath)) {
 ==================== START FILE: CHANGELOG.md ====================
 # DocRefine Pro - Changelog
 
+## [v131] - 2026-03-12
+### Fixed
+* **Reconstruction Safety:** Re-wrote `get_best_source` in the Worker module to support intelligent ID prefix matching for processed files. The engine now ignores minor filename variations or unexpected double extensions (e.g. `.pdf.pdf`) applied by external rebranding tools.
+* **Crash Protection:** Added strict validation checks to prevent `[Errno 2]` fatal failures if a fallback master file has been manually moved or deleted from the workspace.
+
 ## [v130] - 2026-03-12
 ### Fixed
 * **Reconstruction Pipeline:** Wired up the "Override Source" checkbox to properly prompt for an external directory. This allows users to seamlessly inject externally modified files (like rebranded PDFs) into the redistribution engine, ignoring exact file extension mismatches as long as the base Unique ID matches.
@@ -2694,25 +2699,34 @@ class Worker:
         master = ws / "01_Master_Files" / file_uid
         base_cache = ws / "02_Ready_For_Redistribution"
         
+        # EXTRACT ID: Safely grab the [0001] tag to allow for wildcard matching
+        file_id = None
+        if file_uid.startswith("[") and "]" in file_uid:
+            file_id = file_uid.split("]")[0] + "]"
+        
         def find_in_dir(d, stem):
             if d.exists():
+                # 1. Exact Name Match
                 if (d / file_uid).exists(): return d / file_uid
-                match = next((f for f in d.iterdir() if f.stem == stem), None)
-                if match: return match
+                
+                # 2. Smart Wildcard Match
+                for f in d.iterdir():
+                    if f.stem == stem: return f
+                    if file_id and f.name.startswith(file_id): return f
             return None
 
         stem = Path(file_uid).stem
         
         if "Force: OCR" in priority_mode:
             f = find_in_dir(base_cache/"OCR", stem)
-            return f if f else master
+            return f if f else (master if master.exists() else None)
             
         elif "Force: Flattened" in priority_mode:
             f = find_in_dir(base_cache/"Flattened", stem)
-            return f if f else master
+            return f if f else (master if master.exists() else None)
             
         elif "Force: Original" in priority_mode:
-            return master
+            return master if master.exists() else None
             
         else: 
             for sub in ["OCR", "Flattened", "Resized", "Sanitized", "Standard"]:

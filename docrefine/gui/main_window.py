@@ -186,6 +186,7 @@ class MainWindow(QMainWindow):
         gl_pdf.addWidget(QLabel("Mode:"))
         gl_pdf.addWidget(self.cb_pdf_mode)
         layout.addWidget(self.gb_pdf)
+        
         self.gb_gen = QGroupBox("General Actions")
         gl_gen = QVBoxLayout(self.gb_gen)
         self.chk_resize = QCheckBox("Resize Images (1920px HD Standard)")
@@ -195,6 +196,7 @@ class MainWindow(QMainWindow):
         gl_gen.addWidget(self.chk_img2pdf)
         gl_gen.addWidget(self.chk_sanitize)
         layout.addWidget(self.gb_gen)
+        
         gb_qual = QGroupBox("Processing Quality")
         gl_qual = QHBoxLayout(gb_qual)
         self.cb_dpi = QComboBox()
@@ -206,6 +208,14 @@ class MainWindow(QMainWindow):
         self.btn_preview.setEnabled(False)
         gl_qual.addWidget(self.btn_preview)
         layout.addWidget(gb_qual)
+        
+        # --- NEW: CHAINED WORKFLOW TOGGLE ---
+        self.chk_chain_flattened = QCheckBox("Source from Flattened Cache (Chained Workflow)")
+        self.chk_chain_flattened.setStyleSheet("color: #d35400; font-weight: bold; margin-top: 10px; margin-bottom: 5px;")
+        self.chk_chain_flattened.setToolTip("Pulls files from the 'Flattened' folder instead of original masters. Ideal for OCRing rebranded files.")
+        layout.addWidget(self.chk_chain_flattened)
+        # ------------------------------------
+
         self.btn_run_refine = QPushButton("Run Refinement Batch")
         self.btn_run_refine.setStyleSheet("font-weight: bold; padding: 10px;")
         self.btn_run_refine.setEnabled(False)
