@@ -20,7 +20,10 @@ try:
 except ImportError:
     pass
 
-from .config import CFG, SystemUtils, log_app
+from .config import CFG, SystemUtils, log_app, get_hidden_startupinfo
+
+class JobCancelledException(Exception):
+    pass
 
 # ==============================================================================
 #   BINARY DETECTION
@@ -51,11 +54,11 @@ class BaseProcessor:
     def __init__(self, p_func, s_check, p_event): 
         self.progress = p_func; self.stop_sig_func = s_check; self.pause_event = p_event 
     def check_state(self):
-        if self.stop_sig_func(): raise Exception("Stopped")
+        if self.stop_sig_func(): raise JobCancelledException()
         if not self.pause_event.is_set():
             self.progress(None, "Paused...", status_only=True)
             self.pause_event.wait() 
-            if self.stop_sig_func(): raise Exception("Stopped")
+            if self.stop_sig_func(): raise JobCancelledException()
 
 class PdfProcessor(BaseProcessor):
     def flatten_or_ocr(self, src, dest, mode='flatten', dpi=300):
@@ -74,7 +77,6 @@ class PdfProcessor(BaseProcessor):
                 # The worker.py throttler will ensure the UI doesn't freeze.
                 self.progress((i/pages)*100, f"Page {i}/{pages}")
                 
-                gc.collect() 
                 res = convert_from_path(str(src), dpi=dpi, first_page=i, last_page=i, poppler_path=POPPLER_BIN)
                 if not res: continue
                 img = res[0]
@@ -97,10 +99,14 @@ class PdfProcessor(BaseProcessor):
                 base = Image.open(imgs[0]).convert('RGB')
                 base.save(dest, "PDF", resolution=float(dpi), save_all=True, append_images=[Image.open(f).convert('RGB') for f in imgs[1:]])
             return True
+        except JobCancelledException:
+            raise
         except Exception as e: 
-            if str(e) == "Stopped": raise
+            log_app(f"PDF Processor Error: {e}", "ERROR")
             return False
-        finally: shutil.rmtree(temp, ignore_errors=True); gc.collect()
+        finally: 
+            shutil.rmtree(temp, ignore_errors=True)
+            gc.collect()
 
 class ImageProcessor(BaseProcessor):
     def resize(self, src, dest, w):
@@ -110,16 +116,20 @@ class ImageProcessor(BaseProcessor):
                 img.load(); r = min(w / img.width, 1.0)
                 img.resize((int(img.width * r), int(img.height * r)), Image.Resampling.LANCZOS).convert('RGB').save(dest, "JPEG", quality=85)
             return True
+        except JobCancelledException:
+            raise
         except Exception as e:
-            if str(e) == "Stopped": raise
+            log_app(f"Image Resize Error: {e}", "ERROR")
             return False
     def convert_to_pdf(self, src, dest):
         try:
             self.check_state(); self.progress(50, "Converting...")
             with Image.open(src) as img: img.load(); img.convert('RGB').save(dest, "PDF")
             return True
+        except JobCancelledException:
+            raise
         except Exception as e:
-            if str(e) == "Stopped": raise
+            log_app(f"Image PDF Convert Error: {e}", "ERROR")
             return False
 
 class OfficeProcessor(BaseProcessor):
@@ -138,6 +148,8 @@ class OfficeProcessor(BaseProcessor):
                     for f in fs: z.write(Path(r)/f, (Path(r)/f).relative_to(t))
             shutil.rmtree(t)
             return True
+        except JobCancelledException:
+            raise
         except Exception as e:
-            if str(e) == "Stopped": raise
+            log_app(f"Office Sanitize Error: {e}", "ERROR")
             shutil.copy2(src, dest); return False

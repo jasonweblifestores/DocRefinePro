@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Processing Audit Certificate</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f0f2f5; color: #333; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 900px; margin: auto; }
+        .header { border-bottom: 2px solid #0078d7; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .title h1 { margin: 0; color: #2c3e50; font-size: 24px; }
+        .title span { color: #7f8c8d; font-size: 14px; }
+        .badge { background: #0078d7; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }
+        .card-label { font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .card-value { font-size: 20px; font-weight: 600; color: #212529; }
+        .highlight { color: #28a745; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+        th { text-align: left; border-bottom: 2px solid #dee2e6; padding: 10px; color: #495057; }
+        td { border-bottom: 1px solid #dee2e6; padding: 10px; }
+        .error-row { background-color: #fff5f5; color: #c0392b; }
+        .footer { margin-top: 40px; font-size: 11px; color: #adb5bd; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">
+                <h1>Processing Audit Certificate</h1>
+                <span>DocRefine Pro {{ version }}</span>
+            </div>
+            <span class="badge">COMPLETED</span>
+        </div>
+        
+        <p><strong>Operation:</strong> {{ action_name }}<br><strong>Timestamp:</strong> {{ timestamp }}</p>
+        
+        <div class="grid">
+            <div class="card">
+                <div class="card-label">Files Processed</div>
+                <div class="card-value">{{ files_processed }} <span style="font-size:12px;color:#999">(Skipped: {{ skipped_count }})</span></div>
+            </div>
+            <div class="card">
+                <div class="card-label">Storage Reclaimed</div>
+                <div class="card-value highlight">{{ saved_mb }} MB ({{ saved_pct }}%)</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Failed</div>
+                <div class="card-value" {% if error_count > 0 %}style="color: red"{% endif %}>{{ error_count }}</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Batch Duration</div>
+                <div class="card-value">{{ batch_duration }}</div>
+            </div>
+        </div>
+
+        <h3>Exceptions & Errors</h3>
+        {% if errors %}
+        <table>
+            <thead>
+                <tr><th>File</th><th>Status</th><th>Error Details</th></tr>
+            </thead>
+            <tbody>
+                {% for error in errors %}
+                <tr class="error-row">
+                    <td>{{ error.file }}</td>
+                    <td>FAILED</td>
+                    <td>{{ error.msg }}</td>
+                </tr>
+                {% endendfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No errors reported. Clean run.</p>
+        {% endif %}
+        
+        <div class="footer">
+            This document certifies that the files listed above were processed by the DocRefine Engine.<br>
+            Generated automatically on {{ timestamp }}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,9 +1,9 @@
 # build_release.ps1
 # ------------------------------------------------------------------------------
-# DOCREFINE PRO BUILDER (v129 Spec-First Edition)
+# DOCREFINE PRO BUILDER (v133 Spec-First Edition)
 # ------------------------------------------------------------------------------
-# VERSION SYNC: Updated from v128 to v129
-$Version = "v129"
+# VERSION SYNC: Updated from v132 to v133
+$Version = "v133"
 $ErrorActionPreference = "Stop"
 
 Write-Host "🚀 STARTING PRODUCTION BUILD [$Version]..." -ForegroundColor Cyan
@@ -16,7 +16,7 @@ if (Test-Path "build") { Remove-Item -Path "build" -Recurse -Force }
 # 2. BUILD COMMAND
 Write-Host "🔨 Compiling binary using Spec file..." -ForegroundColor Yellow
 
-# v128 Update: Removed CLI overrides (--collect-all). 
+# v132 Update: Removed CLI overrides (--collect-all). 
 # We now rely 100% on DocRefinePro.spec for inclusion/exclusion logic.
 python -m PyInstaller DocRefinePro.spec --noconfirm --clean
 

@@ -10,21 +10,22 @@ import time
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+from pydantic import BaseModel
 
-if os.name == 'nt':
-    try:
-        _original_popen = subprocess.Popen
-        def safe_popen(*args, **kwargs):
-            if 'startupinfo' not in kwargs:
-                si = subprocess.STARTUPINFO()
-                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                si.wShowWindow = subprocess.SW_HIDE
-                kwargs['startupinfo'] = si
-                if 'creationflags' not in kwargs:
-                    kwargs['creationflags'] = 0x08000000 
-            return _original_popen(*args, **kwargs)
-        subprocess.Popen = safe_popen
-    except Exception as e: print(f"Warning: Could not patch subprocess: {e}")
+def get_hidden_startupinfo():
+    if os.name == 'nt':
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = subprocess.SW_HIDE
+        return si
+    return None
+
+class Constants:
+    DIR_MASTER = "01_Master_Files"
+    DIR_READY = "02_Ready_For_Redistribution"
+    DIR_ORGANIZED = "03_Organized_Output"
+    DIR_REPORTS = "04_Reports"
+    DIR_QUARANTINE = "00_Quarantine"
 
 class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
@@ -32,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Updated from v131 to v132
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v132"
+    CURRENT_VERSION = "v133"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -105,36 +106,52 @@ class SystemUtils:
                 if brew_path.exists(): return str(brew_path)
         return None
 
+class ConfigData(BaseModel):
+    ram_warning_mb: int = 1024
+    resize_width: int = 1920
+    log_level: str = "INFO"
+    max_pixels: int = 500000000
+    max_threads: int = 0
+    default_export_prio: str = "Auto (Best Available)"
+    default_ingest_mode: str = "Standard"
+    ocr_lang: str = "eng"
+    last_workspace: str = ""
+    last_geometry: str = "1024x700"
+    last_tab: int = 0
+
 class Config:
     GITHUB_REPO = "jasonweblifestores/DocRefinePro" 
-    DEFAULTS = { 
-        "ram_warning_mb": 1024, 
-        "resize_width": 1920, 
-        "log_level": "INFO",
-        "max_pixels": 500000000,
-        "max_threads": 0, 
-        "default_export_prio": "Auto (Best Available)",
-        "default_ingest_mode": "Standard", 
-        "ocr_lang": "eng",
-        "last_workspace": "",
-        "last_geometry": "1024x700",
-        "last_tab": 0
-    }
     
     def __init__(self):
-        self.data = self.DEFAULTS.copy()
         self.path = SystemUtils.get_user_data_dir() / "config.json"
+        
+        # Load or create defaults using Pydantic
         if self.path.exists():
             try:
-                with open(self.path, 'r') as f: self.data.update(json.load(f))
-            except: pass
+                with open(self.path, 'r') as f:
+                    raw_data = json.load(f)
+                self._data = ConfigData(**raw_data)
+            except Exception as e:
+                print(f"Config validation error: {e}. Falling back to defaults.")
+                self._data = ConfigData()
+        else:
+            self._data = ConfigData()
 
-    def get(self, key): return self.data.get(key, self.DEFAULTS.get(key))
-    def set(self, key, val): self.data[key] = val; self.save()
-    def reset(self): self.data = self.DEFAULTS.copy(); self.save()
+    def get(self, key):
+        return getattr(self._data, key)
+
+    def set(self, key, val):
+        setattr(self._data, key, val)
+        self.save()
+
+    def reset(self):
+        self._data = ConfigData()
+        self.save()
+
     def save(self):
         try:
-            with open(self.path, 'w') as f: json.dump(self.data, f, indent=4)
+            with open(self.path, 'w') as f:
+                f.write(self._data.model_dump_json(indent=4))
         except Exception as e: print(f"Config Save Error: {e}")
 
 CFG = Config()
@@ -152,8 +169,7 @@ c_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
 logger.addHandler(c_handler)
 
 try:
-    # FIX: mode='w' creates fresh logs every session
-    f_handler = RotatingFileHandler(LOG_PATH, maxBytes=1024*1024, backupCount=5, encoding='utf-8', mode='w')
+    f_handler = RotatingFileHandler(LOG_PATH, maxBytes=1024*1024, backupCount=5, encoding='utf-8', mode='a')
     f_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(f_handler)
 except: pass

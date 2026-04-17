@@ -1,5 +1,12 @@
 # DocRefine Pro - Changelog
 
+## [v133] - 2026-04-17
+### Infrastructure & CI/CD
+* **Zero-Touch Deployments:** Fully automated GitHub Releases pipeline, permanently replacing the manual Google Drive deployment process.
+* **Mac App Optimization:** Successfully removed the dangerous post-build Python stripping script. PyInstaller now natively filters out `QtWebEngine`, `QtQuick`, and `Qt3D` at the binary analysis level, retaining the massive file size reduction without corrupting Apple code signatures.
+* **Mac Smoke Testing:** Programmed a `--dry-run` flag into the core engine to enable fully automated, headless sanity verification. GitHub Actions now tests the compiled MacOS binary to ensure it boots without crashing before releasing it.
+* **Architectural Fixes:** Re-wrote Python internal configuration and validation using `pydantic`. Integrated `Jinja2` templating for all HTML reporting engines. Eliminated closure-loop memory leaks in PySide6 rendering.
+
 ## [v132] - 2026-03-12
 ### Added
 * **Chained Workflow Bypass:** Added a new UI toggle in the Refine tab (`Source from Flattened Cache`) allowing users to execute sequential refinement actions (e.g. OCR) directly on files residing in the output cache rather than forcing a pull from the strict master hub. This fully supports intermediate manual editing steps like third-party visual rebranding.

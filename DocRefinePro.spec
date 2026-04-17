@@ -77,6 +77,12 @@ a = Analysis(
     noarchive=False,
 )
 
+# Deep PyInstaller Native Stripping for Mac
+print("Applying heavy exclusions native to PyInstaller...")
+a.binaries = [x for x in a.binaries if not any(bad in x[0] for bad in EXCLUSION_PATTERNS)]
+a.datas = [x for x in a.datas if not any(bad in x[0] for bad in EXCLUSION_PATTERNS)]
+
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

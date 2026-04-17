@@ -5,7 +5,7 @@ param (
 )
 
 # --- CONFIGURATION ---
-$DriveLink = "https://drive.google.com/drive/folders/1_9IoOZK5dW6rsjUp5eq-3vT8LIOlKYkU?usp=sharing"
+$ReleaseLink = "https://github.com/jasonweblifestores/DocRefinePro/releases/latest"
 $GistFolder = ".\53752cda3c39550673fc5dafb96c4bed" # Folder name matches Gist ID
 $JsonFile = "$GistFolder\docrefine_version.json"
 
@@ -17,13 +17,13 @@ if (-not (Test-Path $GistFolder)) {
 
 Write-Host "=== DOCREFINE PRO DEPLOYMENT PROTOCOL ===" -ForegroundColor Cyan
 Write-Host "Target Version: $Version" -ForegroundColor Yellow
-Write-Host "Channel: Permanent Drive Folder" -ForegroundColor Yellow
+Write-Host "Channel: Automated GitHub Releases" -ForegroundColor Yellow
 
 # 1. UPDATE GIST JSON
 Write-Host "`n[1/4] Updating Update Signal (Gist)..." -ForegroundColor Green
 $JsonContent = @{
     latest_version = $Version
-    download_url = $DriveLink
+    download_url = $ReleaseLink
 } | ConvertTo-Json -Depth 2
 
 $JsonContent | Set-Content -Path $JsonFile
@@ -47,12 +47,12 @@ git push origin main --tags
 if ($LASTEXITCODE -ne 0) { Write-Error "Failed to push Repo."; exit }
 
 # 4. INSTRUCTIONS
-Write-Host "`n[4/4] DEPLOYMENT SEQUENCED." -ForegroundColor Cyan
+Write-Host "`n[4/4] ZERO-TOUCH DEPLOYMENT SEQUENCED." -ForegroundColor Cyan
 Write-Host "---------------------------------------------------"
-Write-Host "1. GitHub Actions is now building $Version."
-Write-Host "2. Wait for the build to finish."
-Write-Host "3. Download the artifacts (Win .exe / Mac .app)."
-Write-Host "4. DRAG AND DROP them into this Drive Folder:"
-Write-Host "   $DriveLink"
+Write-Host "1. GitHub Actions is now automatically building $Version."
+Write-Host "2. Once complete, the new version will be hosted live on GitHub."
+Write-Host "3. The Application Auto-Updater will securely point to:"
+Write-Host "   $ReleaseLink"
 Write-Host "---------------------------------------------------"
+Write-Host "No manual Drive uploading required anymore. You're done!"
 Pause

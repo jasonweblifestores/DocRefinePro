@@ -83,17 +83,11 @@ jobs:
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
-    # v128.4 Update: The "Nuclear" Strip + Garbage Collection
-    # 1. Runs our python script to delete heavy frameworks and clean broken symlinks
-    # 2. Runs native 'strip' on binary symbols for whatever is left
-    - name: Post-Build Manual Stripping (v128.4)
+    - name: Mac Smoke Test (Dry Run)
       run: |
-        echo "Running surgical strip script..."
-        python strip_mac.py
-        
-        echo "Stripping remaining binary symbols..."
-        find dist/DocRefinePro.app -name "*.dylib" -exec strip -x {} \;
-        strip "dist/DocRefinePro.app/Contents/MacOS/DocRefinePro"
+        echo "Booting DocRefine Pro headless..."
+        ./dist/DocRefinePro.app/Contents/MacOS/DocRefinePro --dry-run
+        echo "Smoke test passed. App initialization successful."
 
     - name: Create DMG Installer
       run: |

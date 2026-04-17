@@ -5,3 +5,5 @@ pypdf
 psutil
 pyinstaller
 PySide6
+pydantic
+jinja2

@@ -9,20 +9,18 @@ import os
 import csv
 import re
 import concurrent.futures
-import platform
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Local Package Imports
-from .config import CFG, SystemUtils, log_app, WORKSPACES_ROOT, LOG_PATH, JSON_LOG_PATH
+from .config import CFG, SystemUtils, log_app, WORKSPACES_ROOT, LOG_PATH, JSON_LOG_PATH, Constants
+from .reporting import generate_job_report
 from .core.events import AppEvent, EventType
 from .processing import (
     PdfProcessor, 
     ImageProcessor, 
     OfficeProcessor, 
     POPPLER_BIN, 
-    HAS_TESSERACT,
-    pdfinfo_from_path,
     convert_from_path
 )
 
@@ -46,138 +44,19 @@ SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.png', '.xls', '.xlsx'
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
+STATS_LOCK = threading.Lock()
+
 def update_stats_time(ws, cat, sec):
-    try:
-        p = Path(ws) / "stats.json"
-        s = {}
-        if p.exists():
-            with open(p, 'r') as f: s = json.load(f)
-        s[cat] = s.get(cat, 0.0) + sec
-        with open(p, 'w') as f: json.dump(s, f, indent=4)
-    except: pass
+    with STATS_LOCK:
+        try:
+            p = Path(ws) / "stats.json"
+            s = {}
+            if p.exists():
+                with open(p, 'r') as f: s = json.load(f)
+            s[cat] = s.get(cat, 0.0) + sec
+            with open(p, 'w') as f: json.dump(s, f, indent=4)
+        except: pass
 
-def generate_job_report(ws_path, action_name, file_results=None):
-    try:
-        ws = Path(ws_path)
-        rpt_dir = ws / "04_Reports"
-        rpt_dir.mkdir(parents=True, exist_ok=True)
-        
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
-        file_name = f"Audit_Certificate_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        
-        s = {}
-        if (ws / "stats.json").exists():
-            with open(ws / "stats.json") as f: s = json.load(f)
-        
-        total_orig = 0
-        total_new = 0
-        errors = []
-        skipped = 0
-        
-        if file_results:
-            for res in file_results:
-                if res.get('skipped'): 
-                    skipped += 1
-                    continue
-                total_orig += res.get('orig_size', 0)
-                total_new += res.get('new_size', 0)
-                if not res.get('ok', True):
-                    errors.append(res)
-        
-        saved_bytes = total_orig - total_new
-        saved_mb = round(saved_bytes / (1024 * 1024), 2)
-        saved_pct = round((saved_bytes / total_orig * 100), 1) if total_orig > 0 else 0
-
-        error_rows = ""
-        if errors:
-            rows = []
-            for e in errors:
-                fname = e.get('file', '?')
-                err_msg = e.get('error', 'Unknown')
-                rows.append(f"<tr class='error-row'><td>{fname}</td><td>FAILED</td><td>{err_msg}</td></tr>")
-            error_rows = f"<table><thead><tr><th>File</th><th>Status</th><th>Error Details</th></tr></thead><tbody>{''.join(rows)}</tbody></table>"
-        else:
-            error_rows = "<p>No errors reported. Clean run.</p>"
-
-        # Calculate breakdown times
-        t_ingest = str(timedelta(seconds=int(s.get('ingest_time', 0))))
-        t_batch = str(timedelta(seconds=int(s.get('batch_time', 0))))
-        
-        html = f"""
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f0f2f5; color: #333; }}
-                .container {{ background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 900px; margin: auto; }}
-                .header {{ border-bottom: 2px solid #0078d7; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }}
-                .title h1 {{ margin: 0; color: #2c3e50; font-size: 24px; }}
-                .title span {{ color: #7f8c8d; font-size: 14px; }}
-                .badge {{ background: #0078d7; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }}
-                .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
-                .card {{ background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }}
-                .card-label {{ font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }}
-                .card-value {{ font-size: 20px; font-weight: 600; color: #212529; }}
-                .highlight {{ color: #28a745; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
-                th {{ text-align: left; border-bottom: 2px solid #dee2e6; padding: 10px; color: #495057; }}
-                td {{ border-bottom: 1px solid #dee2e6; padding: 10px; }}
-                .error-row {{ background-color: #fff5f5; color: #c0392b; }}
-                .footer {{ margin-top: 40px; font-size: 11px; color: #adb5bd; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <div class="title">
-                        <h1>Processing Audit Certificate</h1>
-                        <span>DocRefine Pro {SystemUtils.CURRENT_VERSION}</span>
-                    </div>
-                    <span class="badge">COMPLETED</span>
-                </div>
-                
-                <p><strong>Operation:</strong> {action_name}<br><strong>Timestamp:</strong> {timestamp}</p>
-                
-                <div class="grid">
-                    <div class="card">
-                        <div class="card-label">Files Processed</div>
-                        <div class="card-value">{len(file_results) if file_results else s.get('total_scanned', 0)} <span style="font-size:12px;color:#999">(Skipped: {skipped})</span></div>
-                    </div>
-                    <div class="card">
-                        <div class="card-label">Storage Reclaimed</div>
-                        <div class="card-value highlight">{saved_mb} MB ({saved_pct}%)</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-label">Failed</div>
-                        <div class="card-value" style="color: {'red' if errors else '#212529'}">{len(errors)}</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-label">Batch Duration</div>
-                        <div class="card-value">{t_batch}</div>
-                    </div>
-                </div>
-
-                <h3>Exceptions & Errors</h3>
-                {error_rows}
-                
-                <div class="footer">
-                    This document certifies that the files listed above were processed by the DocRefine Engine.<br>
-                    Generated automatically on {timestamp}
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        with open(rpt_dir / file_name, "w", encoding="utf-8") as f:
-            f.write(html)
-        return str(rpt_dir / file_name)
-    except Exception as e:
-        print(f"Report Gen Error: {e}")
-        return None
-
-# ==============================================================================
-#   WORKER CLASS
-# ==============================================================================
 class Worker:
     def __init__(self, callback): 
         self.callback = callback 
@@ -249,8 +128,8 @@ class Worker:
         except Exception as e: return None, f"Read-Error: {str(e)[:20]}"
 
     def get_best_source(self, ws, file_uid, priority_mode="Auto (Best Available)"):
-        master = ws / "01_Master_Files" / file_uid
-        base_cache = ws / "02_Ready_For_Redistribution"
+        master = ws / Constants.DIR_MASTER / file_uid
+        base_cache = ws / Constants.DIR_READY
         
         # EXTRACT ID: Safely grab the [0001] tag to allow for wildcard matching
         file_id = None
@@ -295,8 +174,8 @@ class Worker:
             d = Path(d_str)
             start_time = time.time()
             ws = WORKSPACES_ROOT / f"{d.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            m_dir = ws / "01_Master_Files"
-            m_dir.mkdir(parents=True); (ws/"00_Quarantine").mkdir()
+            m_dir = ws / Constants.DIR_MASTER
+            m_dir.mkdir(parents=True); (ws/Constants.DIR_QUARANTINE).mkdir()
             self.current_ws = str(ws)
             self.log(f"Inventory Start: {d}")
             
@@ -324,7 +203,7 @@ class Worker:
                     h, method = self.get_hash(f, ingest_mode)
                     if not h: 
                         self.log(f"⚠️ Quarantine: {f.name}", True)
-                        shutil.copy2(f, ws/"00_Quarantine"/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
+                        shutil.copy2(f, ws/Constants.DIR_QUARANTINE/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
                         quarantined += 1; continue
                     
                     rel = str(f.relative_to(d))
@@ -437,17 +316,17 @@ class Worker:
             
             # --- CHAINED WORKFLOW ROUTING ---
             if options.get("chain_flattened"):
-                src = ws / "02_Ready_For_Redistribution" / "Flattened"
+                src = ws / Constants.DIR_READY / "Flattened"
                 if not src.exists() or not any(src.iterdir()):
                     self.log("CRITICAL: Flattened cache is empty. Please run Flatten first.", True)
                     self.emit(AppEvent(EventType.DONE))
                     return
                 self.log("Routing: Sourcing files from Flattened cache (Chained Workflow).")
             else:
-                src = ws / "01_Master_Files"
+                src = ws / Constants.DIR_MASTER
             # --------------------------------
             
-            dst = ws/"02_Ready_For_Redistribution"; dst.mkdir(exist_ok=True)
+            dst = ws/Constants.DIR_READY; dst.mkdir(exist_ok=True)
             self.log(f"Refinement Start. Opts: {options}")
             self.set_job_status(ws, "PROCESSING", "Refining...")
 
@@ -514,7 +393,7 @@ class Worker:
             self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
             start_time = time.time()
-            out = ws / "03_Organized_Output"
+            out = ws / Constants.DIR_ORGANIZED
             m = out/"Unique_Masters"; q = out/"Quarantine"
             for p in [m,q]: p.mkdir(parents=True, exist_ok=True)
             
@@ -535,7 +414,7 @@ class Worker:
                     self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": f"Exporting: {data['name']}", "percent": None}))
                     
                     if data.get("status") == "QUARANTINE": 
-                        for f in (ws/"00_Quarantine").glob("*"):
+                        for f in (ws/Constants.DIR_QUARANTINE).glob("*"):
                             if data['orig_name'] in f.name: shutil.copy2(f, q/f.name)
                     else:
                         src = self.get_best_source(ws, data['uid'], priority_mode)
@@ -616,7 +495,7 @@ class Worker:
             
             if self.stop_sig: return
 
-            q_src = ws / "00_Quarantine"
+            q_src = ws / Constants.DIR_QUARANTINE
             if q_src.exists():
                 q_dst = dst / "_QUARANTINED_FILES"; q_dst.mkdir(parents=True, exist_ok=True) 
                 for qf in q_src.iterdir(): shutil.copy2(qf, q_dst / qf.name)
@@ -641,7 +520,7 @@ class Worker:
             ws = Path(ws_p); self.current_ws = str(ws)
             if not (ws/"manifest.json").exists(): return
 
-            rpt_dir = ws / "04_Reports"
+            rpt_dir = ws / Constants.DIR_REPORTS
             rpt_dir.mkdir(parents=True, exist_ok=True)
             csv_path = rpt_dir / "Full_Inventory_Manifest.csv"
 
@@ -667,7 +546,7 @@ class Worker:
                         
                         if status == "QUARANTINE":
                             orig = data.get('orig_name', name)
-                            writer.writerow([uid, status, orig, "N/A - Quarantined", "00_Quarantine", "Binary", h, 0, data.get('error_reason', '')])
+                            writer.writerow([uid, status, orig, "N/A - Quarantined", Constants.DIR_QUARANTINE, "Binary", h, 0, data.get('error_reason', '')])
                         else:
                             copies = data.get('copies', [])
                             for copy_path in copies:
@@ -703,7 +582,7 @@ class Worker:
         try:
             self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
-            src = ws/"01_Master_Files"; pdf = next(src.glob("*.pdf"), None)
+            src = ws/Constants.DIR_MASTER; pdf = next(src.glob("*.pdf"), None)
             
             if not pdf: 
                 self.emit(AppEvent.status("PREVIEW", "No PDF found.", "red"))
