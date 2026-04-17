@@ -1,5 +1,9 @@
 # DocRefine Pro - Changelog
 
+## [v133.1] - 2026-04-17
+### Hotfix
+* **CI/CD Fix:** Resolved `ModuleNotFoundError` during build phase by syncing the GitHub pipeline installer process with `requirements.txt`.
+
 ## [v133] - 2026-04-17
 ### Infrastructure & CI/CD
 * **Zero-Touch Deployments:** Fully automated GitHub Releases pipeline, permanently replacing the manual Google Drive deployment process.

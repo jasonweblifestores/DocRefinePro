@@ -55,4 +55,4 @@ Write-Host "3. The Application Auto-Updater will securely point to:"
 Write-Host "   $ReleaseLink"
 Write-Host "---------------------------------------------------"
 Write-Host "No manual Drive uploading required anymore. You're done!"
-Pause
+
