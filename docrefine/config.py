@@ -31,7 +31,7 @@ class SystemUtils:
     IS_WIN = platform.system() == 'Windows'
     IS_MAC = platform.system() == 'Darwin'
     # ---------------------------------------------------------
-    # VERSION SYNC: Updated from v131 to v132
+    # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
     CURRENT_VERSION = "v133.1"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
@@ -91,7 +91,11 @@ class SystemUtils:
         res_dir = SystemUtils.get_resource_dir()
         if (res_dir / bin_name).exists(): return str(res_dir / bin_name)
         if (res_dir / "bin" / bin_name).exists(): return str(res_dir / "bin" / bin_name)
-        
+
+        # Bundled engines committed to the repo (Windows builds ship these folders).
+        for bundled in (res_dir / "Tesseract-OCR", res_dir / "poppler" / "Library" / "bin"):
+            if (bundled / bin_name).exists(): return str(bundled / bin_name)
+
         portable_target = res_dir / "DocRefine_Portable"
         if portable_target.exists():
              if (portable_target / bin_name).exists(): return str(portable_target)

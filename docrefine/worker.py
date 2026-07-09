@@ -44,6 +44,65 @@ SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.png', '.xls', '.xlsx'
 def sanitize_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
+def promote_duplicate_to_master(ws_path, master_uid, dup_path):
+    """Promote a duplicate file into its own standalone master entry.
+
+    Detaches the chosen copy from the group it was filed under, copies it into
+    the Master Files folder with the next available [NNNN] id, and records it as
+    a new unique master in manifest.json. Returns the new master id.
+    """
+    ws = Path(ws_path)
+    dup_path = Path(dup_path)
+    manifest_path = ws / "manifest.json"
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    entry = next((v for v in manifest.values() if v.get("uid") == master_uid), None)
+    if entry is None:
+        raise ValueError("Master entry not found in manifest.")
+
+    root = Path(entry.get("root", ""))
+    try:
+        dup_rel = str(dup_path.relative_to(root))
+    except ValueError:
+        dup_rel = dup_path.name
+
+    # Next available master number, e.g. [0007].
+    next_idx = 1
+    for v in manifest.values():
+        vid = str(v.get("id", ""))
+        if vid.startswith("[") and vid.endswith("]"):
+            try:
+                next_idx = max(next_idx, int(vid.strip("[]")) + 1)
+            except ValueError:
+                pass
+
+    new_id = f"[{next_idx:04d}]"
+    new_uid = f"{new_id}_{sanitize_filename(dup_path.name)}"
+    master_dir = ws / Constants.DIR_MASTER
+    master_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dup_path, master_dir / new_uid)
+
+    # Detach the promoted copy from its old group.
+    if dup_rel in entry.get("copies", []):
+        entry["copies"].remove(dup_rel)
+
+    # Register the new standalone master.
+    manifest[f"PROMOTED::{new_uid}"] = {
+        "master": dup_rel,
+        "copies": [dup_rel],
+        "name": dup_path.name,
+        "root": entry.get("root", ""),
+        "uid": new_uid,
+        "id": new_id,
+    }
+
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=4)
+
+    return new_id
+
 STATS_LOCK = threading.Lock()
 
 def update_stats_time(ws, cat, sec):
@@ -201,10 +260,24 @@ class Worker:
                 
                 try:
                     h, method = self.get_hash(f, ingest_mode)
-                    if not h: 
+                    if not h:
                         self.log(f"⚠️ Quarantine: {f.name}", True)
-                        shutil.copy2(f, ws/Constants.DIR_QUARANTINE/f"{uuid.uuid4()}_{sanitize_filename(f.name)}")
-                        quarantined += 1; continue
+                        q_name = f"{uuid.uuid4()}_{sanitize_filename(f.name)}"
+                        shutil.copy2(f, ws/Constants.DIR_QUARANTINE/q_name)
+                        quarantined += 1
+                        # Record quarantined files in the manifest so they stay
+                        # visible in the Inspector and the exported CSV.
+                        seen[f"QUARANTINE::{q_name}"] = {
+                            'status': 'QUARANTINE',
+                            'id': f"Q{quarantined:04d}",
+                            'name': f.name,
+                            'orig_name': q_name,
+                            'error_reason': method,
+                            'root': str(d),
+                            'master': str(f.relative_to(d)),
+                            'copies': [str(f.relative_to(d))],
+                        }
+                        continue
                     
                     rel = str(f.relative_to(d))
                     if h in seen: seen[h]['copies'].append(rel)
@@ -217,12 +290,16 @@ class Worker:
                 self.emit(AppEvent(EventType.DONE))
                 return
 
-            self.log("Tagging..."); total = len(seen)
-            for i, (h, data) in enumerate(seen.items()):
+            self.log("Tagging...")
+            master_count = 0
+            for h, data in seen.items():
                 if self.stop_sig: break
-                safe_name = f"[{i+1:04d}]_{sanitize_filename(data['name'])}"
+                if data.get('status') == 'QUARANTINE': continue  # not a master copy
+                master_count += 1
+                safe_name = f"[{master_count:04d}]_{sanitize_filename(data['name'])}"
                 shutil.copy2(d / data['master'], m_dir / safe_name)
-                data['uid'] = safe_name; data['id'] = f"[{i+1:04d}]"
+                data['uid'] = safe_name; data['id'] = f"[{master_count:04d}]"
+            total = master_count
             
             if self.stop_sig: return
 

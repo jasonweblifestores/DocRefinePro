@@ -191,4 +191,34 @@ class ForensicDialog(QDialog):
         self.view_dup.apply_zoom(factor)
 
     def mark_unique(self):
-        QMessageBox.information(self, "Info", "Promotion logic pending backend connection.")
+        if not self.dups:
+            return
+        current_dup = self.dups[self.dup_idx]
+        if not current_dup.exists():
+            QMessageBox.warning(self, "Error", "That file is no longer accessible.")
+            return
+        try:
+            from docrefine.worker import promote_duplicate_to_master
+            new_id = promote_duplicate_to_master(self.ws_path, self.master_path.name, current_dup)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not promote file:\n{e}")
+            return
+
+        # Refresh the main window so the new master appears in the Inspector.
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "on_job_selected"):
+            parent.on_job_selected()
+
+        QMessageBox.information(
+            self, "Promoted",
+            f"'{current_dup.name}' is now a unique master ({new_id})."
+        )
+
+        # Drop it from the candidate list; close if nothing left to compare.
+        self.dups.pop(self.dup_idx)
+        if not self.dups:
+            self.accept()
+            return
+        if self.dup_idx >= len(self.dups):
+            self.dup_idx = len(self.dups) - 1
+        self.load_images()

@@ -100,6 +100,9 @@ class AppController:
             if v.get('id') == file_id: entry = v; break
         
         if not entry: return
+        if 'uid' not in entry:
+            QMessageBox.information(self.window, "Info", "This is a quarantined file (no master to compare).")
+            return
         master = ws_path / Constants.DIR_MASTER / entry['uid']
         dups = []
         if 'root' in entry:
@@ -154,6 +157,7 @@ class AppController:
         for k, v in self.window.current_manifest.items():
             if v.get('id') == file_id: target = v; break
         if not target: return None, "ID not found"
+        if 'uid' not in target: return None, "Quarantined file (no master copy)"
         return Path(ws) / Constants.DIR_MASTER / target['uid'], "OK"
 
     def on_inspector_open(self, file_id):

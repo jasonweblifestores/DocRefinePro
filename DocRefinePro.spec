@@ -57,11 +57,23 @@ block_cipher = None
 target_icon = 'resources/app_icon.ico'
 if not os.path.exists(target_icon): target_icon = None
 
+# Bundle the Jinja report template so the Audit Certificate renders in frozen builds.
+extra_datas = []
+if os.path.isdir('docrefine/templates'):
+    extra_datas.append(('docrefine/templates', 'docrefine/templates'))
+
+# On Windows, ship the committed OCR/PDF engines. (Mac resolves these via Homebrew.)
+if sys.platform == 'win32':
+    if os.path.isdir('Tesseract-OCR'):
+        extra_datas.append(('Tesseract-OCR', 'Tesseract-OCR'))
+    if os.path.isdir('poppler'):
+        extra_datas.append(('poppler', 'poppler'))
+
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=filtered_binaries, 
-    datas=pyside_datas,
+    binaries=filtered_binaries,
+    datas=pyside_datas + extra_datas,
     hiddenimports=[
         'docrefine.gui.app_qt', 
         'docrefine.processing', 

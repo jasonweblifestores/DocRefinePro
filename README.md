@@ -1,28 +1,30 @@
-# DocRefine Pro v119
+# DocRefine Pro v133.1
 
 **Enterprise-Grade Document Processing & Organization Tool**
 
 **DocRefine Pro** is a standalone desktop application for batch processing document workflows (Ingestion, Deduplication, Flattening, OCR). It runs 100% locally on your machine—no cloud uploads.
 
-**v119 Update (The Great Refactor):**
-* **New Engine:** Migrated to PySide6 (Qt) for improved stability and Dark Mode support.
+**Key Features:**
+* **Qt Engine:** Built on PySide6 (Qt) for stability and Dark Mode support.
 * **Forensic Viewer 2.0:** Side-by-side comparison with synchronized zoom and panning.
 * **Multi-Threading:** Real-time visualization of active worker threads.
 * **Controls:** Pause/Resume support for long-running batch jobs.
+
+> See [CHANGELOG.md](CHANGELOG.md) for the full version history and the latest changes.
 
 ---
 
 ## 📥 Installation Instructions
 
 ### 🪟 Windows
-1.  Download `DocRefinePro_Win_v119.zip`.
+1.  Download `DocRefinePro_Win_v133.1.zip`.
 2.  Right-click the zip file -> **Extract All**.
 3.  Open the extracted folder.
 4.  Double-click **DocRefine Pro.exe**.
     * *Note: If Windows SmartScreen appears, click "More Info" -> "Run Anyway".*
 
 ### 🍎 macOS
-1.  Download `DocRefinePro_Mac_v119.dmg`.
+1.  Download `DocRefinePro_Mac_v133.1.dmg`.
 2.  Double-click the `.dmg` file to mount it.
 3.  **Drag the DocRefine Pro app** into your **Applications** folder.
     * *Note: The application size is larger (~230MB) due to the inclusion of the complete Qt6 Framework for native performance.*
