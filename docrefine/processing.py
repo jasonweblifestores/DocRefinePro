@@ -86,18 +86,24 @@ class PdfProcessor(BaseProcessor):
                     with open(f, "wb") as o: o.write(pytesseract.image_to_pdf_or_hocr(str(t_page), extension='pdf', lang=ocr_lang))
                     imgs.append(str(f))
                 else:
-                    f = temp / f"{i}.jpg"; img.convert('RGB').save(f, "JPEG", quality=85); imgs.append(str(f))
+                    # Flatten: render each page to its own single-page PDF so the
+                    # final merge streams from disk instead of loading every page
+                    # into memory at once (prevents OOM on large multi-page PDFs).
+                    f = temp / f"{i}.pdf"
+                    img.convert('RGB').save(f, "PDF", resolution=float(dpi))
+                    imgs.append(str(f))
                 del res; del img
-            
+
             self.check_state(); self.progress(100, "Merging...")
-            
-            if mode == 'ocr' and HAS_TESSERACT:
-                m = pypdf.PdfWriter(); 
-                for f in imgs: m.append(f)
-                m.write(dest); m.close()
-            else:
-                base = Image.open(imgs[0]).convert('RGB')
-                base.save(dest, "PDF", resolution=float(dpi), save_all=True, append_images=[Image.open(f).convert('RGB') for f in imgs[1:]])
+
+            if not imgs:
+                return False
+
+            # Both modes merge page PDFs incrementally, so peak memory stays
+            # bounded to a single page regardless of document length.
+            m = pypdf.PdfWriter()
+            for f in imgs: m.append(f)
+            m.write(dest); m.close()
             return True
         except JobCancelledException:
             raise

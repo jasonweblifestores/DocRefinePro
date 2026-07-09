@@ -256,7 +256,12 @@ class MainWindow(QMainWindow):
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Filter:"))
         self.txt_search = QLineEdit()
-        self.txt_search.textChanged.connect(self.filter_inspector)
+        # Debounce typing so a huge manifest isn't re-filtered on every keystroke.
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(250)
+        self._search_timer.timeout.connect(lambda: self.filter_inspector(self.txt_search.text()))
+        self.txt_search.textChanged.connect(lambda _: self._search_timer.start())
         search_layout.addWidget(self.txt_search)
         layout.addLayout(search_layout)
         self.insp_tree = QTreeWidget()
@@ -394,8 +399,14 @@ class MainWindow(QMainWindow):
         self.gb_pdf.setVisible(has_pdf); self.gb_gen.setVisible(has_img or has_office)
 
     def filter_inspector(self, text):
-        self.insp_tree.clear()
         query = text.lower()
+        tree = self.insp_tree
+        # Suspend repaints and live sorting while rebuilding; batch-insert at the
+        # end. This keeps filtering responsive even with tens of thousands of rows.
+        tree.setUpdatesEnabled(False)
+        tree.setSortingEnabled(False)
+        tree.clear()
+        items = []
         for k, v in self.current_manifest.items():
             name = v.get('name', '').lower()
             if query in name or query in v.get('id','').lower():
@@ -404,7 +415,10 @@ class MainWindow(QMainWindow):
                 item = NumericTreeWidgetItem([v.get('id','?'), v.get('name','?'), st, str(len(v.get('copies',[])))])
                 if "Quar" in st: item.setForeground(2, QColor("#e74c3c"))
                 elif "Dup" in st: item.setForeground(2, QColor("#3498db"))
-                self.insp_tree.addTopLevelItem(item)
+                items.append(item)
+        tree.addTopLevelItems(items)
+        tree.setSortingEnabled(True)
+        tree.setUpdatesEnabled(True)
 
     # --- STATE ---
     def set_processing_state(self, active, multi_threaded=False):

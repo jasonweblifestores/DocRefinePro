@@ -1,5 +1,10 @@
 # DocRefine Pro - Changelog
 
+## [v135] - 2026-07-09
+### Performance (Large-Batch Hardening)
+* **Big PDFs:** Flattening now processes and merges one page at a time instead of holding an entire document in memory, so very large multi-page PDFs no longer risk exhausting RAM during a batch.
+* **Inspector:** The file list now filters using batched inserts with sorting suspended, and search input is debounced. Filtering a manifest of tens of thousands of files stays responsive (40k rows rebuild in ~0.5s).
+
 ## [v134] - 2026-07-09
 ### Fixed
 * **Audit Certificate:** Fixed a broken template tag that caused report generation to silently fail on every job. The report template is now also bundled into the packaged app so receipts render in installed builds.

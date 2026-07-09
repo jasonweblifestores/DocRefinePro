@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v134"
+    CURRENT_VERSION = "v135"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
