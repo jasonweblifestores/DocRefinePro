@@ -1,5 +1,15 @@
 # DocRefine Pro - Changelog
 
+## [v134] - 2026-07-09
+### Fixed
+* **Audit Certificate:** Fixed a broken template tag that caused report generation to silently fail on every job. The report template is now also bundled into the packaged app so receipts render in installed builds.
+* **OCR / PDF Engines:** The app now locates the bundled Tesseract and poppler engines in their actual folders, and the Windows build packages them, so Flatten/OCR/Preview work in the released `.exe` without a separate install.
+* **Quarantine Visibility:** Files that fail ingestion are now recorded in the manifest, so they appear in the Inspector and the exported CSV instead of silently disappearing.
+### Added
+* **Mark Unique:** The Forensic viewer's "Mark Unique" button now works — it promotes a duplicate into its own standalone master file with a new ID.
+### Maintenance
+* Added missing package files; refreshed README version references; removed a stray test document from the repository.
+
 ## [v133.1] - 2026-04-17
 ### Hotfix
 * **CI/CD Fix:** Resolved `ModuleNotFoundError` during build phase by syncing the GitHub pipeline installer process with `requirements.txt`.
