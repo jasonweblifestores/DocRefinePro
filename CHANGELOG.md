@@ -1,5 +1,13 @@
 # DocRefine Pro - Changelog
 
+## [v136] - 2026-07-30
+### Added — Document Rebranding
+* **Rebrand a Folder:** Apply branding to a whole folder of PDFs while preserving the original, searchable content. Each document gets a titled cover + back cover, header/footer strips added as page *extensions* (the original page is never overlapped or cropped), and a watermark. Output keeps its text layer, stays well under 50 MB, embeds fonts, and sets PDF metadata (Author = Budget Mailboxes).
+* **Smart classification (runs locally):** A local AI model reads each document to decide what to rebrand vs. leave as-is (skipping CAD/technical drawings and certifications) and drafts the product, asset type, manufacturer, and cover title into a review spreadsheet you approve before anything runs. No cloud, no data leaves the machine.
+* **Process a Folder (pipeline):** Run your chosen steps — Flatten, Rebrand, OCR — over a folder in a safe order, with OCR always last so scanned files still end up searchable.
+### Performance
+* Rebranding and the pipeline run multi-threaded, scaled to available memory.
+
 ## [v135] - 2026-07-09
 ### Performance (Large-Batch Hardening)
 * **Big PDFs:** Flattening now processes and merges one page at a time instead of holding an entire document in memory, so very large multi-page PDFs no longer risk exhausting RAM during a batch.

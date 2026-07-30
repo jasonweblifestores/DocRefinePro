@@ -822,6 +822,80 @@ class Worker:
             self.log(f"Analyze error: {e}", True)
             self.emit(AppEvent(EventType.DONE))
 
+    def _auto_workers(self):
+        """Thread count: manual override, else scaled by RAM (like the refine engine)."""
+        try:
+            forced = int(CFG.get("max_threads"))
+        except Exception:
+            forced = 0
+        if forced > 0:
+            return max(1, forced)
+        mw = 2
+        if HAS_PSUTIL:
+            try:
+                gb = psutil.virtual_memory().total / (1024 ** 3)
+                mw = 1 if gb < 8 else (2 if gb < 16 else 4)
+            except Exception:
+                pass
+        return max(1, min(mw, os.cpu_count() or 1))
+
+    def _parallel_map(self, items, fn, label):
+        """Run fn over items on the worker pool, updating progress. Returns results in order."""
+        n = len(items)
+        if n == 0:
+            return []
+        max_workers = self._auto_workers()
+        self.emit(AppEvent(EventType.WORKER_CONFIG, max_workers))
+        results = [None] * n
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = {ex.submit(fn, it): i for i, it in enumerate(items)}
+            completed = 0
+            for fut in concurrent.futures.as_completed(futures):
+                if self.stop_sig:
+                    break
+                completed += 1
+                self.prog_main((completed / n) * 100, f"{label} {completed}/{n}")
+                try:
+                    results[futures[fut]] = fut.result()
+                except Exception as e:
+                    self.log(f"{label} error: {e}", True)
+        return results
+
+    def _apply_one_row(self, row, src, out, kit):
+        """Process one review-sheet row. Returns a status: done/oversize/leave/skip/fail."""
+        from .rebrand import (rebrand_pdf, output_filename,
+                              output_filename_from_fields, title_from_filename)
+        rel = (row.get("file") or "").strip()
+        if not rel:
+            return "skip"
+        self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": Path(rel).name, "percent": None}))
+        pdf = src / rel
+        if not pdf.exists():
+            self.log(f"Missing source: {rel}", True)
+            return "fail"
+        if (row.get("action") or "").strip().lower() == "leave":
+            dst = out / rel  # unbranded, original name/structure
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if dst.exists() and dst.stat().st_size > 0:
+                return "skip"
+            shutil.copy2(pdf, dst)
+            return "leave"
+        product = (row.get("product") or "").strip()
+        asset = (row.get("asset_type") or "").strip()
+        title = (row.get("title") or "").strip() or title_from_filename(pdf.stem)
+        manu = (row.get("manufacturer") or "").strip()
+        subtitle = f"Manufactured by {manu} | Sold by Budget Mailboxes" if manu else "Sold by Budget Mailboxes"
+        name = output_filename_from_fields(product, asset) if (product or asset) else output_filename(pdf.stem)
+        dst = out / Path(rel).parent / name
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists() and dst.stat().st_size > 0:
+            return "skip"
+        stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
+        if stats["size_mb"] >= 50:
+            self.log(f"⚠️ {name} is {stats['size_mb']} MB (over 50 MB)", True)
+            return "oversize"
+        return "done"
+
     def run_rebrand_apply(self, src_dir, kit_dir, plan_csv, out_dir=None):
         """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is."""
         try:
@@ -846,54 +920,32 @@ class Worker:
                 self.emit(AppEvent(EventType.DONE)); return
 
             self.log(f"Applying review sheet: {len(rows)} entries -> {out}")
-            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
             start_time = time.time()
-            done = left = skipped = failed = oversize = 0
 
-            for i, row in enumerate(rows):
-                if self.stop_sig: break
+            # Warm shared state once so the worker threads don't race on it.
+            from .rebrand import _ensure_font
+            _ensure_font()
+            for o in ("portrait", "landscape"):
+                if kit.has(o):
+                    kit.readers(o)
+
+            def apply_row(row):
+                if self.stop_sig:
+                    return "skip"
                 if not self.pause_event.is_set():
-                    self.prog_sub(None, "Paused...", True); self.pause_event.wait()
-
-                rel = (row.get("file") or "").strip()
-                if not rel:
-                    continue
-                pdf = src / rel
-                self.prog_main(((i + 1) / len(rows)) * 100, f"Applying {i + 1}/{len(rows)}")
-                self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": Path(rel).name, "percent": None}))
-
-                if not pdf.exists():
-                    failed += 1; self.log(f"Missing source: {rel}", True); continue
-
-                action = (row.get("action") or "").strip().lower()
+                    self.pause_event.wait()
                 try:
-                    if action == "leave":
-                        dst = out / rel  # keep original name/structure, unbranded
-                        dst.parent.mkdir(parents=True, exist_ok=True)
-                        if dst.exists() and dst.stat().st_size > 0:
-                            skipped += 1; continue
-                        shutil.copy2(pdf, dst); left += 1; continue
-
-                    product = (row.get("product") or "").strip()
-                    asset = (row.get("asset_type") or "").strip()
-                    title = (row.get("title") or "").strip() or title_from_filename(pdf.stem)
-                    manu = (row.get("manufacturer") or "").strip()
-                    subtitle = (f"Manufactured by {manu} | Sold by Budget Mailboxes"
-                                if manu else "Sold by Budget Mailboxes")
-                    name = (output_filename_from_fields(product, asset)
-                            if (product or asset) else output_filename(pdf.stem))
-                    dst = out / Path(rel).parent / name
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    if dst.exists() and dst.stat().st_size > 0:
-                        skipped += 1; continue
-                    stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
-                    done += 1
-                    if stats["size_mb"] >= 50:
-                        oversize += 1
-                        self.log(f"⚠️ {name} is {stats['size_mb']} MB (over 50 MB)", True)
+                    return self._apply_one_row(row, src, out, kit)
                 except Exception as e:
-                    failed += 1
-                    self.log(f"Failed: {rel}: {e}", True)
+                    self.log(f"Failed: {(row.get('file') or '?')}: {e}", True)
+                    return "fail"
+
+            statuses = self._parallel_map(rows, apply_row, "Applying")
+            done = sum(1 for s in statuses if s in ("done", "oversize"))
+            oversize = sum(1 for s in statuses if s == "oversize")
+            left = sum(1 for s in statuses if s == "leave")
+            skipped = sum(1 for s in statuses if s == "skip")
+            failed = sum(1 for s in statuses if s == "fail")
 
             if self.stop_sig:
                 self.log("Apply stopped by user.")
@@ -933,20 +985,21 @@ class Worker:
         from .processing import PdfProcessor
         bot = PdfProcessor(lambda v, t, s=False: self.prog_sub(v, t, s), lambda: self.stop_sig, self.pause_event)
         files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
-        for i, p in enumerate(files):
-            if self.stop_sig: return
+
+        def op(p):
+            if self.stop_sig:
+                return
             if not self.pause_event.is_set():
-                self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                self.pause_event.wait()
             rel = p.relative_to(src); dst = out / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
-            self.prog_main(((i + 1) / max(1, len(files))) * 100, f"{label} {i + 1}/{len(files)}")
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
             if p.suffix.lower() != ".pdf":
-                shutil.copy2(p, dst); continue
+                shutil.copy2(p, dst); return
             if only_no_text:
                 from .classify import extract_text
                 if len(extract_text(p) or "") >= 20:   # already searchable → leave it
-                    shutil.copy2(p, dst); continue
+                    shutil.copy2(p, dst); return
             try:
                 ok = bot.flatten_or_ocr(p, dst, mode=mode, dpi=dpi)
                 if not ok and not dst.exists():
@@ -956,24 +1009,32 @@ class Worker:
                 if not dst.exists():
                     shutil.copy2(p, dst)
 
+        self._parallel_map(files, op, label)
+
     def _folder_rebrand(self, src, plan_src, out, kit, label):
         """Rebrand every PDF from src into out, honouring a review plan from plan_src if present."""
-        from .rebrand import (rebrand_pdf, output_filename, output_filename_from_fields, title_from_filename)
+        from .rebrand import (rebrand_pdf, output_filename, output_filename_from_fields,
+                              title_from_filename, _ensure_font)
+        _ensure_font()
+        for o in ("portrait", "landscape"):
+            if kit.has(o):
+                kit.readers(o)
         plan = self._load_plan(plan_src)
         files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
-        for i, p in enumerate(files):
-            if self.stop_sig: return
+
+        def one(p):
+            if self.stop_sig:
+                return
             if not self.pause_event.is_set():
-                self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                self.pause_event.wait()
             rel = p.relative_to(src)
-            self.prog_main(((i + 1) / max(1, len(files))) * 100, f"{label} {i + 1}/{len(files)}")
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
             if p.suffix.lower() != ".pdf":
-                dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); continue
+                dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); return
             row = plan.get(str(rel).replace("\\", "/")) or plan.get(p.name)
             try:
                 if row and (row.get("action") or "").strip().lower() == "leave":
-                    dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); continue
+                    dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); return
                 if row:
                     product = (row.get("product") or "").strip(); asset = (row.get("asset_type") or "").strip()
                     title = (row.get("title") or "").strip() or title_from_filename(p.stem)
@@ -989,6 +1050,8 @@ class Worker:
                 dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True)
                 try: shutil.copy2(p, dst)
                 except Exception: pass
+
+        self._parallel_map(files, one, label)
 
     def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300, out_dir=None):
         """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR."""
