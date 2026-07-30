@@ -120,6 +120,7 @@ class ConfigData(BaseModel):
     default_ingest_mode: str = "Standard"
     ocr_lang: str = "eng"
     last_workspace: str = ""
+    last_brand_kit: str = ""
     last_geometry: str = "1024x700"
     last_tab: int = 0
 

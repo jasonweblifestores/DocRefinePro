@@ -61,6 +61,9 @@ if not os.path.exists(target_icon): target_icon = None
 extra_datas = []
 if os.path.isdir('docrefine/templates'):
     extra_datas.append(('docrefine/templates', 'docrefine/templates'))
+# Bundled fonts (Poppins for cover titles) and other rebrand assets.
+if os.path.isdir('docrefine/assets'):
+    extra_datas.append(('docrefine/assets', 'docrefine/assets'))
 
 # On Windows, ship the committed OCR/PDF engines. (Mac resolves these via Homebrew.)
 if sys.platform == 'win32':
@@ -75,10 +78,13 @@ a = Analysis(
     binaries=filtered_binaries,
     datas=pyside_datas + extra_datas,
     hiddenimports=[
-        'docrefine.gui.app_qt', 
-        'docrefine.processing', 
-        'docrefine.worker'
-    ] + filtered_hidden_imports, 
+        'docrefine.gui.app_qt',
+        'docrefine.processing',
+        'docrefine.worker',
+        'docrefine.rebrand',
+        'docrefine.classify',
+        'reportlab'
+    ] + filtered_hidden_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

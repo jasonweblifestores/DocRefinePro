@@ -218,5 +218,92 @@ class SettingsDialog(QDialog):
         if "(" in txt: code = txt.split("(")[1].replace(")", "")
         else: code = txt
         CFG.set("ocr_lang", code)
-        
+
         self.accept()
+
+class RebrandDialog(QDialog):
+    """Two-step rebrand: (1) Analyze a folder into a review sheet, then
+    (2) Apply the reviewed sheet to produce the branded PDFs."""
+    def __init__(self, parent=None, default_kit=""):
+        super().__init__(parent)
+        self.setWindowTitle("Rebrand a Folder")
+        self.resize(620, 320)
+        self.source_path = None
+        self.kit_path = default_kit or None
+        self.plan_path = None
+        self.mode = None  # "analyze" or "apply"
+
+        layout = QVBoxLayout(self)
+        title = QLabel("Rebrand a folder of PDFs")
+        title.setStyleSheet("font-weight: bold; font-size: 12pt;")
+        layout.addWidget(title)
+        layout.addWidget(QLabel("Original technical content is preserved — only Budget Mailboxes branding is added."))
+
+        self.txt_src = QLineEdit(); self.txt_src.setReadOnly(True)
+        self.txt_src.setPlaceholderText("Folder of PDFs…")
+        btn_src = QPushButton("Browse…"); btn_src.clicked.connect(self.pick_source)
+        row_src = QHBoxLayout(); row_src.addWidget(QLabel("Source folder:")); row_src.addWidget(self.txt_src, 1); row_src.addWidget(btn_src)
+        layout.addLayout(row_src)
+
+        # --- Step 1 ---
+        gb1 = QGroupBox("Step 1 — Analyze (creates a review sheet)")
+        v1 = QVBoxLayout(gb1)
+        v1.addWidget(QLabel("The local model reads each PDF and drafts what to rebrand vs. leave as-is."))
+        self.btn_analyze = QPushButton("Analyze → Create Review Sheet")
+        self.btn_analyze.clicked.connect(self.on_analyze)
+        v1.addWidget(self.btn_analyze)
+        layout.addWidget(gb1)
+
+        # --- Step 2 ---
+        gb2 = QGroupBox("Step 2 — Apply (after you review the sheet in Excel)")
+        v2 = QVBoxLayout(gb2)
+        self.txt_kit = QLineEdit(); self.txt_kit.setReadOnly(True); self.txt_kit.setText(default_kit or "")
+        self.txt_kit.setPlaceholderText("Brand kit folder (Portrait / Landscape assets)…")
+        btn_kit = QPushButton("Browse…"); btn_kit.clicked.connect(self.pick_kit)
+        row_kit = QHBoxLayout(); row_kit.addWidget(QLabel("Brand kit:")); row_kit.addWidget(self.txt_kit, 1); row_kit.addWidget(btn_kit)
+        v2.addLayout(row_kit)
+        self.txt_plan = QLineEdit(); self.txt_plan.setReadOnly(True)
+        self.txt_plan.setPlaceholderText("Reviewed sheet (_rebrand_plan.csv)…")
+        btn_plan = QPushButton("Browse…"); btn_plan.clicked.connect(self.pick_plan)
+        row_plan = QHBoxLayout(); row_plan.addWidget(QLabel("Review sheet:")); row_plan.addWidget(self.txt_plan, 1); row_plan.addWidget(btn_plan)
+        v2.addLayout(row_plan)
+        self.btn_apply = QPushButton("Apply Reviewed Sheet")
+        self.btn_apply.setStyleSheet("font-weight: bold;")
+        self.btn_apply.clicked.connect(self.on_apply)
+        v2.addWidget(self.btn_apply)
+        layout.addWidget(gb2)
+
+        note = QLabel("Output goes to a “_rebranded” folder beside the source, mirroring its structure.")
+        note.setStyleSheet("color: #888; font-size: 9pt;")
+        layout.addWidget(note)
+
+    def pick_source(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Source Folder")
+        if d:
+            self.source_path = d; self.txt_src.setText(d)
+            guess = os.path.join(d, "_rebrand_plan.csv")
+            if os.path.exists(guess) and not self.plan_path:
+                self.plan_path = guess; self.txt_plan.setText(guess)
+
+    def pick_kit(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Brand Kit Folder")
+        if d:
+            self.kit_path = d; self.txt_kit.setText(d)
+
+    def pick_plan(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Select Review Sheet", "", "CSV files (*.csv)")
+        if f:
+            self.plan_path = f; self.txt_plan.setText(f)
+
+    def on_analyze(self):
+        if not self.source_path:
+            QMessageBox.warning(self, "Missing selection", "Please choose a source folder to analyze.")
+            return
+        self.mode = "analyze"; self.accept()
+
+    def on_apply(self):
+        if not (self.source_path and self.kit_path and self.plan_path):
+            QMessageBox.warning(self, "Missing selection",
+                                "Apply needs a source folder, a brand kit, and a reviewed sheet.")
+            return
+        self.mode = "apply"; self.accept()

@@ -682,6 +682,234 @@ class Worker:
         except: 
             self.emit(AppEvent(EventType.DONE))
 
+    def run_rebrand(self, src_dir, kit_dir, out_dir=None):
+        """Rebrand every PDF in a folder, mirroring the tree into a _rebranded output."""
+        try:
+            self.stop_sig = False
+            self.resume()
+            try:
+                from .rebrand import BrandKit, rebrand_pdf, title_from_filename, output_filename
+            except Exception as e:
+                self.log(f"Rebrand engine unavailable: {e}", True)
+                self.emit(AppEvent(EventType.DONE)); return
+
+            src = Path(src_dir)
+            out = Path(out_dir) if out_dir else src.parent / f"{src.name}_rebranded"
+            self.current_ws = str(out)
+
+            kit = BrandKit(kit_dir)
+            if not (kit.has("portrait") or kit.has("landscape")):
+                self.log("CRITICAL: Brand kit has no Portrait/Landscape asset folders.", True)
+                self.emit(AppEvent(EventType.ERROR, "Brand kit has no Portrait/Landscape asset folders."))
+                self.emit(AppEvent(EventType.DONE)); return
+
+            pdfs = [Path(r) / f for r, _, fs in os.walk(src) for f in fs if f.lower().endswith(".pdf")]
+            pdfs = [p for p in pdfs if out not in p.parents]  # never re-process our own output
+            if not pdfs:
+                self.log("No PDFs found in the selected folder.", True)
+                self.emit(AppEvent(EventType.DONE)); return
+
+            self.log(f"Rebrand start: {len(pdfs)} PDFs -> {out}")
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
+            start_time = time.time()
+            done = skipped = failed = oversize = 0
+
+            for i, pdf in enumerate(pdfs):
+                if self.stop_sig: break
+                if not self.pause_event.is_set():
+                    self.prog_sub(None, "Paused...", True)
+                    self.pause_event.wait()
+
+                self.prog_main(((i + 1) / len(pdfs)) * 100, f"Rebranding {i + 1}/{len(pdfs)}")
+                self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": pdf.name, "percent": None}))
+
+                rel = pdf.relative_to(src)
+                dst = out / rel.parent / output_filename(pdf.stem)
+                try:
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    if dst.exists() and dst.stat().st_size > 0:   # smart-skip already-done
+                        skipped += 1; continue
+                    stats = rebrand_pdf(pdf, dst, kit, title_from_filename(pdf.stem))
+                    done += 1
+                    if stats["size_mb"] >= 50:
+                        oversize += 1
+                        self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
+                except Exception as e:
+                    failed += 1
+                    self.log(f"Rebrand failed: {pdf.name}: {e}", True)
+
+            if self.stop_sig:
+                self.log("Rebrand stopped by user.")
+                self.emit(AppEvent(EventType.DONE)); return
+
+            update_stats_time(out, "rebrand_time", time.time() - start_time)
+            msg = f"Done. Rebranded {done}, skipped {skipped}, failed {failed}."
+            if oversize: msg += f" ({oversize} over 50 MB — review.)"
+            self.log(msg)
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Rebrand Complete", "msg": msg, "open_path": str(out)}))
+
+        except Exception as e:
+            self.log(f"Rebrand error: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
+
+    REBRAND_PLAN_COLUMNS = ["file", "action", "doc_type", "product", "asset_type",
+                            "manufacturer", "title", "pages", "confidence", "source", "notes"]
+
+    def run_rebrand_analyze(self, src_dir, out_csv=None):
+        """Read every PDF in a folder with the local model and write a review sheet."""
+        try:
+            self.stop_sig = False
+            self.resume()
+            from .classify import classify_document, ollama_available
+            src = Path(src_dir)
+            plan = Path(out_csv) if out_csv else src / "_rebrand_plan.csv"
+            self.current_ws = str(src)
+
+            pdfs = [Path(r) / f for r, _, fs in os.walk(src) for f in fs if f.lower().endswith(".pdf")]
+            if not pdfs:
+                self.log("No PDFs found in the selected folder.", True)
+                self.emit(AppEvent(EventType.DONE)); return
+
+            have_llm = ollama_available()
+            note = "" if have_llm else "  (Ollama not detected — using filename fallback; review carefully)"
+            self.log(f"Analyzing {len(pdfs)} PDFs for the review sheet{note}")
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
+
+            rows = []
+            for i, pdf in enumerate(pdfs):
+                if self.stop_sig: break
+                if not self.pause_event.is_set():
+                    self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+                self.prog_main(((i + 1) / len(pdfs)) * 100, f"Analyzing {i + 1}/{len(pdfs)}")
+                self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": pdf.name, "percent": None}))
+
+                info = classify_document(pdf)
+                try:
+                    pages = len(PdfReader(str(pdf)).pages)
+                except Exception:
+                    pages = ""
+                rows.append({
+                    "file": str(pdf.relative_to(src)), "action": info["action"],
+                    "doc_type": info.get("doc_type", ""), "product": info.get("product", ""),
+                    "asset_type": info.get("asset_type", ""), "manufacturer": info.get("manufacturer", ""),
+                    "title": info.get("title", ""), "pages": pages,
+                    "confidence": info.get("confidence", 0), "source": info.get("source", ""),
+                    "notes": info.get("notes", ""),
+                })
+
+            if self.stop_sig:
+                self.log("Analysis stopped by user.")
+                self.emit(AppEvent(EventType.DONE)); return
+
+            with open(plan, "w", newline="", encoding="utf-8-sig") as f:
+                w = csv.DictWriter(f, fieldnames=self.REBRAND_PLAN_COLUMNS)
+                w.writeheader()
+                for r in rows:
+                    w.writerow(r)
+
+            n_reb = sum(1 for r in rows if r["action"] == "rebrand")
+            n_leave = len(rows) - n_reb
+            self.log(f"Review sheet ready: {plan.name}  ({n_reb} to rebrand, {n_leave} to leave as-is)")
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {
+                "title": "Review Sheet Ready",
+                "msg": f"{n_reb} to rebrand, {n_leave} to leave as-is.\nEdit the sheet in Excel, then run Rebrand → Apply.",
+                "open_path": str(plan)}))
+        except Exception as e:
+            self.log(f"Analyze error: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
+
+    def run_rebrand_apply(self, src_dir, kit_dir, plan_csv, out_dir=None):
+        """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is."""
+        try:
+            self.stop_sig = False
+            self.resume()
+            from .rebrand import (BrandKit, rebrand_pdf, output_filename,
+                                  output_filename_from_fields, title_from_filename)
+            src = Path(src_dir)
+            out = Path(out_dir) if out_dir else src.parent / f"{src.name}_rebranded"
+            self.current_ws = str(out)
+
+            kit = BrandKit(kit_dir)
+            if not (kit.has("portrait") or kit.has("landscape")):
+                self.log("CRITICAL: Brand kit has no Portrait/Landscape asset folders.", True)
+                self.emit(AppEvent(EventType.ERROR, "Brand kit has no Portrait/Landscape asset folders."))
+                self.emit(AppEvent(EventType.DONE)); return
+
+            with open(plan_csv, newline="", encoding="utf-8-sig") as f:
+                rows = list(csv.DictReader(f))
+            if not rows:
+                self.log("Review sheet is empty.", True)
+                self.emit(AppEvent(EventType.DONE)); return
+
+            self.log(f"Applying review sheet: {len(rows)} entries -> {out}")
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
+            start_time = time.time()
+            done = left = skipped = failed = oversize = 0
+
+            for i, row in enumerate(rows):
+                if self.stop_sig: break
+                if not self.pause_event.is_set():
+                    self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+
+                rel = (row.get("file") or "").strip()
+                if not rel:
+                    continue
+                pdf = src / rel
+                self.prog_main(((i + 1) / len(rows)) * 100, f"Applying {i + 1}/{len(rows)}")
+                self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": Path(rel).name, "percent": None}))
+
+                if not pdf.exists():
+                    failed += 1; self.log(f"Missing source: {rel}", True); continue
+
+                action = (row.get("action") or "").strip().lower()
+                try:
+                    if action == "leave":
+                        dst = out / rel  # keep original name/structure, unbranded
+                        dst.parent.mkdir(parents=True, exist_ok=True)
+                        if dst.exists() and dst.stat().st_size > 0:
+                            skipped += 1; continue
+                        shutil.copy2(pdf, dst); left += 1; continue
+
+                    product = (row.get("product") or "").strip()
+                    asset = (row.get("asset_type") or "").strip()
+                    title = (row.get("title") or "").strip() or title_from_filename(pdf.stem)
+                    manu = (row.get("manufacturer") or "").strip()
+                    subtitle = (f"Manufactured by {manu} | Sold by Budget Mailboxes"
+                                if manu else "Sold by Budget Mailboxes")
+                    name = (output_filename_from_fields(product, asset)
+                            if (product or asset) else output_filename(pdf.stem))
+                    dst = out / Path(rel).parent / name
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    if dst.exists() and dst.stat().st_size > 0:
+                        skipped += 1; continue
+                    stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
+                    done += 1
+                    if stats["size_mb"] >= 50:
+                        oversize += 1
+                        self.log(f"⚠️ {name} is {stats['size_mb']} MB (over 50 MB)", True)
+                except Exception as e:
+                    failed += 1
+                    self.log(f"Failed: {rel}: {e}", True)
+
+            if self.stop_sig:
+                self.log("Apply stopped by user.")
+                self.emit(AppEvent(EventType.DONE)); return
+
+            update_stats_time(out, "rebrand_time", time.time() - start_time)
+            msg = f"Done. Rebranded {done}, left as-is {left}, skipped {skipped}, failed {failed}."
+            if oversize: msg += f" ({oversize} over 50 MB — review.)"
+            self.log(msg)
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Rebrand Complete", "msg": msg, "open_path": str(out)}))
+        except Exception as e:
+            self.log(f"Apply error: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
+
     def run_debug_export(self, ws_path_str):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')

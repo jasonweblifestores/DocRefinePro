@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMessageBox, QFileDialog
 from PySide6.QtCore import Qt
 from .main_window import MainWindow
-from .dialogs import NewJobDialog, SettingsDialog, InternalViewerDialog
+from .dialogs import NewJobDialog, SettingsDialog, InternalViewerDialog, RebrandDialog
 from .qt_adapter import DocRefineAdapter
 from .forensic import ForensicDialog
 from docrefine.worker import Worker
@@ -50,6 +50,7 @@ class AppController:
 
         # PROCESS LAUNCHERS
         self.window.btn_new_job.clicked.connect(self.launch_new_job)
+        self.window.btn_rebrand.clicked.connect(self.launch_rebrand)
         self.window.btn_run_refine.clicked.connect(self.launch_refine)
         self.window.btn_preview.clicked.connect(self.launch_preview)
         self.window.btn_org.clicked.connect(self.launch_organize)
@@ -182,6 +183,17 @@ class AppController:
         d = NewJobDialog(self.window)
         if d.exec():
             self.start_process(self.worker.run_inventory, (d.selected_path, d.selected_mode), multi_threaded=False)
+
+    def launch_rebrand(self):
+        from docrefine.config import CFG
+        d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"))
+        if d.exec():
+            if d.mode == "analyze":
+                self.start_process(self.worker.run_rebrand_analyze, (d.source_path,), multi_threaded=False)
+            else:
+                CFG.set("last_brand_kit", d.kit_path)
+                self.start_process(self.worker.run_rebrand_apply,
+                                   (d.source_path, d.kit_path, d.plan_path), multi_threaded=False)
 
     def launch_refine(self):
         ws = self.get_selected_ws()

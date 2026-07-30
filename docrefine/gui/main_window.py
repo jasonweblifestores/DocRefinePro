@@ -60,6 +60,10 @@ class MainWindow(QMainWindow):
         self.btn_new_job = QPushButton("+ New Ingest Job")
         self.btn_new_job.setStyleSheet("padding: 6px; font-weight: bold;")
         left_layout.addWidget(self.btn_new_job)
+
+        self.btn_rebrand = QPushButton("🎨 Rebrand a Folder")
+        self.btn_rebrand.setStyleSheet("padding: 6px;")
+        left_layout.addWidget(self.btn_rebrand)
         
         self.job_tree = QTreeWidget()
         self.job_tree.setHeaderLabels(["Name", "Status", "Date"])
