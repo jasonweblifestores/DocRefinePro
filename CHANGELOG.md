@@ -1,5 +1,14 @@
 # DocRefine Pro - Changelog
 
+## [v137] - 2026-07-30
+### Added
+* **Rebrand Unique Masters:** Rebrand a deduplicated job's unique master files directly from the Export tab (Option D) — no need to hand-navigate to the workspace folder. Point-and-go from any ingested batch.
+### Fixed — Rebranding robustness at scale
+* **No more lost files on name clashes:** Two documents that resolve to the same output filename are now kept as separate, numbered files instead of one silently overwriting the other. Re-runs stay stable (resume-safe).
+* **Parallel image safety:** Branding images are now built per worker, removing a rare risk of corrupted output when rebranding many files at once.
+* **Scanned documents default to "leave as-is":** PDFs with no readable text are no longer auto-rebranded (safer for scanned certificates/drawings); they're flagged for review instead.
+* Internal cleanup: removed dead code and hardened cross-platform path handling.
+
 ## [v136] - 2026-07-30
 ### Added — Document Rebranding
 * **Rebrand a Folder:** Apply branding to a whole folder of PDFs while preserving the original, searchable content. Each document gets a titled cover + back cover, header/footer strips added as page *extensions* (the original page is never overlapped or cropped), and a watermark. Output keeps its text layer, stays well under 50 MB, embeds fonts, and sets PDF metadata (Author = Budget Mailboxes).

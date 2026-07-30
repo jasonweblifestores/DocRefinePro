@@ -63,12 +63,14 @@ def _orientation(w, h):
     return "landscape" if w > h else "portrait"
 
 
-def _load_reader(path, max_px=None, opaque=False):
-    """Load a PNG into a reportlab ImageReader.
+def _load_asset(path, max_px=None, opaque=False):
+    """Load a branding image into an encoded-bytes 'spec' (safe to cache & share).
 
     opaque=True flattens onto the art's own background and stores JPEG (much smaller,
     for full-page covers that need no transparency). Otherwise keeps PNG alpha
-    (for strips and the watermark, which overlay content).
+    (for strips and the watermark, which overlay content). Returns only immutable
+    data — reportlab ImageReaders are NOT thread-safe, so they're built per-call
+    from this spec instead of being shared across worker threads.
     """
     im = Image.open(path).convert("RGBA")
     if max_px and max(im.size) > max_px:
@@ -82,10 +84,17 @@ def _load_reader(path, max_px=None, opaque=False):
         flat.save(buf, "JPEG", quality=88)
     else:
         im.save(buf, "PNG")
-    buf.seek(0)
-    reader = ImageReader(buf)
-    reader._px_size = im.size  # remember pixel dims for aspect math
-    reader._corner_rgb = tuple(v / 255 for v in corner)
+    return {"bytes": buf.getvalue(), "px_size": im.size,
+            "corner_rgb": tuple(v / 255 for v in corner)}
+
+
+def _make_reader(spec):
+    """Build a fresh reportlab ImageReader from a cached spec (one per call/thread)."""
+    if spec is None:
+        return None
+    reader = ImageReader(io.BytesIO(spec["bytes"]))
+    reader._px_size = spec["px_size"]
+    reader._corner_rgb = spec["corner_rgb"]
     return reader
 
 
@@ -133,8 +142,12 @@ class BrandKit:
     def has(self, orientation):
         return orientation in self._paths
 
-    def readers(self, orientation):
-        """Cached ImageReaders for an orientation (loaded once, shared thereafter)."""
+    def specs(self, orientation):
+        """Cached asset specs (encoded bytes) for an orientation, loaded once.
+
+        Safe to call for warm-up before a thread pool starts; the specs are
+        immutable and shared, while live ImageReaders are built per-call below.
+        """
         if orientation not in self._readers:
             paths = self._paths.get(orientation) or {}
             out = {}
@@ -149,9 +162,16 @@ class BrandKit:
                 elif key in ("cover", "back"):
                     cap = COVER_MAX_PX
                     opaque = True   # full-page art → JPEG, no transparency needed
-                out[key] = _load_reader(path, max_px=cap, opaque=opaque)
+                out[key] = _load_asset(path, max_px=cap, opaque=opaque)
             self._readers[orientation] = out
         return self._readers[orientation]
+
+    # Back-compat name used by warm-up call sites.
+    readers = specs
+
+    def live_readers(self, orientation):
+        """Fresh ImageReaders for a single rebrand_pdf call (never shared across threads)."""
+        return {k: _make_reader(spec) for k, spec in self.specs(orientation).items()}
 
 
 def _dominant_orientation(pages):
@@ -224,20 +244,24 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author="Budget
     if not kit.has(doc_or):
         raise ValueError(f"Brand kit has no '{doc_or}' asset set.")
 
-    cover_set = kit.readers(doc_or)
+    # Build ImageReaders fresh for THIS call (never shared across threads). Within
+    # this one canvas the same reader objects are reused across pages, so each image
+    # still embeds exactly once per document.
+    cover_set = kit.live_readers(doc_or)
+    orient_sets = {doc_or: cover_set}
     DW = float(pages[0].mediabox.width)
     DH = float(pages[0].mediabox.height)
 
-    # --- Build all covers + overlays in a SINGLE reportlab canvas so every image
-    #     is embedded exactly once and shared across pages. ---
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf)
     _draw_cover(c, cover_set["cover"], DW, DH, title, subtitle=subtitle)
     strip_dims = []
     for pg in pages:
         pw, ph = float(pg.mediabox.width), float(pg.mediabox.height)
-        page_set = kit.readers(_orientation(pw, ph)) if kit.has(_orientation(pw, ph)) else cover_set
-        hh, fh = _draw_overlay(c, page_set, pw, ph)
+        po = _orientation(pw, ph)
+        if po not in orient_sets:
+            orient_sets[po] = kit.live_readers(po) if kit.has(po) else cover_set
+        hh, fh = _draw_overlay(c, orient_sets[po], pw, ph)
         strip_dims.append((hh, fh))
     _draw_cover(c, cover_set["back"], DW, DH, None)
     c.save()

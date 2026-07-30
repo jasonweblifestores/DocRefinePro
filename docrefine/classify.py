@@ -80,8 +80,10 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
     if text is None:
         text = extract_text(pdf_path)
     if len(text) < 15:
-        # No extractable text — likely a scan/image. Flag for human review.
+        # No extractable text — likely a scan/image. Default to LEAVE (safer: don't
+        # risk rebranding a scanned cert/drawing) and flag for human review.
         fb = _fallback(pdf_path, note="no extractable text — review (may need OCR)")
+        fb["action"] = "leave"
         fb["doc_type"] = "(no text)"
         return fb
     payload = json.dumps({

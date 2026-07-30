@@ -57,6 +57,7 @@ class AppController:
         self.window.btn_org.clicked.connect(self.launch_organize)
         self.window.btn_dist.clicked.connect(self.launch_distribute)
         self.window.btn_csv.clicked.connect(lambda: self.start_process(self.worker.run_full_export, (self.get_selected_ws(),)))
+        self.window.btn_rebrand_job.clicked.connect(self.launch_rebrand_job)
 
     def run(self):
         self.window.refresh_job_list()
@@ -186,15 +187,28 @@ class AppController:
             self.start_process(self.worker.run_inventory, (d.selected_path, d.selected_mode), multi_threaded=False)
 
     def launch_rebrand(self):
+        self._open_rebrand_dialog()
+
+    def launch_rebrand_job(self):
+        ws = self.get_selected_ws()
+        if not ws:
+            return
+        masters = Path(ws) / Constants.DIR_MASTER
+        if not masters.exists():
+            QMessageBox.information(self.window, "Info", "This job has no ingested master files yet.")
+            return
+        self._open_rebrand_dialog(default_source=str(masters))
+
+    def _open_rebrand_dialog(self, default_source=""):
         from docrefine.config import CFG
-        d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"))
+        d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"), default_source=default_source)
         if d.exec():
             if d.mode == "analyze":
                 self.start_process(self.worker.run_rebrand_analyze, (d.source_path,), multi_threaded=False)
             else:
                 CFG.set("last_brand_kit", d.kit_path)
                 self.start_process(self.worker.run_rebrand_apply,
-                                   (d.source_path, d.kit_path, d.plan_path), multi_threaded=False)
+                                   (d.source_path, d.kit_path, d.plan_path), multi_threaded=True)
 
     def launch_pipeline(self):
         from docrefine.config import CFG
@@ -204,7 +218,7 @@ class AppController:
                 CFG.set("last_brand_kit", d.kit_path)
             self.start_process(self.worker.run_pipeline,
                                (d.source_path, d.do_flatten, d.do_rebrand, d.do_ocr, d.kit_path),
-                               multi_threaded=False)
+                               multi_threaded=True)
 
     def launch_refine(self):
         ws = self.get_selected_ws()

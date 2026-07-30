@@ -225,11 +225,11 @@ class SettingsDialog(QDialog):
 class RebrandDialog(QDialog):
     """Two-step rebrand: (1) Analyze a folder into a review sheet, then
     (2) Apply the reviewed sheet to produce the branded PDFs."""
-    def __init__(self, parent=None, default_kit=""):
+    def __init__(self, parent=None, default_kit="", default_source=""):
         super().__init__(parent)
         self.setWindowTitle("Rebrand a Folder")
         self.resize(620, 320)
-        self.source_path = None
+        self.source_path = default_source or None
         self.kit_path = default_kit or None
         self.plan_path = None
         self.mode = None  # "analyze" or "apply"
@@ -242,6 +242,7 @@ class RebrandDialog(QDialog):
 
         self.txt_src = QLineEdit(); self.txt_src.setReadOnly(True)
         self.txt_src.setPlaceholderText("Folder of PDFs…")
+        self.txt_src.setText(default_source or "")
         btn_src = QPushButton("Browse…"); btn_src.clicked.connect(self.pick_source)
         row_src = QHBoxLayout(); row_src.addWidget(QLabel("Source folder:")); row_src.addWidget(self.txt_src, 1); row_src.addWidget(btn_src)
         layout.addLayout(row_src)

@@ -682,78 +682,6 @@ class Worker:
         except: 
             self.emit(AppEvent(EventType.DONE))
 
-    def run_rebrand(self, src_dir, kit_dir, out_dir=None):
-        """Rebrand every PDF in a folder, mirroring the tree into a _rebranded output."""
-        try:
-            self.stop_sig = False
-            self.resume()
-            try:
-                from .rebrand import BrandKit, rebrand_pdf, title_from_filename, output_filename
-            except Exception as e:
-                self.log(f"Rebrand engine unavailable: {e}", True)
-                self.emit(AppEvent(EventType.DONE)); return
-
-            src = Path(src_dir)
-            out = Path(out_dir) if out_dir else src.parent / f"{src.name}_rebranded"
-            self.current_ws = str(out)
-
-            kit = BrandKit(kit_dir)
-            if not (kit.has("portrait") or kit.has("landscape")):
-                self.log("CRITICAL: Brand kit has no Portrait/Landscape asset folders.", True)
-                self.emit(AppEvent(EventType.ERROR, "Brand kit has no Portrait/Landscape asset folders."))
-                self.emit(AppEvent(EventType.DONE)); return
-
-            pdfs = [Path(r) / f for r, _, fs in os.walk(src) for f in fs if f.lower().endswith(".pdf")]
-            pdfs = [p for p in pdfs if out not in p.parents]  # never re-process our own output
-            if not pdfs:
-                self.log("No PDFs found in the selected folder.", True)
-                self.emit(AppEvent(EventType.DONE)); return
-
-            self.log(f"Rebrand start: {len(pdfs)} PDFs -> {out}")
-            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
-            start_time = time.time()
-            done = skipped = failed = oversize = 0
-
-            for i, pdf in enumerate(pdfs):
-                if self.stop_sig: break
-                if not self.pause_event.is_set():
-                    self.prog_sub(None, "Paused...", True)
-                    self.pause_event.wait()
-
-                self.prog_main(((i + 1) / len(pdfs)) * 100, f"Rebranding {i + 1}/{len(pdfs)}")
-                self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": pdf.name, "percent": None}))
-
-                rel = pdf.relative_to(src)
-                dst = out / rel.parent / output_filename(pdf.stem)
-                try:
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    if dst.exists() and dst.stat().st_size > 0:   # smart-skip already-done
-                        skipped += 1; continue
-                    stats = rebrand_pdf(pdf, dst, kit, title_from_filename(pdf.stem))
-                    done += 1
-                    if stats["size_mb"] >= 50:
-                        oversize += 1
-                        self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
-                except Exception as e:
-                    failed += 1
-                    self.log(f"Rebrand failed: {pdf.name}: {e}", True)
-
-            if self.stop_sig:
-                self.log("Rebrand stopped by user.")
-                self.emit(AppEvent(EventType.DONE)); return
-
-            update_stats_time(out, "rebrand_time", time.time() - start_time)
-            msg = f"Done. Rebranded {done}, skipped {skipped}, failed {failed}."
-            if oversize: msg += f" ({oversize} over 50 MB — review.)"
-            self.log(msg)
-            self.prog_main(100, "Done")
-            self.emit(AppEvent(EventType.DONE))
-            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Rebrand Complete", "msg": msg, "open_path": str(out)}))
-
-        except Exception as e:
-            self.log(f"Rebrand error: {e}", True)
-            self.emit(AppEvent(EventType.DONE))
-
     REBRAND_PLAN_COLUMNS = ["file", "action", "doc_type", "product", "asset_type",
                             "manufacturer", "title", "pages", "confidence", "source", "notes"]
 
@@ -861,38 +789,57 @@ class Worker:
                     self.log(f"{label} error: {e}", True)
         return results
 
+    def _assign_output_names(self, rows, out):
+        """Assign each row a unique output path up front (single-threaded) so parallel
+        writes never collide, and re-runs stay deterministic (resume-safe)."""
+        from .rebrand import output_filename, output_filename_from_fields
+        used = {}
+        for row in rows:
+            rel = (row.get("file") or "").strip().replace("\\", "/")
+            if not rel:
+                row["_dst"] = None
+                continue
+            rel_path = Path(rel)
+            if (row.get("action") or "").strip().lower() == "leave":
+                dst = out / rel_path  # unbranded, original name/structure
+            else:
+                product = (row.get("product") or "").strip()
+                asset = (row.get("asset_type") or "").strip()
+                name = (output_filename_from_fields(product, asset)
+                        if (product or asset) else output_filename(rel_path.stem))
+                dst = out / rel_path.parent / name
+            key = str(dst).lower()
+            n = used.get(key, 0) + 1
+            used[key] = n
+            if n > 1:  # collision → stable numbered suffix so each source keeps its own file
+                dst = dst.with_name(f"{dst.stem}-{n}{dst.suffix}")
+            row["_dst"] = str(dst)
+
     def _apply_one_row(self, row, src, out, kit):
-        """Process one review-sheet row. Returns a status: done/oversize/leave/skip/fail."""
-        from .rebrand import (rebrand_pdf, output_filename,
-                              output_filename_from_fields, title_from_filename)
-        rel = (row.get("file") or "").strip()
-        if not rel:
+        """Process one review-sheet row (output path pre-assigned in row['_dst'])."""
+        from .rebrand import rebrand_pdf, title_from_filename
+        rel = (row.get("file") or "").strip().replace("\\", "/")
+        dst_str = row.get("_dst")
+        if not rel or not dst_str:
             return "skip"
         self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": Path(rel).name, "percent": None}))
         pdf = src / rel
         if not pdf.exists():
             self.log(f"Missing source: {rel}", True)
             return "fail"
+        dst = Path(dst_str)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if dst.exists() and dst.stat().st_size > 0:   # resume: already produced
+            return "skip"
         if (row.get("action") or "").strip().lower() == "leave":
-            dst = out / rel  # unbranded, original name/structure
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            if dst.exists() and dst.stat().st_size > 0:
-                return "skip"
             shutil.copy2(pdf, dst)
             return "leave"
-        product = (row.get("product") or "").strip()
-        asset = (row.get("asset_type") or "").strip()
         title = (row.get("title") or "").strip() or title_from_filename(pdf.stem)
         manu = (row.get("manufacturer") or "").strip()
         subtitle = f"Manufactured by {manu} | Sold by Budget Mailboxes" if manu else "Sold by Budget Mailboxes"
-        name = output_filename_from_fields(product, asset) if (product or asset) else output_filename(pdf.stem)
-        dst = out / Path(rel).parent / name
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        if dst.exists() and dst.stat().st_size > 0:
-            return "skip"
         stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
         if stats["size_mb"] >= 50:
-            self.log(f"⚠️ {name} is {stats['size_mb']} MB (over 50 MB)", True)
+            self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
             return "oversize"
         return "done"
 
@@ -901,8 +848,7 @@ class Worker:
         try:
             self.stop_sig = False
             self.resume()
-            from .rebrand import (BrandKit, rebrand_pdf, output_filename,
-                                  output_filename_from_fields, title_from_filename)
+            from .rebrand import BrandKit
             src = Path(src_dir)
             out = Path(out_dir) if out_dir else src.parent / f"{src.name}_rebranded"
             self.current_ws = str(out)
@@ -922,12 +868,15 @@ class Worker:
             self.log(f"Applying review sheet: {len(rows)} entries -> {out}")
             start_time = time.time()
 
+            # Assign unique output names single-threaded (collision- and resume-safe).
+            self._assign_output_names(rows, out)
+
             # Warm shared state once so the worker threads don't race on it.
             from .rebrand import _ensure_font
             _ensure_font()
             for o in ("portrait", "landscape"):
                 if kit.has(o):
-                    kit.readers(o)
+                    kit.specs(o)
 
             def apply_row(row):
                 if self.stop_sig:
@@ -1018,9 +967,31 @@ class Worker:
         _ensure_font()
         for o in ("portrait", "landscape"):
             if kit.has(o):
-                kit.readers(o)
+                kit.specs(o)
         plan = self._load_plan(plan_src)
         files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
+
+        # Pre-assign a unique output path per file (single-threaded → collision-safe).
+        dsts = {}
+        used = {}
+        for p in files:
+            rel = p.relative_to(src)
+            row = plan.get(str(rel).replace("\\", "/")) or plan.get(p.name)
+            is_leave = (row and (row.get("action") or "").strip().lower() == "leave")
+            if p.suffix.lower() != ".pdf" or is_leave:
+                dst = out / rel
+            elif row:
+                product = (row.get("product") or "").strip(); asset = (row.get("asset_type") or "").strip()
+                name = output_filename_from_fields(product, asset) if (product or asset) else output_filename(p.stem)
+                dst = out / rel.parent / name
+            else:
+                dst = out / rel.parent / output_filename(p.stem)
+            key = str(dst).lower()
+            n = used.get(key, 0) + 1
+            used[key] = n
+            if n > 1:
+                dst = dst.with_name(f"{dst.stem}-{n}{dst.suffix}")
+            dsts[p] = dst
 
         def one(p):
             if self.stop_sig:
@@ -1029,25 +1000,19 @@ class Worker:
                 self.pause_event.wait()
             rel = p.relative_to(src)
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
-            if p.suffix.lower() != ".pdf":
-                dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); return
             row = plan.get(str(rel).replace("\\", "/")) or plan.get(p.name)
+            is_leave = (row and (row.get("action") or "").strip().lower() == "leave")
+            dst = dsts[p]; dst.parent.mkdir(parents=True, exist_ok=True)
             try:
-                if row and (row.get("action") or "").strip().lower() == "leave":
-                    dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); return
-                if row:
-                    product = (row.get("product") or "").strip(); asset = (row.get("asset_type") or "").strip()
-                    title = (row.get("title") or "").strip() or title_from_filename(p.stem)
-                    manu = (row.get("manufacturer") or "").strip()
-                    name = output_filename_from_fields(product, asset) if (product or asset) else output_filename(p.stem)
-                else:
-                    title = title_from_filename(p.stem); manu = ""; name = output_filename(p.stem)
+                if p.suffix.lower() != ".pdf" or is_leave:
+                    shutil.copy2(p, dst); return
+                title = (row.get("title") if row else "") or ""
+                title = title.strip() or title_from_filename(p.stem)
+                manu = ((row.get("manufacturer") if row else "") or "").strip()
                 subtitle = f"Manufactured by {manu} | Sold by Budget Mailboxes" if manu else "Sold by Budget Mailboxes"
-                dst = out / rel.parent / name; dst.parent.mkdir(parents=True, exist_ok=True)
                 rebrand_pdf(p, dst, kit, title, subtitle=subtitle)
             except Exception as e:
                 self.log(f"Rebrand failed: {rel}: {e}", True)
-                dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True)
                 try: shutil.copy2(p, dst)
                 except Exception: pass
 

@@ -259,6 +259,14 @@ class MainWindow(QMainWindow):
         vb_c.addWidget(self.btn_csv)
         layout.addWidget(gb_c)
 
+        gb_d = QGroupBox("Option D: Rebrand")
+        vb_d = QVBoxLayout(gb_d)
+        self.btn_rebrand_job = QPushButton("🎨 Rebrand Unique Masters")
+        self.btn_rebrand_job.setEnabled(False)
+        self.btn_rebrand_job.setToolTip("Rebrand this job's deduplicated unique master files.")
+        vb_d.addWidget(self.btn_rebrand_job)
+        layout.addWidget(gb_d)
+
     def _build_inspector_tab(self):
         layout = QVBoxLayout(self.tab_inspect)
         search_layout = QHBoxLayout()
@@ -349,6 +357,7 @@ class MainWindow(QMainWindow):
         self.btn_org.setEnabled(enabled)
         self.btn_dist.setEnabled(enabled)
         self.btn_csv.setEnabled(enabled)
+        self.btn_rebrand_job.setEnabled(enabled)
         self.btn_open_folder.setEnabled(enabled)
         self.btn_preview.setEnabled(enabled)
         self.gb_stats.setVisible(enabled)
