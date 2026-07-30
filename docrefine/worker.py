@@ -910,6 +910,146 @@ class Worker:
             self.log(f"Apply error: {e}", True)
             self.emit(AppEvent(EventType.DONE))
 
+    # ==========================================================================
+    #   COMPOSABLE PIPELINE  (start from any folder; pick steps; OCR runs last)
+    # ==========================================================================
+    def _load_plan(self, src):
+        """Load a _rebrand_plan.csv (if present) into {relative_path: row}."""
+        p = Path(src) / "_rebrand_plan.csv"
+        out = {}
+        if p.exists():
+            try:
+                with open(p, newline="", encoding="utf-8-sig") as f:
+                    for row in csv.DictReader(f):
+                        key = (row.get("file") or "").strip().replace("\\", "/")
+                        if key:
+                            out[key] = row
+            except Exception:
+                pass
+        return out
+
+    def _folder_pdf_op(self, src, out, mode, dpi, label, only_no_text=False):
+        """Flatten or OCR every PDF from src into out (mirrored). Non-PDFs pass through."""
+        from .processing import PdfProcessor
+        bot = PdfProcessor(lambda v, t, s=False: self.prog_sub(v, t, s), lambda: self.stop_sig, self.pause_event)
+        files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
+        for i, p in enumerate(files):
+            if self.stop_sig: return
+            if not self.pause_event.is_set():
+                self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+            rel = p.relative_to(src); dst = out / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            self.prog_main(((i + 1) / max(1, len(files))) * 100, f"{label} {i + 1}/{len(files)}")
+            self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
+            if p.suffix.lower() != ".pdf":
+                shutil.copy2(p, dst); continue
+            if only_no_text:
+                from .classify import extract_text
+                if len(extract_text(p) or "") >= 20:   # already searchable → leave it
+                    shutil.copy2(p, dst); continue
+            try:
+                ok = bot.flatten_or_ocr(p, dst, mode=mode, dpi=dpi)
+                if not ok and not dst.exists():
+                    shutil.copy2(p, dst)
+            except Exception as e:
+                self.log(f"{mode} failed: {rel}: {e}", True)
+                if not dst.exists():
+                    shutil.copy2(p, dst)
+
+    def _folder_rebrand(self, src, plan_src, out, kit, label):
+        """Rebrand every PDF from src into out, honouring a review plan from plan_src if present."""
+        from .rebrand import (rebrand_pdf, output_filename, output_filename_from_fields, title_from_filename)
+        plan = self._load_plan(plan_src)
+        files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
+        for i, p in enumerate(files):
+            if self.stop_sig: return
+            if not self.pause_event.is_set():
+                self.prog_sub(None, "Paused...", True); self.pause_event.wait()
+            rel = p.relative_to(src)
+            self.prog_main(((i + 1) / max(1, len(files))) * 100, f"{label} {i + 1}/{len(files)}")
+            self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
+            if p.suffix.lower() != ".pdf":
+                dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); continue
+            row = plan.get(str(rel).replace("\\", "/")) or plan.get(p.name)
+            try:
+                if row and (row.get("action") or "").strip().lower() == "leave":
+                    dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(p, dst); continue
+                if row:
+                    product = (row.get("product") or "").strip(); asset = (row.get("asset_type") or "").strip()
+                    title = (row.get("title") or "").strip() or title_from_filename(p.stem)
+                    manu = (row.get("manufacturer") or "").strip()
+                    name = output_filename_from_fields(product, asset) if (product or asset) else output_filename(p.stem)
+                else:
+                    title = title_from_filename(p.stem); manu = ""; name = output_filename(p.stem)
+                subtitle = f"Manufactured by {manu} | Sold by Budget Mailboxes" if manu else "Sold by Budget Mailboxes"
+                dst = out / rel.parent / name; dst.parent.mkdir(parents=True, exist_ok=True)
+                rebrand_pdf(p, dst, kit, title, subtitle=subtitle)
+            except Exception as e:
+                self.log(f"Rebrand failed: {rel}: {e}", True)
+                dst = out / rel; dst.parent.mkdir(parents=True, exist_ok=True)
+                try: shutil.copy2(p, dst)
+                except Exception: pass
+
+    def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300, out_dir=None):
+        """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR."""
+        import tempfile
+        try:
+            self.stop_sig = False
+            self.resume()
+            src = Path(src_dir)
+            out = Path(out_dir) if out_dir else src.parent / f"{src.name}_processed"
+            self.current_ws = str(out)
+
+            active = [n for n, on in (("Flatten", do_flatten), ("Rebrand", do_rebrand), ("Make Searchable", do_ocr)) if on]
+            if not active:
+                self.log("No pipeline steps selected.", True); self.emit(AppEvent(EventType.DONE)); return
+
+            kit = None
+            if do_rebrand:
+                from .rebrand import BrandKit
+                kit = BrandKit(kit_dir) if kit_dir else None
+                if not (kit and (kit.has("portrait") or kit.has("landscape"))):
+                    self.log("CRITICAL: The Rebrand step needs a valid brand kit.", True)
+                    self.emit(AppEvent(EventType.ERROR, "The Rebrand step needs a valid brand kit."))
+                    self.emit(AppEvent(EventType.DONE)); return
+
+            self.log(f"Pipeline: {' → '.join(active)}   ({src.name} → {out.name})")
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
+            start_time = time.time()
+            work = Path(tempfile.mkdtemp(prefix="drp_pipe_"))
+            current = src
+            step = 0; n = len(active)
+
+            if do_flatten and not self.stop_sig:
+                step += 1; nxt = work / "1_flattened"
+                self._folder_pdf_op(current, nxt, "flatten", dpi, f"[{step}/{n}] Flatten"); current = nxt
+            if do_rebrand and not self.stop_sig:
+                step += 1; nxt = work / "2_rebranded"
+                self._folder_rebrand(current, src, nxt, kit, f"[{step}/{n}] Rebrand"); current = nxt
+            if do_ocr and not self.stop_sig:
+                step += 1; nxt = work / "3_searchable"
+                self._folder_pdf_op(current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True); current = nxt
+
+            if self.stop_sig:
+                self.log("Pipeline stopped by user."); shutil.rmtree(work, ignore_errors=True)
+                self.emit(AppEvent(EventType.DONE)); return
+
+            if out.exists():
+                shutil.rmtree(out, ignore_errors=True)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(current), str(out))
+            shutil.rmtree(work, ignore_errors=True)
+
+            update_stats_time(out, "pipeline_time", time.time() - start_time)
+            self.log(f"Pipeline complete: {' → '.join(active)}")
+            self.prog_main(100, "Done")
+            self.emit(AppEvent(EventType.DONE))
+            self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Pipeline Complete",
+                       "msg": f"{' → '.join(active)} finished.", "open_path": str(out)}))
+        except Exception as e:
+            self.log(f"Pipeline error: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
+
     def run_debug_export(self, ws_path_str):
         try:
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')

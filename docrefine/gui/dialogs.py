@@ -6,7 +6,8 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QRadioButton, 
     QButtonGroup, QPushButton, QFileDialog, QFrame,
     QSpinBox, QComboBox, QGroupBox, QGridLayout, QLineEdit,
-    QHBoxLayout, QMessageBox, QWidget, QTextEdit, QDialogButtonBox
+    QHBoxLayout, QMessageBox, QWidget, QTextEdit, QDialogButtonBox,
+    QCheckBox
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QColor, QPalette
@@ -307,3 +308,81 @@ class RebrandDialog(QDialog):
                                 "Apply needs a source folder, a brand kit, and a reviewed sheet.")
             return
         self.mode = "apply"; self.accept()
+
+class PipelineDialog(QDialog):
+    """Run a chain of steps over a folder, in the fixed order Flatten → Rebrand → OCR."""
+    def __init__(self, parent=None, default_kit=""):
+        super().__init__(parent)
+        self.setWindowTitle("Process a Folder")
+        self.resize(620, 360)
+        self.source_path = None
+        self.kit_path = default_kit or None
+        self.do_flatten = self.do_rebrand = self.do_ocr = False
+
+        layout = QVBoxLayout(self)
+        title = QLabel("Process a folder of PDFs")
+        title.setStyleSheet("font-weight: bold; font-size: 12pt;")
+        layout.addWidget(title)
+        layout.addWidget(QLabel("Pick the steps to run. They execute in order — OCR always runs last."))
+
+        self.txt_src = QLineEdit(); self.txt_src.setReadOnly(True); self.txt_src.setPlaceholderText("Folder of PDFs…")
+        btn_src = QPushButton("Browse…"); btn_src.clicked.connect(self.pick_source)
+        row_src = QHBoxLayout(); row_src.addWidget(QLabel("Source folder:")); row_src.addWidget(self.txt_src, 1); row_src.addWidget(btn_src)
+        layout.addLayout(row_src)
+
+        gb = QGroupBox("Steps (run in this order)")
+        v = QVBoxLayout(gb)
+        self.chk_flatten = QCheckBox("1 · Flatten pages  (only for problem PDFs)")
+        self.chk_rebrand = QCheckBox("2 · Rebrand  (uses a review sheet in the folder if present)")
+        self.chk_rebrand.setChecked(True)
+        self.chk_ocr = QCheckBox("3 · Make searchable — OCR  (for scanned files; runs last)")
+        for c in (self.chk_flatten, self.chk_rebrand, self.chk_ocr):
+            v.addWidget(c)
+
+        self.lbl_kit = QLabel("Brand kit:")
+        self.txt_kit = QLineEdit(); self.txt_kit.setReadOnly(True); self.txt_kit.setText(default_kit or "")
+        self.txt_kit.setPlaceholderText("Brand kit folder (needed for the Rebrand step)…")
+        self.btn_kit = QPushButton("Browse…"); self.btn_kit.clicked.connect(self.pick_kit)
+        row_kit = QHBoxLayout(); row_kit.addWidget(self.lbl_kit); row_kit.addWidget(self.txt_kit, 1); row_kit.addWidget(self.btn_kit)
+        v.addLayout(row_kit)
+        self.chk_rebrand.toggled.connect(self._sync_kit)
+        layout.addWidget(gb)
+
+        note = QLabel("Output goes to a “_processed” folder beside the source.")
+        note.setStyleSheet("color: #888; font-size: 9pt;")
+        layout.addWidget(note)
+        layout.addStretch()
+
+        self.btn_run = QPushButton("Run Pipeline")
+        self.btn_run.setStyleSheet("font-weight: bold; padding: 8px;")
+        self.btn_run.clicked.connect(self.on_run)
+        layout.addWidget(self.btn_run)
+
+    def _sync_kit(self, on):
+        for w in (self.lbl_kit, self.txt_kit, self.btn_kit):
+            w.setEnabled(on)
+
+    def pick_source(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Source Folder")
+        if d:
+            self.source_path = d; self.txt_src.setText(d)
+
+    def pick_kit(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Brand Kit Folder")
+        if d:
+            self.kit_path = d; self.txt_kit.setText(d)
+
+    def on_run(self):
+        if not self.source_path:
+            QMessageBox.warning(self, "Missing selection", "Please choose a source folder.")
+            return
+        self.do_flatten = self.chk_flatten.isChecked()
+        self.do_rebrand = self.chk_rebrand.isChecked()
+        self.do_ocr = self.chk_ocr.isChecked()
+        if not (self.do_flatten or self.do_rebrand or self.do_ocr):
+            QMessageBox.warning(self, "No steps selected", "Please select at least one step.")
+            return
+        if self.do_rebrand and not self.kit_path:
+            QMessageBox.warning(self, "Brand kit needed", "The Rebrand step needs a brand kit.")
+            return
+        self.accept()
