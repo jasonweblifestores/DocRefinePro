@@ -11,6 +11,7 @@ when Ollama is unavailable or a PDF has no extractable text.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -147,35 +148,55 @@ Respond with ONLY a JSON object with these keys:
 - product: short product name or model number
 - asset_type: hyphenated slug (e.g. "installation-guide", "spec-sheet", "manual", "drawing", "certification")
 - manufacturer: the company that manufactured the product, or ""
-- title: a clean, human-readable cover title in Title Case
+- title: a SHORT cover title of 2-4 words saying what the document IS, in plain
+  language a mailbox customer would use. Never include model, part or drawing
+  numbers. Good: "Installation Manual", "Specification Sheet", "Product Warranty",
+  "Product Care & Cleaning". Bad: "Installing 1570 F Series Mailboxes",
+  "Drawing No. WEB-1932", "140055OU Side View Configuration Details".
 - confidence: a number from 0 to 1
 
 DOCUMENT TEXT:
 """
 
 
-def ollama_available(model=DEFAULT_MODEL, url=OLLAMA_URL):
-    try:
-        with urllib.request.urlopen(url + "/api/tags", timeout=5) as r:
-            data = json.loads(r.read())
-        names = [m.get("name", "") for m in data.get("models", [])]
-        base = model.split(":")[0]
-        return any(n == model or n.startswith(base) for n in names)
-    except Exception:
-        return False
+def extract_text(pdf_path, max_pages=4, max_chars=2200):
+    """Text from the first few pages. Stops early once there's plenty to classify on.
 
-
-def extract_text(pdf_path, max_pages=2, max_chars=2200):
+    Reads past page 2 because documents that open with a full-page image would
+    otherwise be misread as having no text at all.
+    """
     try:
         r = PdfReader(str(pdf_path))
-        parts = [(pg.extract_text() or "") for pg in r.pages[:max_pages]]
+        parts = []
+        for pg in r.pages[:max_pages]:
+            parts.append(pg.extract_text() or "")
+            if sum(len(p) for p in parts) >= max_chars:
+                break
         return " ".join(" ".join(parts).split())[:max_chars]
     except Exception:
         return ""
 
 
+# A PDF with no extractable text tells us nothing, so its filename is the only
+# evidence we have. In this corpus that group is overwhelmingly CAD drawings —
+# correctly left alone — but it also hides genuine installation guides that are
+# drawn/outlined rather than typeset. Those would otherwise be skipped in
+# silence, so a filename that names itself as instructions flips the row to
+# "rebrand" for a human to confirm. A false positive costs one review decision;
+# a false negative silently drops a document from the delivery.
+# Note: no \b before INS — the real filenames run it straight onto a part number
+# ("206550INS-1400.pdf"), so a word boundary would never match.
+_INSTRUCTION_NAME_RE = re.compile(
+    r"instruction|install|assembly|user[-_ ]?guide|owners?[-_ ]?manual|INS[-_]?\d", re.I)
+
+
+def filename_suggests_instructions(name):
+    """True if a filename names the document as instructions rather than a drawing."""
+    return bool(_INSTRUCTION_NAME_RE.search(Path(name).stem))
+
+
 def _fallback(pdf_path, note=""):
-    from .rebrand import title_from_filename
+    from .rebrand import DEFAULT_TITLE
     stem = Path(pdf_path).stem
     return {
         "action": "rebrand",
@@ -183,7 +204,10 @@ def _fallback(pdf_path, note=""):
         "product": stem.replace("_", " ").replace("-", " ").strip(),
         "asset_type": "document",
         "manufacturer": "",
-        "title": title_from_filename(stem),
+        # A filename makes a poor cover title ("4C11D 09Cs"). Without any text to
+        # read, the honest title is the generic one; the review sheet is where a
+        # human upgrades it.
+        "title": DEFAULT_TITLE,
         "confidence": 0.0,
         "source": "fallback",
         "notes": note,
@@ -195,8 +219,17 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
     if text is None:
         text = extract_text(pdf_path)
     if len(text) < 15:
-        # No extractable text — likely a scan/image. Default to LEAVE (safer: don't
-        # risk rebranding a scanned cert/drawing) and flag for human review.
+        # No extractable text — likely a drawing or an outlined/scanned page.
+        # Default to LEAVE (safer: don't rebrand a cert or CAD drawing sight
+        # unseen), unless the filename names it as instructions.
+        if filename_suggests_instructions(pdf_path):
+            from .rebrand import title_for
+            fb = _fallback(pdf_path, note="no extractable text — filename says instructions; confirm")
+            fb["action"] = "rebrand"
+            fb["doc_type"] = "(no text — filename suggests instructions)"
+            fb["asset_type"] = "installation-guide"
+            fb["title"] = title_for("installation-guide")
+            return fb
         fb = _fallback(pdf_path, note="no extractable text — review (may need OCR)")
         fb["action"] = "leave"
         fb["doc_type"] = "(no text)"

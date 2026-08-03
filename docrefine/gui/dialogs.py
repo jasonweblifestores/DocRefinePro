@@ -268,7 +268,10 @@ class RebrandDialog(QDialog):
         self.txt_plan = QLineEdit(); self.txt_plan.setReadOnly(True)
         self.txt_plan.setPlaceholderText("Found automatically after Analyze…")
         btn_plan = QPushButton("Browse…"); btn_plan.clicked.connect(self.pick_plan)
-        row_plan = QHBoxLayout(); row_plan.addWidget(QLabel("Review sheet:")); row_plan.addWidget(self.txt_plan, 1); row_plan.addWidget(btn_plan)
+        btn_reviews = QPushButton("Open folder"); btn_reviews.clicked.connect(self.open_reviews_folder)
+        btn_reviews.setToolTip("Open the folder where review sheets are saved.")
+        row_plan = QHBoxLayout(); row_plan.addWidget(QLabel("Review sheet:")); row_plan.addWidget(self.txt_plan, 1)
+        row_plan.addWidget(btn_plan); row_plan.addWidget(btn_reviews)
         v2.addLayout(row_plan)
         self.chk_complete = QCheckBox("Complete set — also copy non-PDF files into the output")
         self.chk_complete.setChecked(self.complete_set)
@@ -284,7 +287,7 @@ class RebrandDialog(QDialog):
         layout.addWidget(gb2)
 
         note = QLabel("Output goes to a “_rebranded” folder beside the source, mirroring its structure.\n"
-                      "Review sheets are saved in Documents\\DocRefinePro_Data\\Rebrand Reviews.")
+                      "Review sheets (Excel) are saved in Documents\\DocRefinePro_Data\\Rebrand Reviews.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
         layout.addWidget(note)
 
@@ -292,15 +295,27 @@ class RebrandDialog(QDialog):
 
     def _autofill_plan(self):
         """Point Step 2 at the sheet Analyze wrote for this source, if there is one."""
-        if not self.source_path:
-            return
-        from docrefine.reviews import find_plan
-        found = find_plan(self.source_path)
-        if found:
-            self.plan_path = str(found); self.txt_plan.setText(str(found))
+        if self.source_path:
+            from docrefine.reviews import find_plan
+            found = find_plan(self.source_path)
+            if found:
+                self.plan_path = str(found); self.txt_plan.setText(str(found))
+        self._sync_apply()
+
+    def _sync_apply(self):
+        """Apply only makes sense once a sheet exists — say so instead of failing later."""
+        ready = bool(self.source_path and self.plan_path)
+        self.btn_apply.setEnabled(ready)
+        self.btn_apply.setToolTip("" if ready else
+                                  "Run Analyze first — the review sheet is picked up automatically.")
+
+    def open_reviews_folder(self):
+        from docrefine.config import REVIEWS_ROOT
+        REVIEWS_ROOT.mkdir(parents=True, exist_ok=True)
+        SystemUtils.open_file(REVIEWS_ROOT)
 
     def pick_source(self):
-        d = QFileDialog.getExistingDirectory(self, "Select Source Folder")
+        d = QFileDialog.getExistingDirectory(self, "Select Source Folder", self.source_path or "")
         if d:
             self.source_path = d; self.txt_src.setText(d)
             self.plan_path = None; self.txt_plan.clear()
@@ -314,9 +329,11 @@ class RebrandDialog(QDialog):
     def pick_plan(self):
         from docrefine.config import REVIEWS_ROOT
         start = str(Path(self.plan_path).parent) if self.plan_path else str(REVIEWS_ROOT)
-        f, _ = QFileDialog.getOpenFileName(self, "Select Review Sheet", start, "CSV files (*.csv)")
+        f, _ = QFileDialog.getOpenFileName(self, "Select Review Sheet", start,
+                                           "Review sheets (*.xlsx *.csv);;All files (*)")
         if f:
             self.plan_path = f; self.txt_plan.setText(f)
+            self._sync_apply()
 
     def on_analyze(self):
         if not self.source_path:

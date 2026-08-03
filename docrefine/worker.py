@@ -8,6 +8,7 @@ import uuid
 import os
 import csv
 import re
+import tempfile
 import concurrent.futures
 from pathlib import Path
 from datetime import datetime
@@ -98,12 +99,53 @@ def promote_duplicate_to_master(ws_path, master_uid, dup_path):
         "id": new_id,
     }
 
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=4)
+    _atomic_write_json(manifest_path, manifest, indent=4)
 
     return new_id
 
 STATS_LOCK = threading.Lock()
+
+def _atomic_copy(src, dst):
+    """Copy so the destination only ever exists complete.
+
+    Delivery folders are resumable: any non-empty file at the destination is
+    taken as finished. A copy interrupted part-way would therefore be shipped as
+    though it were the real thing, so the bytes land in a temp file first.
+    """
+    fd, tmp = tempfile.mkstemp(dir=str(Path(dst).parent), suffix=".part")
+    os.close(fd)
+    try:
+        shutil.copyfile(src, tmp)
+        shutil.copystat(src, tmp)
+        os.replace(tmp, dst)
+        tmp = None
+    finally:
+        if tmp and os.path.exists(tmp):
+            try: os.remove(tmp)
+            except OSError: pass
+
+
+def _atomic_write_json(path, data, indent=None):
+    """Write JSON so the file is either the old version or the new one, never half.
+
+    manifest.json is the single source of truth for organize/distribute/export —
+    a 37k-file manifest takes ~0.5s to serialise, and an interruption inside that
+    window used to leave truncated JSON that made the whole ingest unreadable.
+    """
+    path = Path(path)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=indent)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+        tmp = None
+    finally:
+        if tmp and os.path.exists(tmp):
+            try: os.remove(tmp)
+            except OSError: pass
+
 
 def update_stats_time(ws, cat, sec):
     with STATS_LOCK:
@@ -113,7 +155,7 @@ def update_stats_time(ws, cat, sec):
             if p.exists():
                 with open(p, 'r') as f: s = json.load(f)
             s[cat] = s.get(cat, 0.0) + sec
-            with open(p, 'w') as f: json.dump(s, f, indent=4)
+            _atomic_write_json(p, s, indent=4)
         except: pass
 
 class Worker:
@@ -148,7 +190,7 @@ class Worker:
     def set_job_status(self, ws, stage, details=""):
         try:
             data = { "stage": stage, "last_update": datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "details": details }
-            with open(Path(ws) / "status.json", 'w') as f: json.dump(data, f, indent=4)
+            _atomic_write_json(Path(ws) / "status.json", data, indent=4)
         except: pass
 
     def prog_main(self, v, t): 
@@ -301,7 +343,9 @@ class Worker:
                 data['uid'] = safe_name; data['id'] = f"[{master_count:04d}]"
             total = master_count
             
-            if self.stop_sig: return
+            if self.stop_sig:
+                self.log("Ingest stopped by user during tagging.")
+                self.emit(AppEvent(EventType.DONE)); return
 
             stats = {
                 "ingest_time": time.time()-start_time, 
@@ -309,8 +353,8 @@ class Worker:
                 "quarantined": quarantined,
                 "total_scanned": len(files)
             }
-            with open(ws/"manifest.json", 'w') as f: json.dump(seen, f, indent=4)
-            with open(ws/"stats.json", 'w') as f: json.dump(stats, f)
+            _atomic_write_json(ws/"manifest.json", seen, indent=4)
+            _atomic_write_json(ws/"stats.json", stats)
             self.set_job_status(ws, "INGESTED", f"Masters: {total}")
             self.log(f"Done. Masters: {total}")
             
@@ -369,8 +413,8 @@ class Worker:
                 # If we stopped, we don't copy the original. We just fail the task safely.
                 return None
 
-            if not ok and not dst_file.exists(): 
-                shutil.copy2(f, dst_file)
+            if not ok and not dst_file.exists():
+                _atomic_copy(f, dst_file)
             
             if dst_file.exists():
                 result['new_size'] = dst_file.stat().st_size
@@ -512,7 +556,9 @@ class Worker:
                                 if c != data.get('master'):
                                     writer.writerow([data['name'], c])
 
-            if self.stop_sig: return
+            if self.stop_sig:
+                self.log("Unique export stopped by user.")
+                self.emit(AppEvent(EventType.DONE)); return
 
             update_stats_time(ws, "organize_time", time.time() - start_time)
             self.set_job_status(ws, "ORGANIZED", "Done")
@@ -570,7 +616,9 @@ class Worker:
                     t = dst / c; t.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, t.with_suffix(src.suffix))
             
-            if self.stop_sig: return
+            if self.stop_sig:
+                self.log("Distribution stopped by user.")
+                self.emit(AppEvent(EventType.DONE)); return
 
             q_src = ws / Constants.DIR_QUARANTINE
             if q_src.exists():
@@ -595,7 +643,10 @@ class Worker:
         try:
             self.stop_sig = False; self.resume()
             ws = Path(ws_p); self.current_ws = str(ws)
-            if not (ws/"manifest.json").exists(): return
+            if not (ws/"manifest.json").exists():
+                self.log("No manifest for this job — ingest it first.", True)
+                self.emit(AppEvent(EventType.ERROR, "This job has no manifest yet — run an ingest first."))
+                self.emit(AppEvent(EventType.DONE)); return
 
             rpt_dir = ws / Constants.DIR_REPORTS
             rpt_dir.mkdir(parents=True, exist_ok=True)
@@ -643,7 +694,9 @@ class Worker:
                 self.emit(AppEvent(EventType.DONE))
                 return
 
-            if self.stop_sig: return
+            if self.stop_sig:
+                self.log("CSV export stopped by user.")
+                self.emit(AppEvent(EventType.DONE)); return
 
             self.log(f"Exported: {csv_path.name}")
             self.emit(AppEvent(EventType.JOB_DATA, str(ws))) 
@@ -753,18 +806,23 @@ class Worker:
             # Never silently discard a sheet someone already reviewed.
             plan.parent.mkdir(parents=True, exist_ok=True)
             if plan.exists():
-                bak = plan.with_name(plan.stem + ".previous.csv")
+                bak = plan.with_name(plan.stem + ".previous" + plan.suffix)
                 try:
                     shutil.copy2(plan, bak)
                     self.log(f"Previous review sheet kept as {bak.name}")
                 except Exception:
                     pass
 
-            with open(plan, "w", newline="", encoding="utf-8-sig") as f:
-                w = csv.DictWriter(f, fieldnames=self.REBRAND_PLAN_COLUMNS)
-                w.writeheader()
-                for r in rows:
-                    w.writerow(r)
+            from .reviews import write_plan
+            from .rebrand import ASSET_TYPE_TITLES
+            try:
+                write_plan(plan, rows, self.REBRAND_PLAN_COLUMNS, src_root=src,
+                           asset_types=sorted(ASSET_TYPE_TITLES))
+            except Exception as e:
+                # Never lose an hour of classification to a spreadsheet problem.
+                plan = plan.with_suffix(".csv")
+                self.log(f"Could not write the Excel sheet ({e}); wrote CSV instead.", True)
+                write_plan(plan, rows, self.REBRAND_PLAN_COLUMNS)
 
             n_reb = sum(1 for r in rows if r["action"] == "rebrand")
             n_leave = len(rows) - n_reb
@@ -819,10 +877,11 @@ class Worker:
                     self.log(f"{label} error: {e}", True)
         return results
 
-    def _assign_output_names(self, rows, out):
+    def _assign_output_names(self, rows, out, kit=None):
         """Assign each row a unique output path up front (single-threaded) so parallel
         writes never collide, and re-runs stay deterministic (resume-safe)."""
         from .rebrand import output_filename, output_filename_from_fields
+        brand = {"brand_slug": kit.brand_slug} if kit is not None else {}
         used = {}
         for row in rows:
             rel = (row.get("file") or "").strip().replace("\\", "/")
@@ -835,8 +894,8 @@ class Worker:
             else:
                 product = (row.get("product") or "").strip()
                 asset = (row.get("asset_type") or "").strip()
-                name = (output_filename_from_fields(product, asset)
-                        if (product or asset) else output_filename(rel_path.stem))
+                name = (output_filename_from_fields(product, asset, **brand)
+                        if (product or asset) else output_filename(rel_path.stem, **brand))
                 dst = out / rel_path.parent / name
             key = str(dst).lower()
             n = used.get(key, 0) + 1
@@ -847,7 +906,7 @@ class Worker:
 
     def _apply_one_row(self, row, src, out, kit):
         """Process one review-sheet row (output path pre-assigned in row['_dst'])."""
-        from .rebrand import rebrand_pdf, title_from_filename
+        from .rebrand import rebrand_pdf, title_for
         rel = (row.get("file") or "").strip().replace("\\", "/")
         dst_str = row.get("_dst")
         if not rel or not dst_str:
@@ -862,16 +921,31 @@ class Worker:
         if dst.exists() and dst.stat().st_size > 0:   # resume: already produced
             return "skip"
         if (row.get("action") or "").strip().lower() == "leave":
-            shutil.copy2(pdf, dst)
+            _atomic_copy(pdf, dst)
             return "leave"
-        title = (row.get("title") or "").strip() or title_from_filename(pdf.stem)
-        manu = (row.get("manufacturer") or "").strip()
-        subtitle = f"Manufactured by {manu} | Sold by Budget Mailboxes" if manu else "Sold by Budget Mailboxes"
+        title = (row.get("title") or "").strip() or title_for(
+            row.get("asset_type"), fallback_stem=pdf.stem, doc_type=row.get("doc_type"))
+        subtitle = kit.subtitle_for(row.get("manufacturer"))
         stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
         if stats["size_mb"] >= 50:
             self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
             return "oversize"
         return "done"
+
+    @staticmethod
+    def _kit_problem(kit):
+        """Explain exactly why a brand kit can't be used, naming the missing art."""
+        if not (kit.root.exists() and kit.root.is_dir()):
+            return f"Brand kit folder not found: {kit.root}"
+        gaps = []
+        for o in ("portrait", "landscape"):
+            if not kit.has_folder(o):
+                gaps.append(f"no '{o.title()}' folder")
+            elif kit.missing(o):
+                gaps.append(f"'{o.title()}' has no {' or '.join(kit.missing(o))} image")
+        detail = "; ".join(gaps) or "no usable Portrait/Landscape assets"
+        return (f"Brand kit is unusable — {detail}. Each orientation folder needs at "
+                f"least a cover and a back-cover PNG.")
 
     def _copy_extras(self, src, out, rows):
         """Complete set: copy every non-PDF source file into the mirrored output.
@@ -926,7 +1000,7 @@ class Worker:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 if dst.exists() and dst.stat().st_size == p.stat().st_size:
                     return "skip"     # already there (resume-safe)
-                shutil.copy2(p, dst)
+                _atomic_copy(p, dst)
                 return "copied"
             except Exception as e:
                 self.log(f"Copy failed: {p.name}: {e}", True)
@@ -951,8 +1025,9 @@ class Worker:
 
             kit = BrandKit(kit_dir)
             if not (kit.has("portrait") or kit.has("landscape")):
-                self.log("CRITICAL: Brand kit has no Portrait/Landscape asset folders.", True)
-                self.emit(AppEvent(EventType.ERROR, "Brand kit has no Portrait/Landscape asset folders."))
+                why = self._kit_problem(kit)
+                self.log(f"CRITICAL: {why}", True)
+                self.emit(AppEvent(EventType.ERROR, why))
                 self.emit(AppEvent(EventType.DONE)); return
 
             if not plan_csv:   # find the sheet Analyze wrote for this folder
@@ -964,8 +1039,8 @@ class Worker:
                 plan_csv = str(found)
                 self.log(f"Using review sheet: {plan_csv}")
 
-            with open(plan_csv, newline="", encoding="utf-8-sig") as f:
-                rows = list(csv.DictReader(f))
+            from .reviews import read_plan
+            rows = read_plan(plan_csv)
             if not rows:
                 self.log("Review sheet is empty.", True)
                 self.emit(AppEvent(EventType.DONE)); return
@@ -974,7 +1049,7 @@ class Worker:
             start_time = time.time()
 
             # Assign unique output names single-threaded (collision- and resume-safe).
-            self._assign_output_names(rows, out)
+            self._assign_output_names(rows, out, kit)
 
             # Warm shared state once so the worker threads don't race on it.
             from .rebrand import _ensure_font
@@ -1026,16 +1101,15 @@ class Worker:
     # ==========================================================================
     def _load_plan(self, src):
         """Load this folder's review sheet (wherever it lives) into {relative_path: row}."""
-        from .reviews import find_plan
+        from .reviews import find_plan, read_plan
         p = find_plan(src)
         out = {}
         if p:
             try:
-                with open(p, newline="", encoding="utf-8-sig") as f:
-                    for row in csv.DictReader(f):
-                        key = (row.get("file") or "").strip().replace("\\", "/")
-                        if key:
-                            out[key] = row
+                for row in read_plan(p):
+                    key = (row.get("file") or "").strip().replace("\\", "/")
+                    if key:
+                        out[key] = row
             except Exception:
                 pass
         return out
@@ -1081,8 +1155,9 @@ class Worker:
         With complete_set, non-PDF files are copied through so the output is the
         full set; without it, only PDFs reach the output."""
         from .rebrand import (rebrand_pdf, output_filename, output_filename_from_fields,
-                              title_from_filename, _ensure_font)
+                              title_for, _ensure_font)
         from .reviews import is_plan_file
+        brand = {"brand_slug": kit.brand_slug}
         _ensure_font()
         for o in ("portrait", "landscape"):
             if kit.has(o):
@@ -1102,10 +1177,11 @@ class Worker:
                 dst = out / rel
             elif row:
                 product = (row.get("product") or "").strip(); asset = (row.get("asset_type") or "").strip()
-                name = output_filename_from_fields(product, asset) if (product or asset) else output_filename(p.stem)
+                name = (output_filename_from_fields(product, asset, **brand)
+                        if (product or asset) else output_filename(p.stem, **brand))
                 dst = out / rel.parent / name
             else:
-                dst = out / rel.parent / output_filename(p.stem)
+                dst = out / rel.parent / output_filename(p.stem, **brand)
             key = str(dst).lower()
             n = used.get(key, 0) + 1
             used[key] = n
@@ -1125,15 +1201,15 @@ class Worker:
             dst = dsts[p]; dst.parent.mkdir(parents=True, exist_ok=True)
             try:
                 if p.suffix.lower() != ".pdf" or is_leave:
-                    shutil.copy2(p, dst); return
-                title = (row.get("title") if row else "") or ""
-                title = title.strip() or title_from_filename(p.stem)
-                manu = ((row.get("manufacturer") if row else "") or "").strip()
-                subtitle = f"Manufactured by {manu} | Sold by Budget Mailboxes" if manu else "Sold by Budget Mailboxes"
+                    _atomic_copy(p, dst); return
+                title = ((row.get("title") if row else "") or "").strip() or title_for(
+                    row.get("asset_type") if row else None, fallback_stem=p.stem,
+                    doc_type=row.get("doc_type") if row else None)
+                subtitle = kit.subtitle_for(row.get("manufacturer") if row else "")
                 rebrand_pdf(p, dst, kit, title, subtitle=subtitle)
             except Exception as e:
                 self.log(f"Rebrand failed: {rel}: {e}", True)
-                try: shutil.copy2(p, dst)
+                try: _atomic_copy(p, dst)
                 except Exception: pass
 
         self._parallel_map(files, one, label)
@@ -1160,8 +1236,9 @@ class Worker:
                 from .rebrand import BrandKit
                 kit = BrandKit(kit_dir) if kit_dir else None
                 if not (kit and (kit.has("portrait") or kit.has("landscape"))):
-                    self.log("CRITICAL: The Rebrand step needs a valid brand kit.", True)
-                    self.emit(AppEvent(EventType.ERROR, "The Rebrand step needs a valid brand kit."))
+                    why = self._kit_problem(kit) if kit else "The Rebrand step needs a brand kit."
+                    self.log(f"CRITICAL: {why}", True)
+                    self.emit(AppEvent(EventType.ERROR, why))
                     self.emit(AppEvent(EventType.DONE)); return
 
             self.log(f"Pipeline: {' → '.join(active)}   ({src.name} → {out.name})")

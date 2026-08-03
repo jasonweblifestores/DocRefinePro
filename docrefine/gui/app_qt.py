@@ -201,8 +201,14 @@ class AppController:
 
     def _open_rebrand_dialog(self, default_source=""):
         from docrefine.config import CFG
-        d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"), default_source=default_source)
+        # Analyze closes the dialog, so the user reopens it to Apply — don't make
+        # them re-browse to the same folder every time.
+        source = default_source or CFG.get("last_rebrand_source")
+        if source and not Path(source).is_dir():
+            source = ""
+        d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"), default_source=source)
         if d.exec():
+            CFG.set("last_rebrand_source", d.source_path or "")
             if d.mode == "analyze":
                 self._start_analyze(d.source_path)
             else:

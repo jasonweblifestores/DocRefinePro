@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v139"
+    CURRENT_VERSION = "v140"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -121,6 +121,7 @@ class ConfigData(BaseModel):
     ocr_lang: str = "eng"
     last_workspace: str = ""
     last_brand_kit: str = ""
+    last_rebrand_source: str = ""
     rebrand_complete_set: bool = True
     last_geometry: str = "1024x700"
     last_tab: int = 0

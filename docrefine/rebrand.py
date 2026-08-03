@@ -13,7 +13,10 @@ is embedded ONCE and shared across all pages, so a long document stays small
 (well under the 50 MB delivery cap) instead of re-embedding art per page.
 """
 import io
+import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from PIL import Image
 from pypdf import PdfReader, PdfWriter, Transformation
@@ -28,6 +31,10 @@ from .config import SystemUtils
 TITLE_FRAC = 0.027      # cover title size as a fraction of the cover-art height
 TITLE_TOP_FRAC = 0.11   # title vertical position from the top of the cover art
 TITLE_RGB = (1, 1, 1)   # white
+TITLE_UPPERCASE = True  # house style (see the Batch 1 hand-made covers)
+TITLE_MAX_LINES = 2     # wrap to at most this many lines, then shrink to fit
+TITLE_MIN_SCALE = 0.55  # never shrink below this fraction of the nominal size
+TITLE_SIDE_MARGIN = 0.12  # keep this much of the page width clear either side
 WATERMARK_WIDTH_FRAC = 0.60
 WATERMARK_MAX_PX = 1400  # cap watermark resolution (it is embedded once, but stay lean)
 COVER_MAX_PX = 2200      # cap cover art (~260dpi on Letter) — crisp on screen, smaller files
@@ -107,6 +114,7 @@ class BrandKit:
     """
     _PORTRAIT_DIRS = ("portrait",)
     _LANDSCAPE_DIRS = ("landscape", "landscaape")  # tolerate the source folder's spelling
+    REQUIRED = ("cover", "back")   # every other asset is optional; these are not
 
     def __init__(self, root):
         self.root = Path(root)
@@ -116,6 +124,53 @@ class BrandKit:
             d = self._match_dir(names)
             if d:
                 self._paths[orient] = self._resolve_assets(d)
+        self.brand = self._load_brand()
+
+    def _load_brand(self):
+        """Brand wording for this kit, from an optional brand.json beside the assets.
+
+        Keeps the kit genuinely swappable: the images and the brand *name* travel
+        together. Defaults preserve the Budget Mailboxes behaviour of earlier builds.
+        """
+        cfg = {"name": "Budget Mailboxes", "slug": "budget-mailboxes"}
+        f = self.root / "brand.json"
+        try:
+            if f.is_file():
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    for k in ("name", "slug"):
+                        if str(data.get(k, "")).strip():
+                            cfg[k] = str(data[k]).strip()
+                    cfg["slug"] = slugify(cfg["slug"]) or "budget-mailboxes"
+        except Exception:
+            pass
+        return cfg
+
+    @property
+    def brand_name(self):
+        return self.brand["name"]
+
+    @property
+    def brand_slug(self):
+        return self.brand["slug"]
+
+    def subtitle_for(self, manufacturer=""):
+        """The attribution line under the cover title."""
+        manufacturer = (manufacturer or "").strip()
+        if manufacturer:
+            return f"Manufactured by {manufacturer} | Sold by {self.brand_name}"
+        return f"Sold by {self.brand_name}"
+
+    def has_folder(self, orientation):
+        """True if an orientation folder was found (regardless of what's inside)."""
+        return orientation in self._paths
+
+    def missing(self, orientation):
+        """Required assets absent for an orientation (empty tuple when usable)."""
+        paths = self._paths.get(orientation)
+        if paths is None:
+            return self.REQUIRED
+        return tuple(k for k in self.REQUIRED if not paths.get(k))
 
     def _match_dir(self, names):
         for child in self.root.iterdir() if self.root.exists() else []:
@@ -140,7 +195,12 @@ class BrandKit:
         }
 
     def has(self, orientation):
-        return orientation in self._paths
+        """Usable for this orientation — the folder exists AND its required art resolved.
+
+        Folder-presence alone used to be enough, so a kit missing cover.png passed
+        validation and then failed on every single document.
+        """
+        return orientation in self._paths and not self.missing(orientation)
 
     def specs(self, orientation):
         """Cached asset specs (encoded bytes) for an orientation, loaded once.
@@ -190,6 +250,59 @@ def _strip_height(reader, page_w):
     return page_w * ph / pw
 
 
+def _wrap_to_width(words, font, size, max_w, max_lines):
+    """Greedily wrap words into at most max_lines. Returns lines, or None if it won't fit."""
+    lines, cur = [], ""
+    for w in words:
+        trial = f"{cur} {w}".strip()
+        if pdfmetrics.stringWidth(trial, font, size) <= max_w or not cur:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = w
+            if len(lines) == max_lines:
+                return None
+    if cur:
+        lines.append(cur)
+    if len(lines) > max_lines:
+        return None
+    return lines if all(pdfmetrics.stringWidth(l, font, size) <= max_w for l in lines) else None
+
+
+def fit_title(title, nominal_pt, max_w, font=None, max_lines=TITLE_MAX_LINES):
+    """Lay a cover title out as (lines, font_size) that actually fits the page.
+
+    Wraps to at most `max_lines`, shrinking the type until it fits rather than
+    letting a long title run off both edges. Falls back to an ellipsis only if
+    even the smallest permitted size can't contain it.
+    """
+    font = font or _FONT_NAME
+    words = (title or "").split()
+    if not words:
+        return [], nominal_pt
+    size = nominal_pt
+    floor = nominal_pt * TITLE_MIN_SCALE
+    while size >= floor:
+        lines = _wrap_to_width(words, font, size, max_w, max_lines)
+        if lines:
+            return lines, size
+        size *= 0.94
+    # Still too long (e.g. one unbroken 400-character "word"): truncate to fit.
+    size = floor
+    cur = ""
+    for w in words:
+        trial = f"{cur} {w}".strip()
+        if pdfmetrics.stringWidth(trial + "…", font, size) > max_w:
+            break
+        cur = trial
+    if not cur:
+        # Not even the first word fits — cut it character by character.
+        cur = words[0]
+        while cur and pdfmetrics.stringWidth(cur + "…", font, size) > max_w:
+            cur = cur[:-1]
+    return [cur + "…"] if cur else [], size
+
+
 def _draw_cover(c, cover_reader, page_w, page_h, title, subtitle=None):
     """Draw a cover page: art fitted (aspect preserved) on its own bg, optional title/subtitle."""
     c.setPageSize((page_w, page_h))
@@ -202,15 +315,21 @@ def _draw_cover(c, cover_reader, page_w, page_h, title, subtitle=None):
     c.rect(0, 0, page_w, page_h, fill=1, stroke=0)
     c.drawImage(cover_reader, ox, oy, width=dw, height=dh, mask="auto")
     if title and _ensure_font():
-        tpt = TITLE_FRAC * dh
+        if TITLE_UPPERCASE:
+            title = title.upper()
+        nominal = TITLE_FRAC * dh
+        max_w = dw * (1 - 2 * TITLE_SIDE_MARGIN)
+        lines, tpt = fit_title(title, nominal, max_w)
         c.setFont(_FONT_NAME, tpt)
         c.setFillColorRGB(*TITLE_RGB)
         y = (oy + dh) - (TITLE_TOP_FRAC * dh) - tpt * 0.35
-        c.drawCentredString(page_w / 2, y, title)
+        for line in lines:
+            c.drawCentredString(page_w / 2, y, line)
+            y -= tpt * 1.18
         if subtitle:
             spt = tpt * 0.42
             c.setFont(_FONT_NAME, spt)
-            c.drawCentredString(page_w / 2, y - tpt * 1.05, subtitle)
+            c.drawCentredString(page_w / 2, y - tpt * 0.10, subtitle)
     c.showPage()
 
 
@@ -235,14 +354,16 @@ def _draw_overlay(c, readers, page_w, page_h):
     return hh, fh
 
 
-def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author="Budget Mailboxes"):
+def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None):
     """Rebrand a single PDF. Returns a small dict of stats. Raises on hard failure."""
     input_pdf, output_pdf = Path(input_pdf), Path(output_pdf)
+    author = author or kit.brand_name
     reader = PdfReader(str(input_pdf))
     pages = reader.pages
     doc_or = _dominant_orientation(pages)
     if not kit.has(doc_or):
-        raise ValueError(f"Brand kit has no '{doc_or}' asset set.")
+        gap = ", ".join(kit.missing(doc_or)) or "assets"
+        raise ValueError(f"Brand kit is missing its '{doc_or}' {gap} image(s).")
 
     # Build ImageReaders fresh for THIS call (never shared across threads). Within
     # this one canvas the same reader objects are reused across pages, so each image
@@ -287,21 +408,91 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author="Budget
         "/Title": title or input_pdf.stem,
         "/Producer": "DocRefine Pro",
     })
-    with open(output_pdf, "wb") as f:
-        writer.write(f)
+    # Write to a sibling temp file and swap it in atomically. A run that is killed
+    # or loses power mid-write must never leave a half-written PDF behind: the
+    # resume check treats any non-empty file as finished, so a partial one would
+    # be shipped as the deliverable.
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(dir=str(output_pdf.parent), suffix=".part")
+        with os.fdopen(fd, "wb") as f:
+            writer.write(f)
+        os.replace(tmp, output_pdf)
+        tmp = None
+    finally:
+        if tmp and os.path.exists(tmp):
+            try: os.remove(tmp)
+            except OSError: pass
 
     size_mb = output_pdf.stat().st_size / 1e6
     return {"orientation": doc_or, "source_pages": len(pages),
             "output_pages": len(pages) + 2, "size_mb": round(size_mb, 2)}
 
 
-# --- Naming helpers (placeholder logic for Phase 1; the LLM refines these in Phase 2) ---
+# --- Naming helpers ---
+
+# Cover titles the customer actually reads. The hand-made Batch 1 covers set the
+# house style: short, plain, no model numbers — "PRODUCT CARE & CLEANING",
+# "FIVE YEAR PRODUCT WARRANTY", "INSTALLATION MANUAL". A document's asset type is
+# almost always the right title on its own, so that is what we render.
+ASSET_TYPE_TITLES = {
+    "installation-guide": "Installation Manual",
+    "installation-manual": "Installation Manual",
+    "installation-instructions": "Installation Instructions",
+    "assembly-instructions": "Assembly Instructions",
+    "mounting-instructions": "Mounting Instructions",
+    "user-guide": "User Guide",
+    "manual": "Product Manual",
+    "maintenance-manual": "Maintenance Manual",
+    "spec-sheet": "Specification Sheet",
+    "specification-sheet": "Specification Sheet",
+    "specifications": "Specification Sheet",
+    "cut-sheet": "Specification Sheet",
+    "product-cutsheet": "Specification Sheet",
+    "drawing": "Technical Drawing",
+    "cad-drawing": "Technical Drawing",
+    "technical-drawing": "Technical Drawing",
+    "warranty": "Product Warranty",
+    "certification": "Product Certification",
+    "catalog": "Product Catalog",
+    "brochure": "Product Brochure",
+    "care-cleaning": "Product Care & Cleaning",
+    "document": "Product Documentation",
+}
+
+DEFAULT_TITLE = "Product Documentation"
+
+# Tokens carrying a digit are model/part numbers (4C11D, 3635RL, 1570-12) and must
+# keep their own casing — .title() would render them "4C11D" -> "4C11d".
+_HAS_DIGIT = re.compile(r"\d")
+
 
 def title_from_filename(stem):
     """A tidy, human-readable cover title derived from a filename."""
     s = re.sub(r"[_\-]+", " ", stem)
     s = re.sub(r"\s+", " ", s).strip()
-    return s.title() if s else "Product Documentation"
+    if not s:
+        return DEFAULT_TITLE
+    return " ".join(w if _HAS_DIGIT.search(w) else w.title() for w in s.split())
+
+
+def title_for(asset_type, fallback_stem=None, doc_type=None):
+    """The cover title for a document: plain, short, no model numbers.
+
+    Prefers the canonical name for the asset type (what the customer needs to
+    know the document *is*), then the model's doc_type, then the filename.
+    """
+    key = slugify(asset_type or "")
+    if key in ASSET_TYPE_TITLES:
+        return ASSET_TYPE_TITLES[key]
+    dkey = slugify(doc_type or "")
+    if dkey in ASSET_TYPE_TITLES:
+        return ASSET_TYPE_TITLES[dkey]
+    if key and key != "document":
+        return key.replace("-", " ").title()
+    if fallback_stem:
+        return title_from_filename(fallback_stem)
+    return DEFAULT_TITLE
 
 
 def slugify(s):

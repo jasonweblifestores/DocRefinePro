@@ -2,15 +2,44 @@ import sys
 import shutil
 import gc
 import os
+import tempfile
 import zipfile
 import re
 import time
 from pathlib import Path
 from PIL import Image, ImageFile
 
-# Configure Pillow limits
-Image.MAX_IMAGE_PIXELS = 500000000
+from .config import CFG as _CFG_FOR_LIMITS
+
+# Configure Pillow limits — honour the Settings value rather than a hardcoded one.
+try:
+    Image.MAX_IMAGE_PIXELS = int(_CFG_FOR_LIMITS.get("max_pixels")) or None
+except (TypeError, ValueError):
+    Image.MAX_IMAGE_PIXELS = 500000000
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+
+class _staged:
+    """Write to `dest.part`, swap it in on success, remove it on failure.
+
+    The refine engine resumes by treating any non-empty file at the destination
+    as finished, so a half-written output must never appear there.
+    """
+    def __init__(self, dest):
+        self.dest = Path(dest)
+        self.path = self.dest.with_suffix(self.dest.suffix + ".part")
+
+    def __enter__(self):
+        self.dest.parent.mkdir(parents=True, exist_ok=True)
+        return self.path
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is None:
+            os.replace(self.path, self.dest)
+        elif self.path.exists():
+            try: os.remove(self.path)
+            except OSError: pass
+        return False
 
 # Dependency Checks
 try:
@@ -101,9 +130,15 @@ class PdfProcessor(BaseProcessor):
 
             # Both modes merge page PDFs incrementally, so peak memory stays
             # bounded to a single page regardless of document length.
+            # Merge into the temp folder and swap in: a run killed mid-write must
+            # not leave a truncated PDF, because the resume check treats any
+            # non-empty file at the destination as finished work.
+            merged = temp / "_merged.pdf"
             m = pypdf.PdfWriter()
             for f in imgs: m.append(f)
-            m.write(dest); m.close()
+            m.write(str(merged)); m.close()
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(merged, dest)
             return True
         except JobCancelledException:
             raise
@@ -118,9 +153,10 @@ class ImageProcessor(BaseProcessor):
     def resize(self, src, dest, w):
         try:
             self.check_state(); self.progress(50, "Processing...")
-            with Image.open(src) as img:
-                img.load(); r = min(w / img.width, 1.0)
-                img.resize((int(img.width * r), int(img.height * r)), Image.Resampling.LANCZOS).convert('RGB').save(dest, "JPEG", quality=85)
+            with _staged(dest) as staged:
+                with Image.open(src) as img:
+                    img.load(); r = min(w / img.width, 1.0)
+                    img.resize((int(img.width * r), int(img.height * r)), Image.Resampling.LANCZOS).convert('RGB').save(staged, "JPEG", quality=85)
             return True
         except JobCancelledException:
             raise
@@ -130,7 +166,8 @@ class ImageProcessor(BaseProcessor):
     def convert_to_pdf(self, src, dest):
         try:
             self.check_state(); self.progress(50, "Converting...")
-            with Image.open(src) as img: img.load(); img.convert('RGB').save(dest, "PDF")
+            with _staged(dest) as staged:
+                with Image.open(src) as img: img.load(); img.convert('RGB').save(staged, "PDF")
             return True
         except JobCancelledException:
             raise
@@ -148,11 +185,20 @@ class OfficeProcessor(BaseProcessor):
             t = dest.parent / f"temp_{src.stem}"; shutil.rmtree(t, ignore_errors=True)
             with zipfile.ZipFile(src) as z: z.extractall(t)
             c = t / "docProps" / "core.xml"
-            if c.exists(): c.write_text(re.sub(r'(<dc:creator>).*?(</dc:creator>)', r'\1\2', c.read_text(), flags=re.DOTALL))
-            with zipfile.ZipFile(dest, 'w') as z:
-                for r, _, fs in os.walk(t):
-                    for f in fs: z.write(Path(r)/f, (Path(r)/f).relative_to(t))
-            shutil.rmtree(t)
+            if c.exists():
+                # Office XML is UTF-8; reading it with the machine's locale
+                # encoding either mangles non-ASCII metadata or throws and
+                # silently skips sanitising the file altogether.
+                xml = c.read_text(encoding="utf-8", errors="surrogatepass")
+                c.write_text(re.sub(r'(<dc:creator>).*?(</dc:creator>)', r'\1\2', xml, flags=re.DOTALL),
+                             encoding="utf-8", errors="surrogatepass")
+            # ZipFile defaults to ZIP_STORED — re-zipping without DEFLATE inflated
+            # every sanitised Office file (measured 225x on compressible XML).
+            with _staged(dest) as staged:
+                with zipfile.ZipFile(staged, 'w', zipfile.ZIP_DEFLATED) as z:
+                    for r, _, fs in os.walk(t):
+                        for f in fs: z.write(Path(r)/f, (Path(r)/f).relative_to(t))
+            shutil.rmtree(t, ignore_errors=True)
             return True
         except JobCancelledException:
             raise

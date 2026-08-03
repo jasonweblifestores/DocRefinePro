@@ -8,3 +8,4 @@ PySide6
 pydantic
 jinja2
 reportlab
+openpyxl

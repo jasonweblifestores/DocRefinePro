@@ -1,5 +1,37 @@
 # DocRefine Pro - Changelog
 
+## [v140] - 2026-08-04
+### Changed — Simple, customer-facing cover titles
+* **Covers now say what the document is**, in the same plain style as the hand-made Batch 1 set: "INSTALLATION MANUAL", "SPECIFICATION SHEET", "PRODUCT WARRANTY". Titles are derived from the document's asset type, so they're consistent across the whole batch and there's nothing to hand-edit row by row.
+* **Long titles wrap onto a second line and shrink to fit** instead of running off both edges of the page.
+* Model and part numbers keep their own casing (`4C11D`, `3635RL`) rather than being mangled into `4C11d`.
+* Documents with no readable text now get a clean generic title instead of a title made out of their filename.
+
+### Added
+* **Excel review sheets.** Analyze now produces an `.xlsx`: a "review?" column that flags every row worth a second look, filenames that open the actual PDF when clicked, dropdowns for action and asset type, frozen headers and filters. Existing `.csv` sheets are still read and can still be used.
+* **Scanned installation guides are no longer skipped in silence.** A PDF with no text layer whose filename names it as instructions is now flagged for rebranding instead of being left as-is with everything else unreadable. (In the current batch that's 55 genuine guides that would otherwise have been missed.)
+* **Brand kits can carry their own name.** Drop a `brand.json` (`{"name": ..., "slug": ...}`) beside the artwork and the cover attribution, PDF author and output filenames all follow it. Kits without one behave exactly as before.
+
+### Fixed
+* **A run that is interrupted can no longer leave a corrupt file behind.** Output is written to a temporary file and swapped into place only once complete — previously a half-written PDF was treated as finished by the resume check and would have shipped as the deliverable.
+* **Brand kits are validated properly.** A kit missing its cover or back-cover artwork is now rejected up front with a message naming what's absent, instead of appearing valid and then failing on every single document.
+* A duplicate internal function meant the local-AI auto-start added in v138 was being silently bypassed in one code path.
+* Document text is now read from the first few pages rather than just two, so a file that opens with a full-page image is no longer mistaken for having no text at all.
+
+### Fixed — Core engine (found in a full audit of the main application)
+* **Stop no longer locks up the app.** Pressing Stop partway through Ingest, Unique Export, Distribution or CSV Export left the buttons permanently disabled, with a restart the only way out. Every one of those paths now finishes cleanly and says what happened.
+* **Exporting a CSV from a job with no manifest** used to do nothing at all — no message, no error, and the app locked. It now explains the problem.
+* **`manifest.json` is written atomically.** It's the single source of truth for Unique Export, Distribution and CSV Export; a 37k-file manifest takes about half a second to write, and an interruption inside that window previously corrupted it and made the whole ingest unreadable. The same protection now covers `stats.json` and `status.json`.
+* **Refined files can no longer be left half-written.** Flatten, OCR, resize, image-to-PDF and Office sanitize all write to a temporary file and swap it in when complete — a run that's interrupted used to leave a truncated file that every later run treated as finished work.
+* **Office sanitize no longer inflates documents.** Files were being re-zipped without compression, which made sanitized `.docx`/`.xlsx` files dramatically larger (over 200x on text-heavy documents in testing).
+* **Office metadata with accents or non-Latin characters** is now read and written as UTF-8. Previously the machine's regional encoding was used, which could make sanitizing silently skip a file.
+* **The "Max Pixels" setting now works.** It was shown in Settings and saved, but the underlying limit was hardcoded and ignored it.
+
+### UI
+* The Rebrand dialog remembers the last source folder, so you don't re-browse to it between Analyze and Apply.
+* An "Open folder" button next to the review sheet field.
+* Apply stays disabled until a review sheet is actually available, with a tooltip saying why.
+
 ## [v139] - 2026-08-03
 ### Added — Complete output sets
 * **"Complete set" option:** Rebranding can now copy every non-PDF file (images, Office docs, spreadsheets, anything else) through to the output folder unchanged, so the `_rebranded` tree is the whole upload set rather than PDFs only. Available as a checkbox in **Rebrand a Folder**, **Rebrand Unique Masters**, and **Process a Folder**; your choice is remembered. Turn it off for the previous PDFs-only behaviour.
