@@ -204,11 +204,54 @@ class AppController:
         d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"), default_source=default_source)
         if d.exec():
             if d.mode == "analyze":
-                self.start_process(self.worker.run_rebrand_analyze, (d.source_path,), multi_threaded=False)
+                self._start_analyze(d.source_path)
             else:
                 CFG.set("last_brand_kit", d.kit_path)
                 self.start_process(self.worker.run_rebrand_apply,
                                    (d.source_path, d.kit_path, d.plan_path), multi_threaded=True)
+
+    def _start_analyze(self, source):
+        """Ensure the local AI is usable before analyzing; guide the user if not."""
+        from docrefine import classify
+        status = classify.ollama_status()
+        st = status["state"]
+        if st == "not_running" and classify.start_server():
+            st = "ready" if classify.has_model() else "no_model"
+        if st == "ready":
+            self.start_process(self.worker.run_rebrand_analyze, (source,), multi_threaded=False)
+            return
+
+        box = QMessageBox(self.window)
+        box.setWindowTitle("Local AI (Ollama)")
+        box.setIcon(QMessageBox.Question)
+        get_btn = None
+        if st == "not_installed":
+            box.setText("The local AI that reads your documents (Ollama) isn't installed.\n\n"
+                        "It's free and runs entirely on your machine. Install it, download the model, "
+                        "and every PDF is auto-classified. Or continue now using filenames only.")
+            get_btn = box.addButton("Download Ollama…", QMessageBox.AcceptRole)
+        elif st == "no_model":
+            box.setText(f"Ollama is running, but the model '{classify.DEFAULT_MODEL}' (~2 GB) isn't "
+                        "downloaded yet.\n\nDownload it now (one-time), or continue using filenames only.")
+            get_btn = box.addButton("Download model (~2 GB)", QMessageBox.AcceptRole)
+        else:
+            box.setText("Ollama is installed but couldn't be started automatically.\n\n"
+                        "Please start Ollama, then try again — or continue using filenames only.")
+        fb_btn = box.addButton("Use filenames", QMessageBox.DestructiveRole)
+        box.addButton(QMessageBox.Cancel)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is fb_btn:
+            self.start_process(self.worker.run_rebrand_analyze, (source,), multi_threaded=False)
+        elif get_btn is not None and clicked is get_btn:
+            if st == "not_installed":
+                import webbrowser
+                webbrowser.open(classify.OLLAMA_DOWNLOAD_URL)
+                QMessageBox.information(self.window, "Ollama",
+                    "After installing Ollama, come back and click Analyze again.")
+            else:  # no_model → download it, then the user re-runs Analyze
+                self.start_process(self.worker.run_pull_model, (classify.DEFAULT_MODEL,), multi_threaded=False)
 
     def launch_pipeline(self):
         from docrefine.config import CFG

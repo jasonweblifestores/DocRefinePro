@@ -1,5 +1,12 @@
 # DocRefine Pro - Changelog
 
+## [v138] - 2026-07-30
+### Fixed / Improved — Local AI (Ollama) detection & setup
+* **Auto-start:** If Ollama is installed but not running, the app now starts it automatically before analyzing — instead of reporting "not detected" and silently falling back to filename-based titles.
+* **Guided setup:** When Ollama isn't installed or the model isn't downloaded, the Analyze step now offers to open the Ollama download page, or to download the model (~2 GB) with a progress bar — rather than quietly giving up.
+* **Connection fix:** Connect via `127.0.0.1` instead of `localhost` to avoid a Windows IPv6 resolution issue that could cause a false "connection refused".
+* Clearer status messages in the log about whether the local AI is being used.
+
 ## [v137] - 2026-07-30
 ### Added
 * **Rebrand Unique Masters:** Rebrand a deduplicated job's unique master files directly from the Export tab (Option D) — no need to hand-navigate to the workspace folder. Point-and-go from any ingested batch.

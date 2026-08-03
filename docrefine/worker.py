@@ -690,7 +690,8 @@ class Worker:
         try:
             self.stop_sig = False
             self.resume()
-            from .classify import classify_document, ollama_available
+            from .classify import (classify_document, ollama_status, start_server,
+                                   DEFAULT_MODEL, OLLAMA_DOWNLOAD_URL)
             src = Path(src_dir)
             plan = Path(out_csv) if out_csv else src / "_rebrand_plan.csv"
             self.current_ws = str(src)
@@ -700,9 +701,26 @@ class Worker:
                 self.log("No PDFs found in the selected folder.", True)
                 self.emit(AppEvent(EventType.DONE)); return
 
-            have_llm = ollama_available()
-            note = "" if have_llm else "  (Ollama not detected — using filename fallback; review carefully)"
-            self.log(f"Analyzing {len(pdfs)} PDFs for the review sheet{note}")
+            # Make the local AI usable: auto-start the server if it's installed but idle.
+            status = ollama_status()
+            if status["state"] == "not_running":
+                self.log("Ollama is installed but not running — starting it…")
+                start_server()
+                status = ollama_status()
+            have_llm = status["state"] == "ready"
+            if not have_llm:
+                if status["state"] == "no_model":
+                    self.log(f"Ollama is running but model '{DEFAULT_MODEL}' isn't downloaded — "
+                             f"using filenames. Get it via Rebrand → Analyze (offer to download), "
+                             f"or run: ollama pull {DEFAULT_MODEL}", True)
+                elif status["state"] == "not_installed":
+                    self.log(f"Ollama not installed — using filenames. Install it (free, offline) "
+                             f"from {OLLAMA_DOWNLOAD_URL}", True)
+                else:
+                    self.log("Ollama unavailable — using filenames. Review the sheet carefully.", True)
+            else:
+                self.log("Local AI ready — classifying with Ollama.")
+            self.log(f"Analyzing {len(pdfs)} PDFs for the review sheet")
             self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
             rows = []
@@ -1076,6 +1094,56 @@ class Worker:
                        "msg": f"{' → '.join(active)} finished.", "open_path": str(out)}))
         except Exception as e:
             self.log(f"Pipeline error: {e}", True)
+            self.emit(AppEvent(EventType.DONE))
+
+    def run_pull_model(self, model="llama3.2:3b"):
+        """Download an Ollama model with progress (used by the analyze setup flow)."""
+        try:
+            self.stop_sig = False
+            self.resume()
+            from .classify import start_server, pull_model, has_model
+            if not start_server():
+                self.log("Could not start Ollama — is it installed?", True)
+                self.emit(AppEvent(EventType.ERROR, "Could not start Ollama."))
+                self.emit(AppEvent(EventType.DONE)); return
+            if has_model(model):
+                self.log(f"Model '{model}' is already downloaded.")
+                self.emit(AppEvent(EventType.DONE))
+                self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Model Ready",
+                           "msg": f"'{model}' is ready. Click Analyze to continue."}))
+                return
+
+            self.log(f"Downloading model '{model}' (~2 GB, one-time)…")
+            self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
+            self._last_pull_emit = 0.0
+
+            def on_prog(msg):
+                status_txt = msg.get("status", "")
+                total = msg.get("total") or 0
+                completed = msg.get("completed") or 0
+                now = time.time()
+                if status_txt != "success" and now - getattr(self, "_last_pull_emit", 0.0) < 0.25:
+                    return
+                self._last_pull_emit = now
+                if total:
+                    self.prog_main(completed / total * 100,
+                                   f"{status_txt}: {completed // (1024 * 1024)}/{total // (1024 * 1024)} MB")
+                else:
+                    self.prog_main(0, status_txt or "Downloading…")
+
+            ok = pull_model(model, on_progress=on_prog)
+            if ok or has_model(model):
+                self.log(f"Model '{model}' downloaded.")
+                self.prog_main(100, "Done")
+                self.emit(AppEvent(EventType.DONE))
+                self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Model Ready",
+                           "msg": f"'{model}' downloaded. Click Rebrand → Analyze to continue."}))
+            else:
+                self.log(f"Model download failed for '{model}'.", True)
+                self.emit(AppEvent(EventType.ERROR, "Model download failed."))
+                self.emit(AppEvent(EventType.DONE))
+        except Exception as e:
+            self.log(f"Model download error: {e}", True)
             self.emit(AppEvent(EventType.DONE))
 
     def run_debug_export(self, ws_path_str):
