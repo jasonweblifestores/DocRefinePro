@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v138"
+    CURRENT_VERSION = "v139"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -121,6 +121,7 @@ class ConfigData(BaseModel):
     ocr_lang: str = "eng"
     last_workspace: str = ""
     last_brand_kit: str = ""
+    rebrand_complete_set: bool = True
     last_geometry: str = "1024x700"
     last_tab: int = 0
 
@@ -166,6 +167,10 @@ LOG_PATH = USER_DIR / "app_debug.log"
 JSON_LOG_PATH = USER_DIR / "app_events.jsonl"
 WORKSPACES_ROOT = USER_DIR / "Workspaces"
 WORKSPACES_ROOT.mkdir(parents=True, exist_ok=True)
+# One fixed home for rebrand review sheets, so they never get lost inside a
+# source tree (and never get swept into a "complete set" upload). See reviews.py.
+REVIEWS_ROOT = USER_DIR / "Rebrand Reviews"
+REVIEWS_ROOT.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger("DocRefine")
 logger.setLevel(getattr(logging, CFG.get("log_level").upper(), logging.INFO))

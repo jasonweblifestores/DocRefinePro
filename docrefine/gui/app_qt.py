@@ -207,8 +207,10 @@ class AppController:
                 self._start_analyze(d.source_path)
             else:
                 CFG.set("last_brand_kit", d.kit_path)
+                CFG.set("rebrand_complete_set", d.complete_set)
                 self.start_process(self.worker.run_rebrand_apply,
-                                   (d.source_path, d.kit_path, d.plan_path), multi_threaded=True)
+                                   (d.source_path, d.kit_path, d.plan_path, None, d.complete_set),
+                                   multi_threaded=True)
 
     def _start_analyze(self, source):
         """Ensure the local AI is usable before analyzing; guide the user if not."""
@@ -259,8 +261,10 @@ class AppController:
         if d.exec():
             if d.do_rebrand and d.kit_path:
                 CFG.set("last_brand_kit", d.kit_path)
+            CFG.set("rebrand_complete_set", d.complete_set)
             self.start_process(self.worker.run_pipeline,
-                               (d.source_path, d.do_flatten, d.do_rebrand, d.do_ocr, d.kit_path),
+                               (d.source_path, d.do_flatten, d.do_rebrand, d.do_ocr, d.kit_path,
+                                300, None, d.complete_set),
                                multi_threaded=True)
 
     def launch_refine(self):

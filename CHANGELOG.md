@@ -1,5 +1,18 @@
 # DocRefine Pro - Changelog
 
+## [v139] - 2026-08-03
+### Added — Complete output sets
+* **"Complete set" option:** Rebranding can now copy every non-PDF file (images, Office docs, spreadsheets, anything else) through to the output folder unchanged, so the `_rebranded` tree is the whole upload set rather than PDFs only. Available as a checkbox in **Rebrand a Folder**, **Rebrand Unique Masters**, and **Process a Folder**; your choice is remembered. Turn it off for the previous PDFs-only behaviour.
+* Copies are byte-identical, mirror the source folder structure, and re-runs skip what's already there.
+* PDFs found in the source that aren't in the review sheet are now called out in the log instead of quietly missing from the output.
+
+### Changed — Review sheets have a home
+* **The review sheet is no longer written into the folder you analyzed**, where it was easy to lose among thousands of subfolders. Sheets now go to **Documents\DocRefinePro_Data\Rebrand Reviews**, named after the job and folder they describe (e.g. `BM-Batch4__01_Master_Files_rebrand_plan.csv`).
+* **Apply finds the sheet by itself** — the Rebrand dialog pre-fills it as soon as you pick the source folder. Sheets written by earlier versions (inside the source folder) are still found automatically.
+* Re-analyzing a folder keeps your reviewed sheet as `…_rebrand_plan.previous.csv` instead of overwriting it outright.
+* Review sheets are never copied into the output, even with "Complete set" on.
+* The output folder no longer gets an internal `stats.json` timing file — the delivery tree now contains only your documents. Timings are in the log.
+
 ## [v138] - 2026-07-30
 ### Fixed / Improved — Local AI (Ollama) detection & setup
 * **Auto-start:** If Ollama is installed but not running, the app now starts it automatically before analyzing — instead of reporting "not detected" and silently falling back to filename-based titles.

@@ -83,6 +83,7 @@ a = Analysis(
         'docrefine.worker',
         'docrefine.rebrand',
         'docrefine.classify',
+        'docrefine.reviews',
         'reportlab'
     ] + filtered_hidden_imports,
     hookspath=[],

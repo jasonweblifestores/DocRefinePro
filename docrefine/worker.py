@@ -692,8 +692,9 @@ class Worker:
             self.resume()
             from .classify import (classify_document, ollama_status, start_server,
                                    DEFAULT_MODEL, OLLAMA_DOWNLOAD_URL)
+            from .reviews import plan_path_for
             src = Path(src_dir)
-            plan = Path(out_csv) if out_csv else src / "_rebrand_plan.csv"
+            plan = Path(out_csv) if out_csv else plan_path_for(src)
             self.current_ws = str(src)
 
             pdfs = [Path(r) / f for r, _, fs in os.walk(src) for f in fs if f.lower().endswith(".pdf")]
@@ -749,6 +750,16 @@ class Worker:
                 self.log("Analysis stopped by user.")
                 self.emit(AppEvent(EventType.DONE)); return
 
+            # Never silently discard a sheet someone already reviewed.
+            plan.parent.mkdir(parents=True, exist_ok=True)
+            if plan.exists():
+                bak = plan.with_name(plan.stem + ".previous.csv")
+                try:
+                    shutil.copy2(plan, bak)
+                    self.log(f"Previous review sheet kept as {bak.name}")
+                except Exception:
+                    pass
+
             with open(plan, "w", newline="", encoding="utf-8-sig") as f:
                 w = csv.DictWriter(f, fieldnames=self.REBRAND_PLAN_COLUMNS)
                 w.writeheader()
@@ -757,12 +768,13 @@ class Worker:
 
             n_reb = sum(1 for r in rows if r["action"] == "rebrand")
             n_leave = len(rows) - n_reb
-            self.log(f"Review sheet ready: {plan.name}  ({n_reb} to rebrand, {n_leave} to leave as-is)")
+            self.log(f"Review sheet ready: {plan}  ({n_reb} to rebrand, {n_leave} to leave as-is)")
             self.prog_main(100, "Done")
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {
                 "title": "Review Sheet Ready",
-                "msg": f"{n_reb} to rebrand, {n_leave} to leave as-is.\nEdit the sheet in Excel, then run Rebrand → Apply.",
+                "msg": f"{n_reb} to rebrand, {n_leave} to leave as-is.\n"
+                       f"Saved to {plan.parent}\nEdit it in Excel, then run Rebrand → Apply.",
                 "open_path": str(plan)}))
         except Exception as e:
             self.log(f"Analyze error: {e}", True)
@@ -861,12 +873,78 @@ class Worker:
             return "oversize"
         return "done"
 
-    def run_rebrand_apply(self, src_dir, kit_dir, plan_csv, out_dir=None):
-        """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is."""
+    def _copy_extras(self, src, out, rows):
+        """Complete set: copy every non-PDF source file into the mirrored output.
+
+        PDFs are the review sheet's business; everything else (images, Office
+        docs, spreadsheets) is copied through unchanged so the output tree is the
+        whole upload set. Review sheets themselves are never copied."""
+        from .reviews import is_plan_file
+        planned = {(r.get("file") or "").strip().replace("\\", "/").lower() for r in rows}
+        try:
+            out_res = out.resolve()
+        except OSError:
+            out_res = out
+
+        extras, unplanned_pdfs = [], 0
+        for root, dirs, files in os.walk(src):
+            rp = Path(root)
+            try:
+                rr = rp.resolve()
+                if rr == out_res or out_res in rr.parents:
+                    dirs[:] = []          # never re-ingest our own output
+                    continue
+            except OSError:
+                pass
+            for name in files:
+                p = rp / name
+                if p.suffix.lower() == ".pdf":
+                    rel = str(p.relative_to(src)).replace("\\", "/").lower()
+                    if rel not in planned:
+                        unplanned_pdfs += 1
+                    continue
+                if is_plan_file(name):
+                    continue
+                extras.append(p)
+
+        if unplanned_pdfs:
+            self.log(f"Note: {unplanned_pdfs} PDF(s) in the source are not in the review sheet "
+                     f"and were not produced — re-run Analyze to include them.", True)
+        if not extras:
+            self.log("Complete set: no non-PDF files to copy.")
+            return 0
+        self.log(f"Complete set: copying {len(extras)} non-PDF files")
+
+        def cp(p):
+            if self.stop_sig:
+                return None
+            if not self.pause_event.is_set():
+                self.pause_event.wait()
+            self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
+            dst = out / p.relative_to(src)
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                if dst.exists() and dst.stat().st_size == p.stat().st_size:
+                    return "skip"     # already there (resume-safe)
+                shutil.copy2(p, dst)
+                return "copied"
+            except Exception as e:
+                self.log(f"Copy failed: {p.name}: {e}", True)
+                return None
+
+        res = self._parallel_map(extras, cp, "Copying")
+        return sum(1 for r in res if r in ("copied", "skip"))
+
+    def run_rebrand_apply(self, src_dir, kit_dir, plan_csv=None, out_dir=None, complete_set=False):
+        """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is.
+
+        With complete_set, every non-PDF file in the source is copied through to
+        the mirrored output too, so the output tree is the whole upload set."""
         try:
             self.stop_sig = False
             self.resume()
             from .rebrand import BrandKit
+            from .reviews import find_plan
             src = Path(src_dir)
             out = Path(out_dir) if out_dir else src.parent / f"{src.name}_rebranded"
             self.current_ws = str(out)
@@ -876,6 +954,15 @@ class Worker:
                 self.log("CRITICAL: Brand kit has no Portrait/Landscape asset folders.", True)
                 self.emit(AppEvent(EventType.ERROR, "Brand kit has no Portrait/Landscape asset folders."))
                 self.emit(AppEvent(EventType.DONE)); return
+
+            if not plan_csv:   # find the sheet Analyze wrote for this folder
+                found = find_plan(src)
+                if not found:
+                    self.log("No review sheet found for this folder — run Analyze first.", True)
+                    self.emit(AppEvent(EventType.ERROR, "No review sheet found — run Analyze first."))
+                    self.emit(AppEvent(EventType.DONE)); return
+                plan_csv = str(found)
+                self.log(f"Using review sheet: {plan_csv}")
 
             with open(plan_csv, newline="", encoding="utf-8-sig") as f:
                 rows = list(csv.DictReader(f))
@@ -918,8 +1005,13 @@ class Worker:
                 self.log("Apply stopped by user.")
                 self.emit(AppEvent(EventType.DONE)); return
 
-            update_stats_time(out, "rebrand_time", time.time() - start_time)
+            copied = self._copy_extras(src, out, rows) if complete_set else 0
+
+            # Timing goes to the log, not a stats.json inside the tree — the output
+            # folder is the delivery set and must contain nothing but the documents.
+            self.log(f"Rebrand took {(time.time() - start_time) / 60:.1f} min")
             msg = f"Done. Rebranded {done}, left as-is {left}, skipped {skipped}, failed {failed}."
+            if complete_set: msg += f" Copied {copied} non-PDF files."
             if oversize: msg += f" ({oversize} over 50 MB — review.)"
             self.log(msg)
             self.prog_main(100, "Done")
@@ -933,10 +1025,11 @@ class Worker:
     #   COMPOSABLE PIPELINE  (start from any folder; pick steps; OCR runs last)
     # ==========================================================================
     def _load_plan(self, src):
-        """Load a _rebrand_plan.csv (if present) into {relative_path: row}."""
-        p = Path(src) / "_rebrand_plan.csv"
+        """Load this folder's review sheet (wherever it lives) into {relative_path: row}."""
+        from .reviews import find_plan
+        p = find_plan(src)
         out = {}
-        if p.exists():
+        if p:
             try:
                 with open(p, newline="", encoding="utf-8-sig") as f:
                     for row in csv.DictReader(f):
@@ -947,11 +1040,15 @@ class Worker:
                 pass
         return out
 
-    def _folder_pdf_op(self, src, out, mode, dpi, label, only_no_text=False):
-        """Flatten or OCR every PDF from src into out (mirrored). Non-PDFs pass through."""
+    def _folder_pdf_op(self, src, out, mode, dpi, label, only_no_text=False, complete_set=True):
+        """Flatten or OCR every PDF from src into out (mirrored).
+
+        Non-PDFs pass through unchanged with complete_set; without it they are
+        left behind and the output holds PDFs only."""
         from .processing import PdfProcessor
         bot = PdfProcessor(lambda v, t, s=False: self.prog_sub(v, t, s), lambda: self.stop_sig, self.pause_event)
-        files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
+        files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs
+                 if complete_set or f.lower().endswith(".pdf")]
 
         def op(p):
             if self.stop_sig:
@@ -978,16 +1075,21 @@ class Worker:
 
         self._parallel_map(files, op, label)
 
-    def _folder_rebrand(self, src, plan_src, out, kit, label):
-        """Rebrand every PDF from src into out, honouring a review plan from plan_src if present."""
+    def _folder_rebrand(self, src, plan_src, out, kit, label, complete_set=True):
+        """Rebrand every PDF from src into out, honouring a review plan from plan_src if present.
+
+        With complete_set, non-PDF files are copied through so the output is the
+        full set; without it, only PDFs reach the output."""
         from .rebrand import (rebrand_pdf, output_filename, output_filename_from_fields,
                               title_from_filename, _ensure_font)
+        from .reviews import is_plan_file
         _ensure_font()
         for o in ("portrait", "landscape"):
             if kit.has(o):
                 kit.specs(o)
         plan = self._load_plan(plan_src)
-        files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs]
+        files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs
+                 if (complete_set or f.lower().endswith(".pdf")) and not is_plan_file(f)]
 
         # Pre-assign a unique output path per file (single-threaded → collision-safe).
         dsts = {}
@@ -1036,8 +1138,11 @@ class Worker:
 
         self._parallel_map(files, one, label)
 
-    def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300, out_dir=None):
-        """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR."""
+    def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300,
+                     out_dir=None, complete_set=True):
+        """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR.
+
+        complete_set carries non-PDF files through every stage into the output."""
         import tempfile
         try:
             self.stop_sig = False
@@ -1068,13 +1173,16 @@ class Worker:
 
             if do_flatten and not self.stop_sig:
                 step += 1; nxt = work / "1_flattened"
-                self._folder_pdf_op(current, nxt, "flatten", dpi, f"[{step}/{n}] Flatten"); current = nxt
+                self._folder_pdf_op(current, nxt, "flatten", dpi, f"[{step}/{n}] Flatten",
+                                    complete_set=complete_set); current = nxt
             if do_rebrand and not self.stop_sig:
                 step += 1; nxt = work / "2_rebranded"
-                self._folder_rebrand(current, src, nxt, kit, f"[{step}/{n}] Rebrand"); current = nxt
+                self._folder_rebrand(current, src, nxt, kit, f"[{step}/{n}] Rebrand",
+                                     complete_set=complete_set); current = nxt
             if do_ocr and not self.stop_sig:
                 step += 1; nxt = work / "3_searchable"
-                self._folder_pdf_op(current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True); current = nxt
+                self._folder_pdf_op(current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True,
+                                    complete_set=complete_set); current = nxt
 
             if self.stop_sig:
                 self.log("Pipeline stopped by user."); shutil.rmtree(work, ignore_errors=True)
@@ -1086,8 +1194,8 @@ class Worker:
             shutil.move(str(current), str(out))
             shutil.rmtree(work, ignore_errors=True)
 
-            update_stats_time(out, "pipeline_time", time.time() - start_time)
-            self.log(f"Pipeline complete: {' → '.join(active)}")
+            self.log(f"Pipeline complete: {' → '.join(active)}"
+                     f"  ({(time.time() - start_time) / 60:.1f} min)")
             self.prog_main(100, "Done")
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Pipeline Complete",

@@ -232,6 +232,7 @@ class RebrandDialog(QDialog):
         self.source_path = default_source or None
         self.kit_path = default_kit or None
         self.plan_path = None
+        self.complete_set = bool(CFG.get("rebrand_complete_set"))
         self.mode = None  # "analyze" or "apply"
 
         layout = QVBoxLayout(self)
@@ -265,27 +266,45 @@ class RebrandDialog(QDialog):
         row_kit = QHBoxLayout(); row_kit.addWidget(QLabel("Brand kit:")); row_kit.addWidget(self.txt_kit, 1); row_kit.addWidget(btn_kit)
         v2.addLayout(row_kit)
         self.txt_plan = QLineEdit(); self.txt_plan.setReadOnly(True)
-        self.txt_plan.setPlaceholderText("Reviewed sheet (_rebrand_plan.csv)…")
+        self.txt_plan.setPlaceholderText("Found automatically after Analyze…")
         btn_plan = QPushButton("Browse…"); btn_plan.clicked.connect(self.pick_plan)
         row_plan = QHBoxLayout(); row_plan.addWidget(QLabel("Review sheet:")); row_plan.addWidget(self.txt_plan, 1); row_plan.addWidget(btn_plan)
         v2.addLayout(row_plan)
+        self.chk_complete = QCheckBox("Complete set — also copy non-PDF files into the output")
+        self.chk_complete.setChecked(self.complete_set)
+        self.chk_complete.setToolTip(
+            "On: the output tree is the whole upload set — images, Office docs and\n"
+            "anything else are copied through unchanged alongside the branded PDFs.\n"
+            "Off: PDFs only (non-PDF files stay in the source folder).")
+        v2.addWidget(self.chk_complete)
         self.btn_apply = QPushButton("Apply Reviewed Sheet")
         self.btn_apply.setStyleSheet("font-weight: bold;")
         self.btn_apply.clicked.connect(self.on_apply)
         v2.addWidget(self.btn_apply)
         layout.addWidget(gb2)
 
-        note = QLabel("Output goes to a “_rebranded” folder beside the source, mirroring its structure.")
+        note = QLabel("Output goes to a “_rebranded” folder beside the source, mirroring its structure.\n"
+                      "Review sheets are saved in Documents\\DocRefinePro_Data\\Rebrand Reviews.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
         layout.addWidget(note)
+
+        self._autofill_plan()
+
+    def _autofill_plan(self):
+        """Point Step 2 at the sheet Analyze wrote for this source, if there is one."""
+        if not self.source_path:
+            return
+        from docrefine.reviews import find_plan
+        found = find_plan(self.source_path)
+        if found:
+            self.plan_path = str(found); self.txt_plan.setText(str(found))
 
     def pick_source(self):
         d = QFileDialog.getExistingDirectory(self, "Select Source Folder")
         if d:
             self.source_path = d; self.txt_src.setText(d)
-            guess = os.path.join(d, "_rebrand_plan.csv")
-            if os.path.exists(guess) and not self.plan_path:
-                self.plan_path = guess; self.txt_plan.setText(guess)
+            self.plan_path = None; self.txt_plan.clear()
+            self._autofill_plan()
 
     def pick_kit(self):
         d = QFileDialog.getExistingDirectory(self, "Select Brand Kit Folder")
@@ -293,7 +312,9 @@ class RebrandDialog(QDialog):
             self.kit_path = d; self.txt_kit.setText(d)
 
     def pick_plan(self):
-        f, _ = QFileDialog.getOpenFileName(self, "Select Review Sheet", "", "CSV files (*.csv)")
+        from docrefine.config import REVIEWS_ROOT
+        start = str(Path(self.plan_path).parent) if self.plan_path else str(REVIEWS_ROOT)
+        f, _ = QFileDialog.getOpenFileName(self, "Select Review Sheet", start, "CSV files (*.csv)")
         if f:
             self.plan_path = f; self.txt_plan.setText(f)
 
@@ -304,10 +325,14 @@ class RebrandDialog(QDialog):
         self.mode = "analyze"; self.accept()
 
     def on_apply(self):
+        if not self.plan_path:
+            self._autofill_plan()      # sheet may have been created since the dialog opened
         if not (self.source_path and self.kit_path and self.plan_path):
             QMessageBox.warning(self, "Missing selection",
-                                "Apply needs a source folder, a brand kit, and a reviewed sheet.")
+                                "Apply needs a source folder, a brand kit, and a reviewed sheet.\n\n"
+                                "Run Analyze first — its sheet is picked up automatically.")
             return
+        self.complete_set = self.chk_complete.isChecked()
         self.mode = "apply"; self.accept()
 
 class PipelineDialog(QDialog):
@@ -319,6 +344,7 @@ class PipelineDialog(QDialog):
         self.source_path = None
         self.kit_path = default_kit or None
         self.do_flatten = self.do_rebrand = self.do_ocr = False
+        self.complete_set = bool(CFG.get("rebrand_complete_set"))
 
         layout = QVBoxLayout(self)
         title = QLabel("Process a folder of PDFs")
@@ -348,6 +374,14 @@ class PipelineDialog(QDialog):
         v.addLayout(row_kit)
         self.chk_rebrand.toggled.connect(self._sync_kit)
         layout.addWidget(gb)
+
+        self.chk_complete = QCheckBox("Complete set — carry non-PDF files through to the output")
+        self.chk_complete.setChecked(self.complete_set)
+        self.chk_complete.setToolTip(
+            "On: images, Office docs and anything else are copied through unchanged,\n"
+            "so the output tree is the whole set.\n"
+            "Off: PDFs only (non-PDF files stay in the source folder).")
+        layout.addWidget(self.chk_complete)
 
         note = QLabel("Output goes to a “_processed” folder beside the source.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
@@ -380,6 +414,7 @@ class PipelineDialog(QDialog):
         self.do_flatten = self.chk_flatten.isChecked()
         self.do_rebrand = self.chk_rebrand.isChecked()
         self.do_ocr = self.chk_ocr.isChecked()
+        self.complete_set = self.chk_complete.isChecked()
         if not (self.do_flatten or self.do_rebrand or self.do_ocr):
             QMessageBox.warning(self, "No steps selected", "Please select at least one step.")
             return
