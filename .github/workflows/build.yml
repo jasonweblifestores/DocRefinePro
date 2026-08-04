@@ -7,6 +7,14 @@ on:
   push:
     tags:
       - 'v*'
+  # Lets the ClickUp step be exercised on its own, without cutting a release.
+  # The builds are skipped for a manual run — this only posts the announcement.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to announce (e.g. v141). Posts to ClickUp; does not build.'
+        required: true
+        default: 'v141'
 
 jobs:
   # ====================================================
@@ -15,7 +23,8 @@ jobs:
   build-windows:
     name: Windows Build
     runs-on: windows-latest
-    
+    if: startsWith(github.ref, 'refs/tags/')
+
     steps:
     - uses: actions/checkout@v4
 
@@ -59,7 +68,8 @@ jobs:
   build-mac:
     name: macOS Build
     runs-on: macos-latest
-    
+    if: startsWith(github.ref, 'refs/tags/')
+
     steps:
     - uses: actions/checkout@v4
 
@@ -129,7 +139,13 @@ jobs:
     name: Update ClickUp Task
     runs-on: ubuntu-latest
     needs: [build-windows, build-mac]
-    if: startsWith(github.ref, 'refs/tags/')
+    # On a tag: only when BOTH builds passed, so the task is never told about a
+    # release that does not exist. On a manual run: the builds are skipped, so
+    # allow it through explicitly.
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (needs.build-windows.result == 'success' && needs.build-mac.result == 'success'))
 
     steps:
     - uses: actions/checkout@v4
@@ -138,8 +154,9 @@ jobs:
       env:
         CLICKUP_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
         CLICKUP_TASK_ID: 86ex00r23          # DocRefine Pro (parent project task)
-        VERSION: ${{ github.ref_name }}
+        VERSION: ${{ inputs.version || github.ref_name }}
         REPO: ${{ github.repository }}
+        EVENT: ${{ github.event_name }}
       run: |
         # Report the outcome to the run summary, which is readable without repo
         # admin rights. A silent "success" that did nothing is worse than a
@@ -180,12 +197,18 @@ jobs:
         if len(notes) > 8000:
             notes = notes[:8000].rstrip() + "\n\n…truncated — see the full changelog."
 
+        manual = os.environ.get("EVENT") == "workflow_dispatch"
+        header = (f"### 🧪 Pipeline test — {version} (not a new release)" if manual
+                  else f"### 🚀 {version} released")
+        footer = ("_Manual test of the ClickUp posting step. No build was run and nothing "
+                  "was released._" if manual else
+                  "_Posted automatically by the build pipeline once the Windows and macOS "
+                  "builds both succeeded._")
         body = (
-            f"### 🚀 {version} released\n\n"
+            f"{header}\n\n"
             f"{notes}\n\n"
             f"[Release notes and downloads](https://github.com/{repo}/releases/tag/{version})\n\n"
-            f"_Posted automatically by the build pipeline once the Windows and macOS "
-            f"builds both succeeded._"
+            f"{footer}"
         )
 
         req = urllib.request.Request(
