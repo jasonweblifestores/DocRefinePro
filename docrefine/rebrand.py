@@ -466,6 +466,8 @@ DEFAULT_TITLE = "Product Documentation"
 # keep their own casing — .title() would render them "4C11D" -> "4C11d".
 _HAS_DIGIT = re.compile(r"\d")
 
+MAX_DELIVERY_NAME = 60   # hard cap from the delivery brief
+
 
 def title_from_filename(stem):
     """A tidy, human-readable cover title derived from a filename."""
@@ -499,6 +501,20 @@ def slugify(s):
     return re.sub(r"[^a-z0-9]+", "-", (s or "").lower()).strip("-")
 
 
+def _clip_words(slug, limit):
+    """Shorten a slug to `limit` characters on a word boundary.
+
+    Cutting mid-word produces names like 'wall-mount-mailbo'; dropping the whole
+    word reads as a deliberate abbreviation instead.
+    """
+    if len(slug) <= limit:
+        return slug
+    cut = slug[:limit]
+    if "-" in cut:
+        cut = cut[:cut.rindex("-")]
+    return cut.strip("-")
+
+
 def output_filename(stem, brand_slug="budget-mailboxes", max_len=60):
     """Slugged delivery filename: <cleaned-name>-<brand>.pdf, lowercase, <= max_len."""
     tail = f"-{brand_slug}.pdf"
@@ -508,8 +524,43 @@ def output_filename(stem, brand_slug="budget-mailboxes", max_len=60):
 
 
 def output_filename_from_fields(product, asset_type, brand_slug="budget-mailboxes", max_len=60):
-    """Brief's delivery pattern: <product>-<asset-type>-budget-mailboxes.pdf, <= max_len."""
-    core = "-".join(x for x in (slugify(product), slugify(asset_type)) if x) or "document"
+    """Brief's delivery pattern: <product>-<asset-type>-budget-mailboxes.pdf, <= max_len.
+
+    The product is truncated in preference to the asset type, so a long product
+    name never squeezes out the part that says what the document *is*.
+    """
+    p, a = slugify(product), slugify(asset_type)
     tail = f"-{brand_slug}.pdf"
     keep = max(1, max_len - len(tail))
-    return f"{core[:keep].strip('-') or 'document'}{tail}"
+    if p and a and len(f"{p}-{a}") > keep:
+        p = _clip_words(p, max(1, keep - len(a) - 1))
+    core = "-".join(x for x in (p, a) if x) or "document"
+    return f"{_clip_words(core, keep) or 'document'}{tail}"
+
+
+def numbered_filename(name, n, max_len=MAX_DELIVERY_NAME):
+    """`name` with a `-n` disambiguator, still inside the delivery length cap.
+
+    Appending the suffix naively pushed an already-capped name to 61 characters.
+    """
+    p = Path(name)
+    stem, ext = p.stem, p.suffix
+    suffix = f"-{n}"
+    over = len(stem) + len(suffix) + len(ext) - max_len
+    if over > 0:
+        stem = stem[:max(1, len(stem) - over)].rstrip("-")
+    return f"{stem}{suffix}{ext}"
+
+
+def delivery_filename(stem, product="", asset_type="", brand_slug="budget-mailboxes", max_len=60):
+    """The delivery filename for one document.
+
+    Falls back to the source filename when no product was identified. The model
+    leaves `product` blank on a large share of documents, and without this every
+    unidentified installation guide in a batch collapses onto
+    `installation-guide-budget-mailboxes.pdf` and gets a meaningless numbered
+    suffix — the source name is where the model or part number actually lives.
+    """
+    product = (product or "").strip() or (stem or "")
+    return output_filename_from_fields(product, asset_type,
+                                       brand_slug=brand_slug, max_len=max_len)

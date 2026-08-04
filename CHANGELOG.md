@@ -1,5 +1,16 @@
 # DocRefine Pro - Changelog
 
+## [v142] - 2026-08-04
+### Fixed — Delivery filenames that actually identify the document
+Output names are built as `product-asset-type-budget-mailboxes.pdf`, but the local model leaves the product blank on a large share of documents (40% of the current batch). Every one of those collapsed onto the same name and got a numbered suffix — **255 files would have shipped as `installation-guide-budget-mailboxes.pdf` through `-255.pdf`**. Nothing was ever lost, but the names told a customer nothing and didn't match the delivery pattern.
+
+* **A blank product now falls back to the source filename**, which is where the model or part number actually lives: `1570-12-BM.pdf` becomes `1570-12-bm-installation-guide-budget-mailboxes.pdf`.
+* **When several documents genuinely share a product and asset type, all of them use their source name** — previously whichever row happened to come first in the sheet kept the clean name and the rest were numbered, so the outcome depended on sheet order.
+* Long names are shortened on a word boundary instead of mid-word (no more `wall-mount-mailbo-…`), and the product is trimmed before the asset type so the name always still says what the document is.
+* A numbered suffix, now only needed as a last resort, stays inside the 60-character limit — it previously pushed names to 61.
+
+On the current batch this takes colliding files from **481 down to 53**, with all 874 names unique and within the length cap.
+
 ## [v141] - 2026-08-04
 ### Changed — A review sheet you can actually triage
 * **The "review?" column now flags decisions, not just unreadable files.** On the current batch it was marking 70% of rows, which made it useless as a filter — most of those were technical drawings correctly left as-is, needing no sign-off at all. A file we couldn't read now only gets flagged when we're proposing to *brand* it. **Flagged rows drop from 1,517 to 528 (70% → 24%)**, and what remains is genuinely uncertain.

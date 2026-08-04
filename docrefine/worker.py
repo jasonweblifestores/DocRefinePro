@@ -880,9 +880,26 @@ class Worker:
     def _assign_output_names(self, rows, out, kit=None):
         """Assign each row a unique output path up front (single-threaded) so parallel
         writes never collide, and re-runs stay deterministic (resume-safe)."""
-        from .rebrand import output_filename, output_filename_from_fields
+        from .rebrand import delivery_filename, numbered_filename as _numbered
         brand = {"brand_slug": kit.brand_slug} if kit is not None else {}
-        used = {}
+
+        def preferred(row, rel_path):
+            return delivery_filename(rel_path.stem, row.get("product"),
+                                     row.get("asset_type"), **brand)
+
+        # First work out which product/asset-type names more than one document
+        # wants. Many documents share both fields, and the model leaves product
+        # blank on a large share of them, so without this a whole group collapses
+        # onto one name and gets meaningless -2/-3 suffixes. Whether a given file
+        # kept the clean name would come down to its position in the sheet, so
+        # when a name is contested EVERY member falls back to its source name.
+        wanted = {}
+        for row in rows:
+            rel = (row.get("file") or "").strip().replace("\\", "/")
+            if rel and (row.get("action") or "").strip().lower() != "leave":
+                wanted[preferred(row, Path(rel))] = wanted.get(preferred(row, Path(rel)), 0) + 1
+
+        taken = set()
         for row in rows:
             rel = (row.get("file") or "").strip().replace("\\", "/")
             if not rel:
@@ -892,16 +909,17 @@ class Worker:
             if (row.get("action") or "").strip().lower() == "leave":
                 dst = out / rel_path  # unbranded, original name/structure
             else:
-                product = (row.get("product") or "").strip()
-                asset = (row.get("asset_type") or "").strip()
-                name = (output_filename_from_fields(product, asset, **brand)
-                        if (product or asset) else output_filename(rel_path.stem, **brand))
+                name = preferred(row, rel_path)
+                if wanted.get(name, 0) > 1:
+                    # The source name identifies the document; "-2" tells the
+                    # reader nothing.
+                    name = delivery_filename(rel_path.stem, "", row.get("asset_type"), **brand)
                 dst = out / rel_path.parent / name
-            key = str(dst).lower()
-            n = used.get(key, 0) + 1
-            used[key] = n
-            if n > 1:  # collision → stable numbered suffix so each source keeps its own file
-                dst = dst.with_name(f"{dst.stem}-{n}{dst.suffix}")
+            base, n = dst, 1
+            while str(dst).lower() in taken:   # last resort, still deterministic
+                n += 1
+                dst = base.with_name(_numbered(base.name, n))
+            taken.add(str(dst).lower())
             row["_dst"] = str(dst)
 
     def _apply_one_row(self, row, src, out, kit):
@@ -1154,8 +1172,7 @@ class Worker:
 
         With complete_set, non-PDF files are copied through so the output is the
         full set; without it, only PDFs reach the output."""
-        from .rebrand import (rebrand_pdf, output_filename, output_filename_from_fields,
-                              title_for, _ensure_font)
+        from .rebrand import (rebrand_pdf, delivery_filename, title_for, _ensure_font)
         from .reviews import is_plan_file
         brand = {"brand_slug": kit.brand_slug}
         _ensure_font()
@@ -1176,12 +1193,10 @@ class Worker:
             if p.suffix.lower() != ".pdf" or is_leave:
                 dst = out / rel
             elif row:
-                product = (row.get("product") or "").strip(); asset = (row.get("asset_type") or "").strip()
-                name = (output_filename_from_fields(product, asset, **brand)
-                        if (product or asset) else output_filename(p.stem, **brand))
-                dst = out / rel.parent / name
+                dst = out / rel.parent / delivery_filename(
+                    p.stem, row.get("product"), row.get("asset_type"), **brand)
             else:
-                dst = out / rel.parent / output_filename(p.stem, **brand)
+                dst = out / rel.parent / delivery_filename(p.stem, **brand)
             key = str(dst).lower()
             n = used.get(key, 0) + 1
             used[key] = n
