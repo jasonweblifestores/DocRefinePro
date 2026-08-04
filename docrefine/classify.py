@@ -195,6 +195,23 @@ def filename_suggests_instructions(name):
     return bool(_INSTRUCTION_NAME_RE.search(Path(name).stem))
 
 
+# The mirror of the rule above. These names are how the manufacturers label
+# dimensional drawings, and the brief says to leave drawings alone. Used only to
+# break a tie when the model is unsure — a confident read of the text still wins.
+_DRAWING_NAME_RE = re.compile(
+    r"^tech[-_]|drawing|elevation|cut[-_]?sheet|[-_]cs$|bolt[-_]pattern|foundation|pad[-_]spec", re.I)
+
+DRAWING_TIEBREAK_BELOW = 0.9
+
+
+def filename_suggests_drawing(name):
+    """True if a filename labels the document as a technical drawing."""
+    stem = Path(name).stem
+    if filename_suggests_instructions(stem):
+        return False          # "…-installation-cut-sheet" is instructions first
+    return bool(_DRAWING_NAME_RE.search(stem))
+
+
 def _fallback(pdf_path, note=""):
     from .rebrand import DEFAULT_TITLE
     stem = Path(pdf_path).stem
@@ -255,6 +272,13 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
             conf = round(float(d.get("confidence", 0) or 0), 2)
         except (TypeError, ValueError):
             conf = 0.0
+        note = ""
+        if (action == "rebrand" and conf < DRAWING_TIEBREAK_BELOW
+                and filename_suggests_drawing(pdf_path)):
+            # Unsure, and the filename says drawing — the brief leaves drawings
+            # alone, and that is the reversible choice. Say so in the sheet.
+            action = "leave"
+            note = "filename says drawing and the model was unsure — confirm if it should be branded"
         return {
             "action": action,
             "doc_type": str(d.get("doc_type", "")).strip(),
@@ -264,7 +288,7 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
             "title": title,
             "confidence": conf,
             "source": "llm",
-            "notes": "",
+            "notes": note,
         }
     except Exception as e:
         return _fallback(pdf_path, note=f"model error: {str(e)[:40]}")

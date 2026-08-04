@@ -1,5 +1,10 @@
 # DocRefine Pro - Changelog
 
+## [v141] - 2026-08-04
+### Changed — A review sheet you can actually triage
+* **The "review?" column now flags decisions, not just unreadable files.** On the current batch it was marking 70% of rows, which made it useless as a filter — most of those were technical drawings correctly left as-is, needing no sign-off at all. A file we couldn't read now only gets flagged when we're proposing to *brand* it. **Flagged rows drop from 1,517 to 528 (70% → 24%)**, and what remains is genuinely uncertain.
+* **Technical drawings are no longer branded on a coin-flip.** When the local model is unsure (confidence below 0.9) and the filename labels the document as a drawing — `tech-…`, `…-cut-sheet`, `…-bolt-pattern`, `…-elevation` — it now leaves the file as-is and says why in the sheet's notes. Leaving a document alone is the reversible choice. A confident read of the document text still wins, so genuine spec sheets and guides are unaffected. On the current batch this moves 209 low-confidence rows out of the rebrand list while leaving all 215 confident ones untouched.
+
 ## [v140] - 2026-08-04
 ### Changed — Simple, customer-facing cover titles
 * **Covers now say what the document is**, in the same plain style as the hand-made Batch 1 set: "INSTALLATION MANUAL", "SPECIFICATION SHEET", "PRODUCT WARRANTY". Titles are derived from the document's asset type, so they're consistent across the whole batch and there's nothing to hand-edit row by row.

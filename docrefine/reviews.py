@@ -118,9 +118,17 @@ def read_plan(path):
 
 
 def needs_review(row):
-    """True when a row deserves a human's eyes before Apply runs."""
+    """True when a row deserves a human's eyes before Apply runs.
+
+    Flagging every unreadable file buried the rows that actually need a
+    decision — on a real batch that was 70% of the sheet, most of it drawings
+    already correctly left alone. A file we could not read only matters if we
+    are proposing to *brand* it; leaving one as-is is the safe default and
+    needs no sign-off.
+    """
+    action = (row.get("action") or "").strip().lower()
     if (row.get("source") or "").strip().lower() != "llm":
-        return True
+        return action == "rebrand"
     try:
         return float(row.get("confidence") or 0) < 0.9
     except (TypeError, ValueError):
