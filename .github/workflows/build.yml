@@ -130,10 +130,10 @@ jobs:
 
   # ====================================================
   # JOB 3: PROJECT TRACKING
-  # Posts the release notes to the ClickUp project task so the
-  # tracker never drifts behind what has actually shipped.
-  # Runs only when BOTH builds succeeded, so the task is never
-  # told about a release that does not exist.
+  # Adds a subtask to the ClickUp project task for each release, matching
+  # how the rest of the Project Management list is read. Runs only when
+  # BOTH builds succeeded, so the board never shows a release that does
+  # not exist. Only ever creates — never edits an existing subtask.
   # ====================================================
   notify-clickup:
     name: Update ClickUp Task
@@ -150,10 +150,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Post release notes to ClickUp
+    - name: Add release subtask in ClickUp
       env:
         CLICKUP_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
-        CLICKUP_TASK_ID: 86ex00r23          # DocRefine Pro (parent project task)
+        CLICKUP_TASK_ID: 86ex00r23            # DocRefine Pro (parent project task)
+        CLICKUP_LIST_ID: '901815817512'       # Project Managment
+        CLICKUP_STATUS: done / review
+        CLICKUP_ITEM_ID: '1003'               # the list's "Project" task type
         VERSION: ${{ inputs.version || github.ref_name }}
         REPO: ${{ github.repository }}
         EVENT: ${{ github.event_name }}
@@ -165,7 +168,7 @@ jobs:
           {
             echo "### ⚠️ ClickUp not updated"
             echo ""
-            echo "\`CLICKUP_API_TOKEN\` was **not visible to this job**, so \`$VERSION\` was not posted."
+            echo "\`CLICKUP_API_TOKEN\` was **not visible to this job**, so \`$VERSION\` was not added."
             echo ""
             echo "Check that the secret is a **repository** secret (Settings → Secrets and"
             echo "variables → Actions → *Repository secrets*), spelled exactly"
@@ -174,13 +177,33 @@ jobs:
           echo "::warning title=ClickUp not updated::CLICKUP_API_TOKEN is not visible to this job."
           exit 0
         fi
-        echo "Token is visible to the job (${#CLICKUP_TOKEN} characters). Posting…"
+        echo "Token is visible to the job (${#CLICKUP_TOKEN} characters)."
         python3 - <<'PY'
         import json, os, re, urllib.request
 
+        API     = "https://api.clickup.com/api/v2"
+        HDRS    = {"Authorization": os.environ["CLICKUP_TOKEN"],
+                   "Content-Type": "application/json"}
         version = os.environ["VERSION"]
         repo    = os.environ["REPO"]
         task    = os.environ["CLICKUP_TASK_ID"]
+        list_id = os.environ["CLICKUP_LIST_ID"]
+        manual  = os.environ.get("EVENT") == "workflow_dispatch"
+        TEST_PREFIX = "[pipeline test] "
+
+        def call(method, path, payload=None):
+            req = urllib.request.Request(
+                API + path,
+                data=json.dumps(payload).encode() if payload is not None else None,
+                headers=HDRS, method=method)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.status, json.loads(r.read() or b"{}")
+
+        def write_summary(md):
+            path = os.environ.get("GITHUB_STEP_SUMMARY")
+            if path:
+                with open(path, "a", encoding="utf-8") as f:
+                    f.write(md + "\n")
 
         # Pull this version's section out of the changelog.
         notes = ""
@@ -197,45 +220,62 @@ jobs:
         if len(notes) > 8000:
             notes = notes[:8000].rstrip() + "\n\n…truncated — see the full changelog."
 
-        manual = os.environ.get("EVENT") == "workflow_dispatch"
-        header = (f"### 🧪 Pipeline test — {version} (not a new release)" if manual
-                  else f"### 🚀 {version} released")
-        footer = ("_Manual test of the ClickUp posting step. No build was run and nothing "
+        # Name it the way the board already names things: "<outcome> (vNNN)".
+        # The changelog's first section heading is the closest thing we have to
+        # the hand-written outcome names on the existing subtasks.
+        outcome = ""
+        heading = re.search(r"^###\s+(.*)$", notes, re.M)
+        if heading:
+            outcome = heading.group(1).strip()
+            # "Changed — Simple, customer-facing cover titles" -> the part that says something
+            bits = re.split(r"\s+[—–-]\s+", outcome, maxsplit=1)
+            if len(bits) == 2 and len(bits[1]) > 3:
+                outcome = bits[1]
+            outcome = outcome.strip(" .")
+        outcome = outcome or "Release"
+        if len(outcome) > 80:
+            outcome = outcome[:77].rstrip() + "…"
+        name = f"{outcome[0].upper()}{outcome[1:]} ({version})"
+        if manual:
+            name = TEST_PREFIX + name
+
+        footer = ("_Created by a manual pipeline test — no build was run and nothing "
                   "was released._" if manual else
-                  "_Posted automatically by the build pipeline once the Windows and macOS "
-                  "builds both succeeded._")
+                  "_Added automatically once the Windows and macOS builds both succeeded._")
         body = (
-            f"{header}\n\n"
             f"{notes}\n\n"
             f"[Release notes and downloads](https://github.com/{repo}/releases/tag/{version})\n\n"
             f"{footer}"
         )
 
-        req = urllib.request.Request(
-            f"https://api.clickup.com/api/v2/task/{task}/comment",
-            data=json.dumps({"comment_text": body, "notify_all": False}).encode(),
-            headers={"Authorization": os.environ["CLICKUP_TOKEN"],
-                     "Content-Type": "application/json"},
-            method="POST")
-        with urllib.request.urlopen(req, timeout=30) as r:
-            payload = json.loads(r.read() or b"{}")
-            status = r.status
+        # Only ever create. Several hand-written subtasks can share a version,
+        # and a re-run must never overwrite one of them.
+        _, parent = call("GET", f"/task/{task}?include_subtasks=true")
+        suffix = f"({version})"
+        for t in (parent.get("subtasks") or []):
+            existing = (t.get("name") or "").strip()
+            if existing.endswith(suffix) and existing.startswith(TEST_PREFIX) == manual:
+                write_summary(f"### ✅ ClickUp already tracks {version}\n\n"
+                              f"Existing subtask `{existing}` — nothing to add.")
+                print(f"Already tracked by subtask {t.get('id')} ({existing}).")
+                raise SystemExit(0)
 
-        # ClickUp answers a successful create with the new comment's id. Treat a
-        # 2xx without one as a failure rather than reporting a green step that
-        # quietly did nothing.
-        comment_id = payload.get("id")
-        summary = os.environ.get("GITHUB_STEP_SUMMARY")
-        if comment_id:
-            line = f"### ✅ ClickUp updated\n\n`{version}` posted to task `{task}` (comment `{comment_id}`)."
-            print(f"HTTP {status} — comment {comment_id} created on task {task}.")
-        else:
-            line = (f"### ⚠️ ClickUp did not accept the comment\n\n"
-                    f"HTTP {status}, but no comment id came back. Response: `{payload}`")
-            print(f"HTTP {status} but no comment id in the response: {payload}")
-        if summary:
-            with open(summary, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
-        if not comment_id:
+        status, res = call("POST", f"/list/{list_id}/task", {
+            "name": name,
+            "markdown_description": body,
+            "status": os.environ["CLICKUP_STATUS"],
+            "parent": task,
+            "custom_item_id": int(os.environ["CLICKUP_ITEM_ID"]),
+        })
+
+        # A 2xx with no task id means nothing was created — do not report green.
+        new_id = res.get("id")
+        if not new_id:
+            write_summary(f"### ⚠️ ClickUp did not accept the subtask\n\n"
+                          f"HTTP {status}, no task id returned. Response: `{res}`")
+            print(f"HTTP {status} but no task id in the response: {res}")
             raise SystemExit(1)
+        write_summary(f"### ✅ ClickUp updated\n\n"
+                      f"Added subtask **{name}** (`{new_id}`) under `{task}`.")
+        print(f"HTTP {status} — created subtask {new_id}: {name}")
         PY
