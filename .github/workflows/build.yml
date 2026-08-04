@@ -141,12 +141,23 @@ jobs:
         VERSION: ${{ github.ref_name }}
         REPO: ${{ github.repository }}
       run: |
+        # Report the outcome to the run summary, which is readable without repo
+        # admin rights. A silent "success" that did nothing is worse than a
+        # visible skip: the first live run looked green but posted nothing.
         if [ -z "$CLICKUP_TOKEN" ]; then
-          echo "::notice::CLICKUP_API_TOKEN is not set — skipping the ClickUp update."
-          echo "Add a ClickUp personal API token as a repository secret named"
-          echo "CLICKUP_API_TOKEN to have releases posted automatically."
+          {
+            echo "### ⚠️ ClickUp not updated"
+            echo ""
+            echo "\`CLICKUP_API_TOKEN\` was **not visible to this job**, so \`$VERSION\` was not posted."
+            echo ""
+            echo "Check that the secret is a **repository** secret (Settings → Secrets and"
+            echo "variables → Actions → *Repository secrets*), spelled exactly"
+            echo "\`CLICKUP_API_TOKEN\`. Environment and Dependabot secrets are not visible here."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning title=ClickUp not updated::CLICKUP_API_TOKEN is not visible to this job."
           exit 0
         fi
+        echo "Token is visible to the job (${#CLICKUP_TOKEN} characters). Posting…"
         python3 - <<'PY'
         import json, os, re, urllib.request
 
@@ -184,5 +195,24 @@ jobs:
                      "Content-Type": "application/json"},
             method="POST")
         with urllib.request.urlopen(req, timeout=30) as r:
-            print(f"ClickUp responded {r.status} — comment posted to task {task}.")
+            payload = json.loads(r.read() or b"{}")
+            status = r.status
+
+        # ClickUp answers a successful create with the new comment's id. Treat a
+        # 2xx without one as a failure rather than reporting a green step that
+        # quietly did nothing.
+        comment_id = payload.get("id")
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if comment_id:
+            line = f"### ✅ ClickUp updated\n\n`{version}` posted to task `{task}` (comment `{comment_id}`)."
+            print(f"HTTP {status} — comment {comment_id} created on task {task}.")
+        else:
+            line = (f"### ⚠️ ClickUp did not accept the comment\n\n"
+                    f"HTTP {status}, but no comment id came back. Response: `{payload}`")
+            print(f"HTTP {status} but no comment id in the response: {payload}")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        if not comment_id:
+            raise SystemExit(1)
         PY
