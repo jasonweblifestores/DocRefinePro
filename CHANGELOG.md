@@ -1,5 +1,16 @@
 # DocRefine Pro - Changelog
 
+## [v148] - 2026-08-05
+### Added — The app now tells you when one manufacturer is credited two ways
+Both findings came from running v147's new attribution stamp over the current batch's real review sheet rather than test data.
+
+* **Inconsistent spellings are flagged before the run starts.** On the current sheet, nine manufacturers appear under more than one spelling — `Venia Products LLC` turns up four ways (`VENIA PRODUCTS LLC`, `Venia Products LLC.`, …) and Whitehall five. With the footer attribution on, the same company would be credited differently from one file to the next in a single delivery set. The run log now names the groups and points at `manufacturer_aliases` in `brand.json`.
+* Nothing is rewritten automatically. Which spelling is correct is the brand's decision, not the app's — so it reports and lets you settle it.
+* For context, on that sheet the attribution line prints on 442 of the 874 files being branded: 324 have no manufacturer recorded at all and 108 hold a value that names a website, the seller or Budget Mailboxes itself. All of that is now stated in the log up front rather than discovered afterwards.
+
+### Fixed
+* Rebrand history rows showed a Windows-style path on macOS. They now use the platform's own separator.
+
 ## [v147] - 2026-08-05
 ### Added — The page stamps the rebranding SOP asks for
 The rebranding standard asks for four things on every page that the template artwork does not provide: the manufacturer attribution, a tagline, a version and last-updated line, and a standard disclaimer. None of them were in the output, because none of them are in the template. They are now available, **each as its own checkbox and all off by default** — so nothing changes unless you ask for it, and the previously signed-off sets remain the default behaviour.

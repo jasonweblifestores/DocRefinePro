@@ -1030,6 +1030,16 @@ class Worker:
             self.log(f"Attribution line will be omitted on {blank + unusable} file(s): "
                      f"{blank} with no manufacturer recorded, {unusable} where the value "
                      f"names a website, the seller or the brand itself.")
+        # The same company spelled two ways credits it two ways in one delivery set.
+        variants = stamps_mod.spelling_variants(
+            r.get("manufacturer") for r in rows
+            if (r.get("action") or "").strip().lower() == "rebrand")
+        if variants:
+            shown = "; ".join(" / ".join(g) for g in variants[:3])
+            more = " …" if len(variants) > 3 else ""
+            self.log(f"{len(variants)} manufacturer(s) are spelled more than one way, so the "
+                     f"attribution will read differently between files: {shown}{more}. Add "
+                     f"\"manufacturer_aliases\" to brand.json to settle on one form.", True)
 
     def _apply_one_row(self, row, src, out, kit, show_attribution=False,
                        stamp_opts=None, today=None):

@@ -94,6 +94,28 @@ def clean_manufacturer(value, brand_name="", aliases=None):
     return raw
 
 
+def spelling_variants(values):
+    """Manufacturer names that differ only in case or punctuation, grouped.
+
+    Found by running the real batch through this module: `Venia Products LLC` and
+    `VENIA PRODUCTS LLC` both appear, as do several others, so the same company
+    would be credited differently from one file to the next in one delivery set.
+
+    We report rather than rewrite. Which spelling is right is the brand's call,
+    and `manufacturer_aliases` in brand.json is where that decision belongs —
+    silently picking the most common form would be the app inventing house style.
+    """
+    groups = {}
+    for v in values:
+        v = _WS.sub(" ", str(v or "").strip())
+        if not v:
+            continue
+        key = re.sub(r"[^a-z0-9]", "", v.lower())
+        if key:
+            groups.setdefault(key, set()).add(v)
+    return sorted((sorted(s) for s in groups.values() if len(s) > 1), key=lambda g: g[0].lower())
+
+
 def wrap(text, font, size, max_w):
     """Greedily wrap text to max_w. Always returns at least one line for non-empty text."""
     words = str(text or "").split()
