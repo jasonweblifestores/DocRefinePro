@@ -18,6 +18,7 @@ The file is JSON Lines — append a line per run, so a crash mid-write costs at
 most the newest entry and never the history.
 """
 import json
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -137,11 +138,12 @@ def label(rec):
     Includes the parent folder because every deduplicated job's masters folder is
     called `01_Master_Files` — on its own that name identifies nothing.
     """
-    src = Path(rec.get("source") or "")
+    raw = str(rec.get("source") or "")
+    src = Path(raw.replace("\\", "/")) if "\\" in raw else Path(raw)
     if not src.name:
         return "(unknown folder)"
     parent = src.parent.name
-    return f"{parent}\\{src.name}" if parent else src.name
+    return f"{parent}{os.sep}{src.name}" if parent else src.name
 
 
 def result_text(rec):
