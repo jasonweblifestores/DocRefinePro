@@ -1,5 +1,11 @@
 # DocRefine Pro - Changelog
 
+## [v145] - 2026-08-05
+### Fixed — A page stored "upside down" no longer loses its content
+A PDF page box is defined by any two opposite corners, so writing it top-down is perfectly legal — but the page then reports a *negative* height. The rebranding engine took that at face value: the document was treated as landscape, the cover was scaled by a negative factor, and **the document's own content was pushed off the page entirely**, leaving a branded but effectively blank file.
+
+Found during QA of the Batch 4 run: one file in 2,174 (`Imperial-Street-Sign-Brochure.pdf`) was affected, and all 3,127 characters of its content had been lost. Page dimensions are now read the way a PDF viewer reads them, and that file rebrands correctly with every word intact.
+
 ## [v144] - 2026-08-05
 ### Fixed — Deduplication no longer merges documents that only *read* the same
 Smart deduplication compared the text it could extract from a PDF. Two documents with identical wording but different drawings — the same spec sheet for a different model, say — therefore hashed the same, and one was filed away as a duplicate of the other. On a batch you didn't deduplicate yourself, that's content quietly disappearing before you ever see it.

@@ -70,6 +70,19 @@ def _orientation(w, h):
     return "landscape" if w > h else "portrait"
 
 
+def page_size(page):
+    """A page's width and height, however its box happens to be stored.
+
+    A PDF rectangle is defined by any two opposite corners, so a perfectly legal
+    page box can be written top-down — [0, 792, 612, 0] — and pypdf then reports
+    the height as -792. Viewers normalise this; we did not, and the negative
+    value flipped the page to "landscape", inverted the cover scale and pushed
+    the document's own content off the page entirely.
+    """
+    box = page.mediabox
+    return abs(float(box.width)), abs(float(box.height))
+
+
 def _load_asset(path, max_px=None, opaque=False):
     """Load a branding image into an encoded-bytes 'spec' (safe to cache & share).
 
@@ -237,12 +250,12 @@ class BrandKit:
 def _dominant_orientation(pages):
     counts = {"portrait": 0, "landscape": 0}
     for pg in pages:
-        counts[_orientation(float(pg.mediabox.width), float(pg.mediabox.height))] += 1
+        counts[_orientation(*page_size(pg))] += 1
     if counts["landscape"] > counts["portrait"]:
         return "landscape"
     if counts["portrait"] > counts["landscape"]:
         return "portrait"
-    return _orientation(float(pages[0].mediabox.width), float(pages[0].mediabox.height))
+    return _orientation(*page_size(pages[0]))
 
 
 def _strip_height(reader, page_w):
@@ -370,15 +383,14 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None):
     # still embeds exactly once per document.
     cover_set = kit.live_readers(doc_or)
     orient_sets = {doc_or: cover_set}
-    DW = float(pages[0].mediabox.width)
-    DH = float(pages[0].mediabox.height)
+    DW, DH = page_size(pages[0])
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf)
     _draw_cover(c, cover_set["cover"], DW, DH, title, subtitle=subtitle)
     strip_dims = []
     for pg in pages:
-        pw, ph = float(pg.mediabox.width), float(pg.mediabox.height)
+        pw, ph = page_size(pg)
         po = _orientation(pw, ph)
         if po not in orient_sets:
             orient_sets[po] = kit.live_readers(po) if kit.has(po) else cover_set
