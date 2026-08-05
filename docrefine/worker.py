@@ -207,20 +207,56 @@ class Worker:
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": tid, "text": t, "percent": v}))
             self._last_update[tid] = now
 
+    @staticmethod
+    def _page_artwork_signature(pages):
+        """Byte-lengths of the images embedded in these pages.
+
+        Smart hashing compares extracted text, so two documents whose wording is
+        identical but whose drawings differ — the same spec sheet for a different
+        model, say — hashed the same and one was discarded as a duplicate.
+        Mixing the artwork into the hash separates them. Only stream lengths are
+        read, so nothing is decoded and the cost stays negligible.
+        """
+        marks = []
+        for pg in pages:
+            try:
+                res = pg.get("/Resources")
+                res = res.get_object() if hasattr(res, "get_object") else (res or {})
+                xo = res.get("/XObject")
+                xo = xo.get_object() if hasattr(xo, "get_object") else (xo or {})
+                for obj in (xo or {}).values():
+                    try:
+                        o = obj.get_object()
+                        if o.get("/Subtype") != "/Image":
+                            continue
+                        # Encoded size, never decoded — pypdf drops /Length from
+                        # the dictionary, so read the raw stream's length.
+                        raw = len(getattr(o, "_data", b"") or b"")
+                        marks.append(f"{o.get('/Width')}x{o.get('/Height')}:{raw}")
+                    except Exception:
+                        continue
+            except Exception:
+                continue
+        return ",".join(sorted(marks))
+
     def get_hash(self, path, mode):
         if os.path.getsize(path) == 0: return None, "Zero-Byte File"
         if path.suffix.lower() == '.pdf' and mode != "Lightning":
             try:
                 if PdfReader is None: raise Exception("pypdf not available")
-                r = PdfReader(str(path), strict=False) 
+                r = PdfReader(str(path), strict=False)
                 if len(r.pages) == 0: return None, "PDF has 0 Pages"
-                if mode == "Standard":
-                    txt = "".join([r.pages[i].extract_text() for i in range(min(3, len(r.pages)))])
-                    if len(txt.strip()) > 10: return hashlib.md5(f"{txt}{len(r.pages)}".encode()).hexdigest(), "Smart-Standard"
-                elif mode == "Deep":
-                    txt = "".join([p.extract_text() for p in r.pages])
-                    if len(txt.strip()) > 10: return hashlib.md5(f"{txt}{len(r.pages)}".encode()).hexdigest(), "Smart-Deep"
-            except: pass 
+                pages = r.pages if mode == "Deep" else r.pages[:3]
+                txt = "".join((pg.extract_text() or "") for pg in pages)
+                if len(txt.strip()) > 10:
+                    art = self._page_artwork_signature(pages)
+                    key = f"{txt}{len(r.pages)}|{art}"
+                    label = "Smart-Deep" if mode == "Deep" else "Smart-Standard"
+                    return hashlib.md5(key.encode()).hexdigest(), label
+            except Exception as e:
+                # Falling back to a byte hash is safe but weaker, so say so
+                # rather than silently downgrading the whole ingest.
+                self.log(f"Smart hash unavailable for {path.name} ({str(e)[:60]}) — using byte hash.", True)
         try:
             h = hashlib.md5()
             with open(path, 'rb') as f:

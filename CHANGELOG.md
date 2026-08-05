@@ -1,5 +1,13 @@
 # DocRefine Pro - Changelog
 
+## [v144] - 2026-08-05
+### Fixed — Deduplication no longer merges documents that only *read* the same
+Smart deduplication compared the text it could extract from a PDF. Two documents with identical wording but different drawings — the same spec sheet for a different model, say — therefore hashed the same, and one was filed away as a duplicate of the other. On a batch you didn't deduplicate yourself, that's content quietly disappearing before you ever see it.
+
+* The fingerprint now includes the **artwork on the page** — the dimensions and stored size of every embedded image — alongside the text. Documents that read alike but look different stay separate. Nothing is decoded, so ingest speed is unchanged.
+* Genuine duplicates still collapse exactly as before: measured against 65 known duplicate pairs in the current batch, the change kept all 63 that previously merged and separated none of them wrongly.
+* **When smart hashing can't run** on a file, the app now says so in the log and falls back to a plain byte comparison. It used to fall back silently, so a batch could quietly deduplicate far less accurately than you'd expect with no indication.
+
 ## [v143] - 2026-08-05
 ### Changed — The cover attribution line is now optional
 * **New checkbox: "Manufacturer line on covers".** The Batch 1 and 2 sets, both already signed off, carry the document title alone; the task brief additionally asks for a `Manufactured by [X] | Sold by Budget Mailboxes` line. This setting decides which standard applies, and your choice is remembered.
