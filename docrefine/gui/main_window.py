@@ -69,6 +69,14 @@ class MainWindow(QMainWindow):
         self.btn_pipeline.setStyleSheet("padding: 6px;")
         left_layout.addWidget(self.btn_pipeline)
         
+        # Two lists live in this panel and they are NOT the same thing: ingest jobs
+        # are workspaces this app created and owns, while rebrand runs are work done
+        # on folders elsewhere on disk. Both are labelled so neither is mistaken for
+        # the other.
+        lbl_jobs = QLabel("Ingest Jobs")
+        lbl_jobs.setStyleSheet("font-weight: bold; padding-top: 4px;")
+        left_layout.addWidget(lbl_jobs)
+
         self.job_tree = QTreeWidget()
         self.job_tree.setHeaderLabels(["Name", "Status", "Date"])
         self.job_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -98,6 +106,8 @@ class MainWindow(QMainWindow):
         v_stats.addWidget(self.lbl_t_refine)
         v_stats.addWidget(self.lbl_t_total)
         left_layout.addWidget(self.gb_stats)
+
+        self._build_runs_section(left_layout)
 
         btn_row = QHBoxLayout()
         self.btn_refresh = QPushButton("Refresh")
@@ -182,6 +192,109 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(monitor_frame)
         splitter.addWidget(right_panel)
         splitter.setSizes([350, 950])
+
+    def _build_runs_section(self, left_layout):
+        """Rebrand and pipeline runs, listed under the ingest jobs.
+
+        These runs create no workspace, so before this they left no trace in the
+        app at all — and since the output now depends on toggles, "which settings
+        produced this folder" was a question with no answer. Each row names the
+        folder *with its parent*, because every deduplicated job's masters folder
+        is called `01_Master_Files` and that name alone identifies nothing.
+        """
+        lbl_runs = QLabel("Rebrand & Processing Runs")
+        lbl_runs.setStyleSheet("font-weight: bold; padding-top: 6px;")
+        lbl_runs.setToolTip("Rebranding and pipeline work on folders anywhere on disk.\n"
+                            "These runs don't create a job workspace, so they are listed here.")
+        left_layout.addWidget(lbl_runs)
+
+        self.run_tree = QTreeWidget()
+        self.run_tree.setHeaderLabels(["Run", "Result", "When"])
+        self.run_tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.run_tree.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.run_tree.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.run_tree.setMaximumHeight(170)
+        self.run_tree.setRootIsDecorated(False)
+        self.run_tree.itemSelectionChanged.connect(self.on_run_selected)
+        left_layout.addWidget(self.run_tree)
+
+        self.gb_run = QGroupBox("Run Details")
+        self.gb_run.setVisible(False)
+        v = QVBoxLayout(self.gb_run)
+        self.lbl_run_kind = QLabel("-")
+        self.lbl_run_kind.setStyleSheet("font-weight: bold;")
+        self.lbl_run_out = QLabel("-")
+        self.lbl_run_kit = QLabel("-")
+        self.lbl_run_settings = QLabel("-")
+        self.lbl_run_dur = QLabel("-")
+        for w in (self.lbl_run_kind, self.lbl_run_out, self.lbl_run_kit,
+                  self.lbl_run_settings, self.lbl_run_dur):
+            w.setWordWrap(True)
+            v.addWidget(w)
+        run_btns = QHBoxLayout()
+        self.btn_run_open = QPushButton("📂 Output")
+        self.btn_run_open.setToolTip("Open the folder this run produced.")
+        self.btn_run_sheet = QPushButton("📄 Sheet")
+        self.btn_run_sheet.setToolTip("Open the review sheet this run used.")
+        self.btn_run_forget = QPushButton("Forget")
+        self.btn_run_forget.setToolTip("Remove this run from the history. The files are not touched.")
+        for b in (self.btn_run_open, self.btn_run_sheet, self.btn_run_forget):
+            run_btns.addWidget(b)
+        v.addLayout(run_btns)
+        left_layout.addWidget(self.gb_run)
+
+    def refresh_run_list(self):
+        """Reload the rebrand history, keeping the selected run selected if it's still there."""
+        from docrefine import runs
+        keep = None
+        items = self.run_tree.selectedItems()
+        if items:
+            rec = items[0].data(0, Qt.UserRole)
+            keep = (rec or {}).get("ts")
+
+        self.run_tree.blockSignals(True)
+        self.run_tree.clear()
+        for rec in runs.load(limit=100):
+            item = QTreeWidgetItem([runs.label(rec), runs.result_text(rec), runs.when_text(rec)])
+            item.setData(0, Qt.UserRole, rec)
+            # The settings are what distinguish two runs of the same folder, so they
+            # belong where the eye lands first.
+            item.setToolTip(0, f"{rec.get('kind', 'Run')}\n"
+                               f"Source: {rec.get('source') or '-'}\n"
+                               f"Output: {rec.get('output') or '-'}\n"
+                               f"Settings: {runs.settings_text(rec)}")
+            if (rec.get("counts") or {}).get("failed"):
+                item.setForeground(1, QColor("#cc6600"))
+            self.run_tree.addTopLevelItem(item)
+        self.run_tree.blockSignals(False)
+
+        if keep:
+            for i in range(self.run_tree.topLevelItemCount()):
+                item = self.run_tree.topLevelItem(i)
+                if (item.data(0, Qt.UserRole) or {}).get("ts") == keep:
+                    item.setSelected(True)
+                    break
+        self.on_run_selected()
+
+    def selected_run(self):
+        items = self.run_tree.selectedItems()
+        return items[0].data(0, Qt.UserRole) if items else None
+
+    def on_run_selected(self):
+        from docrefine import runs
+        rec = self.selected_run()
+        self.gb_run.setVisible(bool(rec))
+        if not rec:
+            return
+        out = rec.get("output") or ""
+        sheet = rec.get("sheet") or ""
+        self.lbl_run_kind.setText(f"{rec.get('kind', 'Run')}  ({rec.get('version', '?')})")
+        self.lbl_run_out.setText(f"Output: {Path(out).name if out else '—'}")
+        self.lbl_run_kit.setText(f"Brand kit: {rec.get('brand') or '—'}")
+        self.lbl_run_settings.setText(f"Settings: {runs.settings_text(rec)}")
+        self.lbl_run_dur.setText(f"Took: {runs.duration_text(rec)}")
+        self.btn_run_open.setEnabled(bool(out) and Path(out).exists())
+        self.btn_run_sheet.setEnabled(bool(sheet) and Path(sheet).exists())
 
     def _build_refine_tab(self):
         layout = QVBoxLayout(self.tab_refine)
@@ -349,6 +462,8 @@ class MainWindow(QMainWindow):
                 if item.data(0, Qt.UserRole) == selected_path:
                     item.setSelected(True); break
         self.on_job_selected()
+        # Rebrand runs finish through the same DONE path, so refresh both together.
+        self.refresh_run_list()
 
     def on_job_selected(self):
         items = self.job_tree.selectedItems()

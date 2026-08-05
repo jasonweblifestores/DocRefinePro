@@ -1,4 +1,4 @@
-# DocRefine Pro v146
+# DocRefine Pro v147
 
 **Enterprise-Grade Document Processing & Organization Tool**
 
@@ -17,14 +17,14 @@
 ## 📥 Installation Instructions
 
 ### 🪟 Windows
-1.  Download `DocRefinePro_Win_v146.zip`.
+1.  Download `DocRefinePro_Win_v147.zip`.
 2.  Right-click the zip file -> **Extract All**.
 3.  Open the extracted folder.
 4.  Double-click **DocRefine Pro.exe**.
     * *Note: If Windows SmartScreen appears, click "More Info" -> "Run Anyway".*
 
 ### 🍎 macOS
-1.  Download `DocRefinePro_Mac_v146.dmg`.
+1.  Download `DocRefinePro_Mac_v147.dmg`.
 2.  Double-click the `.dmg` file to mount it.
 3.  **Drag the DocRefine Pro app** into your **Applications** folder.
     * *Note: The application size is larger (~230MB) due to the inclusion of the complete Qt6 Framework for native performance.*
@@ -55,9 +55,15 @@ Because this is an internal tool not signed by the Apple Store, macOS will likel
 * **Pause/Resume:** You can now pause processing to free up system resources without cancelling the job.
 * **Forensic Viewer:** Go to the Inspector tab, right-click a duplicate, and select "Compare Duplicates" to visually verify files.
 
-### 3. Output
+### 3. Rebrand (optional)
+* **🎨 Rebrand a Folder** → **Analyze** reads every PDF and drafts a review sheet (Excel) saying what to rebrand and what to leave as-is. Edit it, then **Apply**.
+* Branding comes from a **brand kit folder** — `Portrait/` and `Landscape/` subfolders of PNGs, plus an optional `brand.json` holding the brand's *wording*. See `docrefine/assets/brand.example.json`; copy it into your kit and fill it in.
+* **Page stamps** (each its own checkbox, all off by default): manufacturer attribution in the page footer, tagline, a version/last-updated line, and a standard disclaimer. They are added in a band *between* your content and the footer — the document itself is never overlapped or cropped. A stamp with no wording in `brand.json` prints nothing, and the log says so.
+* Every run is listed under **Rebrand & Processing Runs** on the dashboard, with the brand kit and the settings that produced it.
+
+### 4. Output
 * **Option A (Unique Masters):** Export a clean folder containing one copy of every unique file.
 * **Option B (Reconstruction):** Re-create the original folder structure using the optimized master files.
 
-### 4. Support
+### 5. Support
 For bugs or feature requests, contact the development team directly (Jason Diaz - Task Specialist : jason@weblifestores.com).

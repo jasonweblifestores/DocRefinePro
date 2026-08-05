@@ -139,11 +139,19 @@ class BrandKit:
                 self._paths[orient] = self._resolve_assets(d)
         self.brand = self._load_brand()
 
+    # Wording for the per-page stamps lives in the kit, never in code: the task
+    # briefs name a "tagline" and a "standard disclaimer" without giving the
+    # words. A kit that doesn't supply them simply gets no stamp — which also
+    # stops one brand's tagline appearing on another brand's documents.
+    _BRAND_TEXT_KEYS = ("tagline", "disclaimer", "version_label", "last_updated",
+                        "attribution", "stamp_ink", "stamp_bg")
+
     def _load_brand(self):
         """Brand wording for this kit, from an optional brand.json beside the assets.
 
-        Keeps the kit genuinely swappable: the images and the brand *name* travel
-        together. Defaults preserve the Budget Mailboxes behaviour of earlier builds.
+        Keeps the kit genuinely swappable: the images and the brand *wording*
+        travel together. Defaults preserve the Budget Mailboxes behaviour of
+        earlier builds.
         """
         cfg = {"name": "Budget Mailboxes", "slug": "budget-mailboxes"}
         f = self.root / "brand.json"
@@ -155,6 +163,12 @@ class BrandKit:
                         if str(data.get(k, "")).strip():
                             cfg[k] = str(data[k]).strip()
                     cfg["slug"] = slugify(cfg["slug"]) or "budget-mailboxes"
+                    for k in self._BRAND_TEXT_KEYS:
+                        if str(data.get(k, "")).strip():
+                            cfg[k] = str(data[k]).strip()
+                    aliases = data.get("manufacturer_aliases")
+                    if isinstance(aliases, dict):
+                        cfg["manufacturer_aliases"] = aliases
         except Exception:
             pass
         return cfg
@@ -346,29 +360,57 @@ def _draw_cover(c, cover_reader, page_w, page_h, title, subtitle=None):
     c.showPage()
 
 
-def _draw_overlay(c, readers, page_w, page_h):
-    """Draw one content-page overlay: header strip on top, footer on bottom, watermark
-    over the content band. Returns (header_h, footer_h). Middle stays transparent."""
+def _art_ink(readers):
+    """The brand's own ink colour, taken from its footer (else cover) art.
+
+    Reading the colour off the kit means the stamps are on-brand for whichever
+    kit is loaded, with nothing hardcoded. If that colour is too pale to read on
+    the stamp band's light background, fall back to near-black.
+    """
+    for key in ("footer", "cover", "header", "back"):
+        r = readers.get(key)
+        if r is not None:
+            rgb = r._corner_rgb
+            lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+            return rgb if lum <= 0.6 else (0.10, 0.10, 0.10)
+    return None
+
+
+def _draw_overlay(c, readers, page_w, page_h, stamps=None):
+    """Draw one content-page overlay: header strip on top, footer on bottom, optional
+    stamp band just above the footer, watermark over the content band.
+
+    Returns (header_h, footer_h, stamp_h). The middle stays transparent, and the
+    document's own content is lifted clear of both the footer and the stamps."""
     header, footer, wm = readers.get("header"), readers.get("footer"), readers.get("watermark")
     hh = _strip_height(header, page_w) if header else 0.0
     fh = _strip_height(footer, page_w) if footer else 0.0
-    total = page_h + hh + fh
+    sh = stamps.height(page_w, _FONT_NAME) if (stamps and _ensure_font()) else 0.0
+    total = page_h + hh + fh + sh
     c.setPageSize((page_w, total))
     if header:
-        c.drawImage(header, 0, page_h + fh, width=page_w, height=hh, mask="auto")
+        c.drawImage(header, 0, page_h + fh + sh, width=page_w, height=hh, mask="auto")
     if footer:
         c.drawImage(footer, 0, 0, width=page_w, height=fh, mask="auto")
+    if sh:
+        stamps.draw(c, page_w, fh, _FONT_NAME)
     if wm:
         ww = WATERMARK_WIDTH_FRAC * page_w
         wpx, hpx = wm._px_size
         wh = ww * hpx / wpx
-        c.drawImage(wm, (page_w - ww) / 2, fh + (page_h - wh) / 2, width=ww, height=wh, mask="auto")
+        c.drawImage(wm, (page_w - ww) / 2, fh + sh + (page_h - wh) / 2,
+                    width=ww, height=wh, mask="auto")
     c.showPage()
-    return hh, fh
+    return hh, fh, sh
 
 
-def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None):
-    """Rebrand a single PDF. Returns a small dict of stats. Raises on hard failure."""
+def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None, stamps=None):
+    """Rebrand a single PDF. Returns a small dict of stats. Raises on hard failure.
+
+    `stamps` is an optional docrefine.stamps.Stamps carrying the per-page small
+    print (attribution, version/updated, tagline, disclaimer). With none, the
+    output is exactly what earlier versions produced.
+    """
     input_pdf, output_pdf = Path(input_pdf), Path(output_pdf)
     author = author or kit.brand_name
     reader = PdfReader(str(input_pdf))
@@ -384,6 +426,8 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None):
     cover_set = kit.live_readers(doc_or)
     orient_sets = {doc_or: cover_set}
     DW, DH = page_size(pages[0])
+    if stamps and stamps.ink is None:
+        stamps.ink = _art_ink(cover_set)
 
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf)
@@ -394,8 +438,7 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None):
         po = _orientation(pw, ph)
         if po not in orient_sets:
             orient_sets[po] = kit.live_readers(po) if kit.has(po) else cover_set
-        hh, fh = _draw_overlay(c, orient_sets[po], pw, ph)
-        strip_dims.append((hh, fh))
+        strip_dims.append(_draw_overlay(c, orient_sets[po], pw, ph, stamps=stamps))
     _draw_cover(c, cover_set["back"], DW, DH, None)
     c.save()
     buf.seek(0)
@@ -405,15 +448,16 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None):
     writer.append(overlays)  # preserves shared image XObjects
 
     # writer pages: [front cover, overlay_0..N-1, back cover]
-    for i, (hh, fh) in enumerate(strip_dims):
+    for i, (hh, fh, sh) in enumerate(strip_dims):
         target = writer.pages[1 + i]
         src = pages[i]
         try:
             src.transfer_rotation_to_content()
         except Exception:
             pass
-        # place the original page UNDER the overlay, lifted above the footer strip
-        target.merge_transformed_page(src, Transformation().translate(0, fh), over=False)
+        # place the original page UNDER the overlay, lifted clear of the footer
+        # strip AND the stamp band so nothing is ever drawn over the document
+        target.merge_transformed_page(src, Transformation().translate(0, fh + sh), over=False)
 
     writer.add_metadata({
         "/Author": author,

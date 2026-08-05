@@ -11,7 +11,7 @@ import re
 import tempfile
 import concurrent.futures
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date
 
 # Local Package Imports
 from .config import CFG, SystemUtils, log_app, WORKSPACES_ROOT, LOG_PATH, JSON_LOG_PATH, Constants
@@ -863,6 +863,8 @@ class Worker:
             n_reb = sum(1 for r in rows if r["action"] == "rebrand")
             n_leave = len(rows) - n_reb
             self.log(f"Review sheet ready: {plan}  ({n_reb} to rebrand, {n_leave} to leave as-is)")
+            self._record_run("Analyze", src, sheet=str(plan),
+                             counts={"analyzed": len(rows), "to_rebrand": n_reb, "left": n_leave})
             self.prog_main(100, "Done")
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {
@@ -964,7 +966,73 @@ class Worker:
             taken.add(str(dst).lower())
             row["_dst"] = str(dst)
 
-    def _apply_one_row(self, row, src, out, kit, show_attribution=False):
+    def _record_run(self, kind, source, output=None, kit=None, sheet=None,
+                    counts=None, seconds=None, settings=None):
+        """Log this run to the rebrand history the dashboard reads.
+
+        Rebranding leaves no workspace behind, so without this a finished run is
+        invisible in the app — including which brand kit and which toggles
+        produced the folder."""
+        try:
+            from . import runs
+            runs.record(kind, source, output=output, sheet=sheet,
+                        kit=str(getattr(kit, "root", "") or ""),
+                        brand=getattr(kit, "brand_name", "") if kit else "",
+                        counts=counts, seconds=seconds, settings=settings)
+        except Exception as e:
+            self.log(f"Could not record this run in the history: {e}", True)
+
+    @staticmethod
+    def _stamps_for(kit, manufacturer, stamp_opts, today):
+        """The per-page stamps for one document, or None when they're all switched off."""
+        if not stamp_opts or not any(stamp_opts.values()):
+            return None
+        from . import stamps as stamps_mod
+        s = stamps_mod.for_document(
+            kit.brand, manufacturer, today=today,
+            attribution=bool(stamp_opts.get("footer_attribution")),
+            version=bool(stamp_opts.get("stamp_version")),
+            tagline=bool(stamp_opts.get("stamp_tagline")),
+            disclaimer=bool(stamp_opts.get("stamp_disclaimer")))
+        return s or None
+
+    def _warn_stamp_gaps(self, kit, rows, stamp_opts):
+        """Say up front what the stamps will and won't be able to print.
+
+        Both gaps are silent otherwise: a kit with no wording for a stamp that is
+        switched on, and a manufacturer column we can't turn into an honest
+        attribution. On the real batch that column held websites, the seller's
+        name and the brand itself, so the count matters before an hour-long run
+        rather than after it."""
+        if not stamp_opts or not any(stamp_opts.values()):
+            return
+        from . import stamps as stamps_mod
+        gaps = stamps_mod.missing_wording(
+            kit.brand,
+            tagline=bool(stamp_opts.get("stamp_tagline")),
+            disclaimer=bool(stamp_opts.get("stamp_disclaimer")))
+        if gaps:
+            self.log(f"⚠️ No {' or '.join(gaps)} wording in this brand kit — add it to "
+                     f"brand.json in {kit.root.name} or that stamp prints nothing.", True)
+        if not stamp_opts.get("footer_attribution"):
+            return
+        blank = unusable = 0
+        for r in rows:
+            if (r.get("action") or "").strip().lower() != "rebrand":
+                continue
+            raw = (r.get("manufacturer") or "").strip()
+            if not raw:
+                blank += 1
+            elif not stamps_mod.clean_manufacturer(raw, kit.brand_name,
+                                                   kit.brand.get("manufacturer_aliases")):
+                unusable += 1
+        if blank or unusable:
+            self.log(f"Attribution line will be omitted on {blank + unusable} file(s): "
+                     f"{blank} with no manufacturer recorded, {unusable} where the value "
+                     f"names a website, the seller or the brand itself.")
+
+    def _apply_one_row(self, row, src, out, kit, show_attribution=False,
+                       stamp_opts=None, today=None):
         """Process one review-sheet row (output path pre-assigned in row['_dst'])."""
         from .rebrand import rebrand_pdf, title_for
         rel = (row.get("file") or "").strip().replace("\\", "/")
@@ -986,7 +1054,9 @@ class Worker:
         title = (row.get("title") or "").strip() or title_for(
             row.get("asset_type"), fallback_stem=pdf.stem, doc_type=row.get("doc_type"))
         subtitle = kit.subtitle_for(row.get("manufacturer")) if show_attribution else None
-        stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
+        stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle,
+                            stamps=self._stamps_for(kit, row.get("manufacturer"),
+                                                    stamp_opts, today))
         if stats["size_mb"] >= 50:
             self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
             return "oversize"
@@ -1070,13 +1140,15 @@ class Worker:
         return sum(1 for r in res if r in ("copied", "skip"))
 
     def run_rebrand_apply(self, src_dir, kit_dir, plan_csv=None, out_dir=None, complete_set=False,
-                          show_attribution=False, keep_original_names=False):
+                          show_attribution=False, keep_original_names=False, stamp_opts=None):
         """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is.
 
         With complete_set, every non-PDF file in the source is copied through to
         the mirrored output too, so the output tree is the whole upload set.
         show_attribution adds the "Manufactured by [X] | Sold by ..." line under
-        the cover title."""
+        the cover title; stamp_opts turns on the per-page stamps (attribution in
+        the page footer, tagline, version/updated, disclaimer) whose wording comes
+        from the brand kit."""
         try:
             self.stop_sig = False
             self.resume()
@@ -1110,6 +1182,10 @@ class Worker:
 
             self.log(f"Applying review sheet: {len(rows)} entries -> {out}")
             start_time = time.time()
+            # One date for the whole run, so every "Last Updated" in a batch agrees
+            # even if the run crosses midnight.
+            today = date.today()
+            self._warn_stamp_gaps(kit, rows, stamp_opts)
 
             # Assign unique output names single-threaded (collision- and resume-safe).
             self._assign_output_names(rows, out, kit, keep_original_names)
@@ -1127,7 +1203,8 @@ class Worker:
                 if not self.pause_event.is_set():
                     self.pause_event.wait()
                 try:
-                    return self._apply_one_row(row, src, out, kit, show_attribution)
+                    return self._apply_one_row(row, src, out, kit, show_attribution,
+                                               stamp_opts, today)
                 except Exception as e:
                     self.log(f"Failed: {(row.get('file') or '?')}: {e}", True)
                     return "fail"
@@ -1147,11 +1224,19 @@ class Worker:
 
             # Timing goes to the log, not a stats.json inside the tree — the output
             # folder is the delivery set and must contain nothing but the documents.
-            self.log(f"Rebrand took {(time.time() - start_time) / 60:.1f} min")
+            elapsed = time.time() - start_time
+            self.log(f"Rebrand took {elapsed / 60:.1f} min")
             msg = f"Done. Rebranded {done}, left as-is {left}, skipped {skipped}, failed {failed}."
             if complete_set: msg += f" Copied {copied} non-PDF files."
             if oversize: msg += f" ({oversize} over 50 MB — review.)"
             self.log(msg)
+            self._record_run("Rebrand (Apply)", src, out, kit, seconds=elapsed, sheet=plan_csv,
+                             counts={"rebranded": done, "left": left, "copied": copied,
+                                     "skipped": skipped, "failed": failed, "oversize": oversize},
+                             settings={"complete_set": complete_set,
+                                       "show_attribution": show_attribution,
+                                       "keep_original_names": keep_original_names,
+                                       **(stamp_opts or {})})
             self.prog_main(100, "Done")
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Rebrand Complete", "msg": msg, "open_path": str(out)}))
@@ -1189,31 +1274,39 @@ class Worker:
 
         def op(p):
             if self.stop_sig:
-                return
+                return None
             if not self.pause_event.is_set():
                 self.pause_event.wait()
             rel = p.relative_to(src); dst = out / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": p.name, "percent": None}))
             if p.suffix.lower() != ".pdf":
-                shutil.copy2(p, dst); return
+                shutil.copy2(p, dst); return "copied"
             if only_no_text:
                 from .classify import extract_text
                 if len(extract_text(p) or "") >= 20:   # already searchable → leave it
-                    shutil.copy2(p, dst); return
+                    shutil.copy2(p, dst); return "skipped"
             try:
                 ok = bot.flatten_or_ocr(p, dst, mode=mode, dpi=dpi)
                 if not ok and not dst.exists():
                     shutil.copy2(p, dst)
+                return "processed" if ok else "failed"
             except Exception as e:
                 self.log(f"{mode} failed: {rel}: {e}", True)
                 if not dst.exists():
                     shutil.copy2(p, dst)
+                return "failed"
 
-        self._parallel_map(files, op, label)
+        results = self._parallel_map(files, op, label)
+        counts = {}
+        for r in results:
+            if r:
+                counts[r] = counts.get(r, 0) + 1
+        return counts
 
     def _folder_rebrand(self, src, plan_src, out, kit, label, complete_set=True,
-                        show_attribution=False, keep_original_names=False):
+                        show_attribution=False, keep_original_names=False,
+                        stamp_opts=None):
         """Rebrand every PDF from src into out, honouring a review plan from plan_src if present.
 
         With complete_set, non-PDF files are copied through so the output is the
@@ -1226,8 +1319,10 @@ class Worker:
             if kit.has(o):
                 kit.specs(o)
         plan = self._load_plan(plan_src)
+        today = date.today()
         files = [Path(r) / f for r, _, fs in os.walk(src) for f in fs
                  if (complete_set or f.lower().endswith(".pdf")) and not is_plan_file(f)]
+        self._warn_stamp_gaps(kit, list(plan.values()), stamp_opts)
 
         # Pre-assign a unique output path per file (single-threaded → collision-safe).
         dsts = {}
@@ -1252,7 +1347,7 @@ class Worker:
 
         def one(p):
             if self.stop_sig:
-                return
+                return None
             if not self.pause_event.is_set():
                 self.pause_event.wait()
             rel = p.relative_to(src)
@@ -1261,24 +1356,36 @@ class Worker:
             is_leave = (row and (row.get("action") or "").strip().lower() == "leave")
             dst = dsts[p]; dst.parent.mkdir(parents=True, exist_ok=True)
             try:
-                if p.suffix.lower() != ".pdf" or is_leave:
-                    _atomic_copy(p, dst); return
+                if p.suffix.lower() != ".pdf":
+                    _atomic_copy(p, dst); return "copied"
+                if is_leave:
+                    _atomic_copy(p, dst); return "left"
                 title = ((row.get("title") if row else "") or "").strip() or title_for(
                     row.get("asset_type") if row else None, fallback_stem=p.stem,
                     doc_type=row.get("doc_type") if row else None)
                 subtitle = (kit.subtitle_for(row.get("manufacturer") if row else "")
                             if show_attribution else None)
-                rebrand_pdf(p, dst, kit, title, subtitle=subtitle)
+                rebrand_pdf(p, dst, kit, title, subtitle=subtitle,
+                            stamps=self._stamps_for(
+                                kit, row.get("manufacturer") if row else "",
+                                stamp_opts, today))
+                return "rebranded"
             except Exception as e:
                 self.log(f"Rebrand failed: {rel}: {e}", True)
                 try: _atomic_copy(p, dst)
                 except Exception: pass
+                return "failed"
 
-        self._parallel_map(files, one, label)
+        results = self._parallel_map(files, one, label)
+        counts = {}
+        for r in results:
+            if r:
+                counts[r] = counts.get(r, 0) + 1
+        return counts
 
     def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300,
                      out_dir=None, complete_set=True, show_attribution=False,
-                     keep_original_names=False):
+                     keep_original_names=False, stamp_opts=None):
         """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR.
 
         complete_set carries non-PDF files through every stage into the output."""
@@ -1310,21 +1417,28 @@ class Worker:
             work = Path(tempfile.mkdtemp(prefix="drp_pipe_"))
             current = src
             step = 0; n = len(active)
+            # Per stage, not merged: every stage counts the same files again, so a
+            # flat total would either double-count or quietly overwrite.
+            stage_counts = {}
 
             if do_flatten and not self.stop_sig:
                 step += 1; nxt = work / "1_flattened"
-                self._folder_pdf_op(current, nxt, "flatten", dpi, f"[{step}/{n}] Flatten",
-                                    complete_set=complete_set); current = nxt
+                stage_counts["Flatten"] = self._folder_pdf_op(
+                    current, nxt, "flatten", dpi, f"[{step}/{n}] Flatten",
+                    complete_set=complete_set); current = nxt
             if do_rebrand and not self.stop_sig:
                 step += 1; nxt = work / "2_rebranded"
-                self._folder_rebrand(current, src, nxt, kit, f"[{step}/{n}] Rebrand",
-                                     complete_set=complete_set,
-                                     show_attribution=show_attribution,
-                                     keep_original_names=keep_original_names); current = nxt
+                stage_counts["Rebrand"] = self._folder_rebrand(
+                    current, src, nxt, kit, f"[{step}/{n}] Rebrand",
+                    complete_set=complete_set,
+                    show_attribution=show_attribution,
+                    keep_original_names=keep_original_names,
+                    stamp_opts=stamp_opts); current = nxt
             if do_ocr and not self.stop_sig:
                 step += 1; nxt = work / "3_searchable"
-                self._folder_pdf_op(current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True,
-                                    complete_set=complete_set); current = nxt
+                stage_counts["Make Searchable"] = self._folder_pdf_op(
+                    current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True,
+                    complete_set=complete_set); current = nxt
 
             if self.stop_sig:
                 self.log("Pipeline stopped by user."); shutil.rmtree(work, ignore_errors=True)
@@ -1336,8 +1450,18 @@ class Worker:
             shutil.move(str(current), str(out))
             shutil.rmtree(work, ignore_errors=True)
 
-            self.log(f"Pipeline complete: {' → '.join(active)}"
-                     f"  ({(time.time() - start_time) / 60:.1f} min)")
+            elapsed = time.time() - start_time
+            self.log(f"Pipeline complete: {' → '.join(active)}  ({elapsed / 60:.1f} min)")
+            # The record shows the stage that defined the output: rebranding if it
+            # ran, otherwise whatever the last stage did.
+            headline = stage_counts.get("Rebrand") or (
+                list(stage_counts.values())[-1] if stage_counts else {})
+            self._record_run(f"Pipeline: {' → '.join(active)}", src, out, kit,
+                             seconds=elapsed, counts=headline,
+                             settings={"complete_set": complete_set,
+                                       "show_attribution": show_attribution,
+                                       "keep_original_names": keep_original_names,
+                                       **(stamp_opts or {})})
             self.prog_main(100, "Done")
             self.emit(AppEvent(EventType.DONE))
             self.emit(AppEvent(EventType.NOTIFICATION, {"title": "Pipeline Complete",

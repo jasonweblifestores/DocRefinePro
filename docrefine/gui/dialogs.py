@@ -222,6 +222,68 @@ class SettingsDialog(QDialog):
 
         self.accept()
 
+class StampOptions(QGroupBox):
+    """The per-page stamps the rebranding SOP asks for, each its own toggle.
+
+    Shared by both rebranding dialogs so the two can never drift apart. Every
+    stamp is off by default — the output then matches the signed-off Batch 1 and
+    2 sets — and each remembers its own setting. The *wording* is not set here:
+    it comes from the brand kit's brand.json, so a stamp with nothing to say
+    prints nothing and the run log points at the file to edit.
+    """
+    KEYS = ("footer_attribution", "stamp_tagline", "stamp_version", "stamp_disclaimer")
+
+    def __init__(self, parent=None):
+        super().__init__("Page stamps — added to every page (per SOP)", parent)
+        v = QVBoxLayout(self)
+        hint = QLabel("Wording comes from brand.json in the brand kit. Anything not "
+                      "written there is not printed.")
+        hint.setStyleSheet("color: #888; font-size: 9pt;")
+        hint.setWordWrap(True)
+        v.addWidget(hint)
+
+        self.chk_footer_attribution = QCheckBox(
+            "Manufacturer attribution in the page footer")
+        self.chk_footer_attribution.setToolTip(
+            "The SOP puts the “Manufactured by … | Sold by …” line in a small footer\n"
+            "on every page, rather than under the cover title.\n"
+            "A manufacturer value that names a website, the seller or the brand itself\n"
+            "is left off that document rather than printed wrong — the log counts them.")
+        self.chk_tagline = QCheckBox("Tagline")
+        self.chk_tagline.setToolTip(
+            "The brand tagline (for Budget Mailboxes, “Trusted by the Nation”).\n"
+            "Set “tagline” in the kit's brand.json.")
+        self.chk_version = QCheckBox("Version and last-updated line")
+        self.chk_version.setToolTip(
+            "“Version 1.0 · Last Updated [Month Year]”. The month is the run date,\n"
+            "the same for every file in a batch; override with “last_updated”.")
+        self.chk_disclaimer = QCheckBox("Standard disclaimer")
+        self.chk_disclaimer.setToolTip(
+            "Neither task brief spells the disclaimer out — the wording lives in the\n"
+            "SOP. Paste it into “disclaimer” in the kit's brand.json and it is stamped\n"
+            "on every page; leave it empty and nothing is printed.")
+        for c in (self.chk_footer_attribution, self.chk_tagline,
+                  self.chk_version, self.chk_disclaimer):
+            v.addWidget(c)
+        self.load()
+
+    def load(self):
+        """Show each stamp's remembered setting."""
+        self.chk_footer_attribution.setChecked(bool(CFG.get("rebrand_footer_attribution")))
+        self.chk_tagline.setChecked(bool(CFG.get("rebrand_stamp_tagline")))
+        self.chk_version.setChecked(bool(CFG.get("rebrand_stamp_version")))
+        self.chk_disclaimer.setChecked(bool(CFG.get("rebrand_stamp_disclaimer")))
+
+    def values(self):
+        """The toggles as the dict the worker takes."""
+        return {
+            "footer_attribution": self.chk_footer_attribution.isChecked(),
+            "stamp_tagline": self.chk_tagline.isChecked(),
+            "stamp_version": self.chk_version.isChecked(),
+            "stamp_disclaimer": self.chk_disclaimer.isChecked(),
+        }
+
+
 class RebrandDialog(QDialog):
     """Two-step rebrand: (1) Analyze a folder into a review sheet, then
     (2) Apply the reviewed sheet to produce the branded PDFs."""
@@ -235,6 +297,7 @@ class RebrandDialog(QDialog):
         self.complete_set = bool(CFG.get("rebrand_complete_set"))
         self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
         self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
+        self.stamp_opts = {}
         self.mode = None  # "analyze" or "apply"
 
         layout = QVBoxLayout(self)
@@ -297,6 +360,8 @@ class RebrandDialog(QDialog):
             "On:  every file keeps the name it came in with, as Batch 1 and 2 did.\n"
             "Files left as-is always keep their original name either way.")
         v2.addWidget(self.chk_keepnames)
+        self.stamps = StampOptions(self)
+        v2.addWidget(self.stamps)
         self.btn_apply = QPushButton("Apply Reviewed Sheet")
         self.btn_apply.setStyleSheet("font-weight: bold;")
         self.btn_apply.clicked.connect(self.on_apply)
@@ -369,6 +434,7 @@ class RebrandDialog(QDialog):
         self.complete_set = self.chk_complete.isChecked()
         self.show_attribution = self.chk_attrib.isChecked()
         self.keep_original_names = self.chk_keepnames.isChecked()
+        self.stamp_opts = self.stamps.values()
         self.mode = "apply"; self.accept()
 
 class PipelineDialog(QDialog):
@@ -383,6 +449,7 @@ class PipelineDialog(QDialog):
         self.complete_set = bool(CFG.get("rebrand_complete_set"))
         self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
         self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
+        self.stamp_opts = {}
 
         layout = QVBoxLayout(self)
         title = QLabel("Process a folder of PDFs")
@@ -431,6 +498,11 @@ class PipelineDialog(QDialog):
         self.chk_keepnames.setToolTip("On: files keep the name they came in with, as Batch 1 and 2 did.")
         layout.addWidget(self.chk_keepnames)
 
+        self.stamps = StampOptions(self)
+        layout.addWidget(self.stamps)
+        self.chk_rebrand.toggled.connect(self.stamps.setEnabled)
+        self.stamps.setEnabled(self.chk_rebrand.isChecked())
+
         note = QLabel("Output goes to a “_processed” folder beside the source.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
         layout.addWidget(note)
@@ -465,6 +537,7 @@ class PipelineDialog(QDialog):
         self.complete_set = self.chk_complete.isChecked()
         self.show_attribution = self.chk_attrib.isChecked()
         self.keep_original_names = self.chk_keepnames.isChecked()
+        self.stamp_opts = self.stamps.values()
         if not (self.do_flatten or self.do_rebrand or self.do_ocr):
             QMessageBox.warning(self, "No steps selected", "Please select at least one step.")
             return

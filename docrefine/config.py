@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v146"
+    CURRENT_VERSION = "v147"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -129,6 +129,13 @@ class ConfigData(BaseModel):
     # Batch 1/2 kept every original filename; the Batch 4 brief asks for
     # <product>-<asset-type>-budget-mailboxes.pdf instead. This picks which.
     rebrand_keep_original_names: bool = False
+    # Per-page stamps the rebranding SOP asks for. All off by default, so the
+    # output matches the signed-off Batch 1/2 sets until someone decides
+    # otherwise; the wording itself lives in the brand kit's brand.json.
+    rebrand_footer_attribution: bool = False   # attribution in the page footer, per SOP
+    rebrand_stamp_tagline: bool = False
+    rebrand_stamp_version: bool = False        # "Version 1.0 · Last Updated [Month Year]"
+    rebrand_stamp_disclaimer: bool = False
     last_geometry: str = "1024x700"
     last_tab: int = 0
 

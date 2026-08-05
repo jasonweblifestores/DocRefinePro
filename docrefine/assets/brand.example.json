@@ -1,0 +1,49 @@
+{
+  "_readme": [
+    "Copy this file to the ROOT of a brand kit folder (beside its Portrait/ and",
+    "Landscape/ folders) and rename it to brand.json.",
+    "",
+    "It carries everything about a brand that is words rather than artwork, so a kit",
+    "is genuinely swappable: point the app at a different folder and the covers,",
+    "filenames, PDF metadata and page stamps all follow.",
+    "",
+    "Anything left empty is simply not printed. The disclaimer and tagline are blank",
+    "here on purpose: the task briefs ask for a 'tagline' and a 'standard disclaimer'",
+    "without giving the words, which live in the rebranding SOP. Paste the approved",
+    "wording in rather than approximating it.",
+    "",
+    "Each page stamp also has its own checkbox in the app. Wording here plus the",
+    "matching toggle switched on is what puts a stamp on the page.",
+    "",
+    "FIELDS",
+    "  name / slug        brand name on covers and in PDF metadata; slug in filenames",
+    "  tagline            e.g. the line the Budget Mailboxes brief asks for",
+    "  disclaimer         the SOP's standard disclaimer, stamped on every page",
+    "  version_label      defaults to 'Version 1.0'",
+    "  last_updated       leave empty to use the run's own month, e.g. 'Last Updated",
+    "                     August 2026'; set it to pin a fixed value",
+    "  attribution        {manufacturer} and {brand} are substituted",
+    "  manufacturer_aliases   fixes for values the review sheet gets wrong. A",
+    "                     manufacturer that is a website, the seller, or the brand",
+    "                     itself is dropped rather than printed, so an alias is how",
+    "                     you rescue one — e.g. {\"Florencemailboxes.com\": \"Florence",
+    "                     Corporation\"}",
+    "  stamp_ink / stamp_bg   '#rrggbb' overrides. Leave empty and the stamp colour",
+    "                     is read from the kit's own artwork."
+  ],
+
+  "name": "Budget Mailboxes",
+  "slug": "budget-mailboxes",
+
+  "tagline": "",
+  "disclaimer": "",
+
+  "version_label": "Version 1.0",
+  "last_updated": "",
+
+  "attribution": "Manufactured by {manufacturer} | Sold by {brand}",
+  "manufacturer_aliases": {},
+
+  "stamp_ink": "",
+  "stamp_bg": ""
+}

@@ -44,6 +44,11 @@ class AppController:
         self.window.btn_logs.clicked.connect(self.open_logs)
         self.window.btn_settings.clicked.connect(self.open_settings)
 
+        # Rebrand history
+        self.window.btn_run_open.clicked.connect(self.open_run_output)
+        self.window.btn_run_sheet.clicked.connect(self.open_run_sheet)
+        self.window.btn_run_forget.clicked.connect(self.forget_run)
+
         self.window.req_open_file.connect(self.on_inspector_open)
         self.window.req_reveal_file.connect(self.on_inspector_reveal)
         self.window.insp_tree.itemDoubleClicked.connect(lambda item, _: self.on_inspector_open(item.text(0)))
@@ -133,6 +138,30 @@ class AppController:
         rpt = list((ws / Constants.DIR_REPORTS).glob("*.html"))
         if rpt: SystemUtils.open_file(rpt[0])
 
+    def open_run_output(self):
+        rec = self.window.selected_run()
+        if rec and rec.get("output"):
+            SystemUtils.open_file(rec["output"])
+
+    def open_run_sheet(self):
+        rec = self.window.selected_run()
+        if rec and rec.get("sheet"):
+            SystemUtils.open_file(rec["sheet"])
+
+    def forget_run(self):
+        """Drop a run from the history. Deliberately touches no files."""
+        rec = self.window.selected_run()
+        if not rec:
+            return
+        if QMessageBox.question(self.window, "Forget this run?",
+                                "Remove this run from the history?\n\n"
+                                "The rebranded files and the review sheet are not deleted."
+                                ) != QMessageBox.Yes:
+            return
+        from docrefine import runs
+        runs.remove(rec.get("ts"))
+        self.window.refresh_run_list()
+
     def open_logs(self):
         try:
             log_text = Path(LOG_PATH).read_text(encoding='utf-8', errors='ignore')
@@ -216,10 +245,20 @@ class AppController:
                 CFG.set("rebrand_complete_set", d.complete_set)
                 CFG.set("rebrand_show_attribution", d.show_attribution)
                 CFG.set("rebrand_keep_original_names", d.keep_original_names)
+                self._remember_stamps(d.stamp_opts)
                 self.start_process(self.worker.run_rebrand_apply,
                                    (d.source_path, d.kit_path, d.plan_path, None,
-                                    d.complete_set, d.show_attribution, d.keep_original_names),
+                                    d.complete_set, d.show_attribution,
+                                    d.keep_original_names, d.stamp_opts),
                                    multi_threaded=True)
+
+    @staticmethod
+    def _remember_stamps(opts):
+        """Persist each page-stamp toggle, like every other rebrand setting."""
+        from docrefine.gui.dialogs import StampOptions
+        from docrefine.config import CFG
+        for key in StampOptions.KEYS:
+            CFG.set(f"rebrand_{key}", bool((opts or {}).get(key)))
 
     def _start_analyze(self, source):
         """Ensure the local AI is usable before analyzing; guide the user if not."""
@@ -273,10 +312,11 @@ class AppController:
             CFG.set("rebrand_complete_set", d.complete_set)
             CFG.set("rebrand_show_attribution", d.show_attribution)
             CFG.set("rebrand_keep_original_names", d.keep_original_names)
+            self._remember_stamps(d.stamp_opts)
             self.start_process(self.worker.run_pipeline,
                                (d.source_path, d.do_flatten, d.do_rebrand, d.do_ocr, d.kit_path,
                                 300, None, d.complete_set, d.show_attribution,
-                                d.keep_original_names),
+                                d.keep_original_names, d.stamp_opts),
                                multi_threaded=True)
 
     def launch_refine(self):

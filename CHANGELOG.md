@@ -1,5 +1,26 @@
 # DocRefine Pro - Changelog
 
+## [v147] - 2026-08-05
+### Added — The page stamps the rebranding SOP asks for
+The rebranding standard asks for four things on every page that the template artwork does not provide: the manufacturer attribution, a tagline, a version and last-updated line, and a standard disclaimer. None of them were in the output, because none of them are in the template. They are now available, **each as its own checkbox and all off by default** — so nothing changes unless you ask for it, and the previously signed-off sets remain the default behaviour.
+
+* **Nothing is ever printed over your document.** The stamps get their own light band, added between the page content and the footer bar — the same way the header and footer strips already extend the page. Page size grows by the height of the band; the document itself is never overlapped, scaled or cropped.
+* **Manufacturer attribution now goes in the page footer**, which is where the SOP puts it. The existing cover-subtitle option is untouched, so either placement is a tick.
+* **The wording lives with the brand, not in the app.** A brand kit can now carry a `brand.json` holding its tagline, disclaimer, version label and attribution format. Copy `docrefine/assets/brand.example.json` into your kit as a starting point. Anything left blank is not printed, and the run log names what is missing — so no approximate wording can reach a document, and one brand's tagline can never appear on another brand's PDFs.
+* The stamp colour is read from your kit's own artwork, so it is on-brand for whichever kit is loaded; `stamp_ink` overrides it if you need to.
+* Stamps scale with the page, so they read correctly on both a Letter guide and a 44x34in drawing.
+
+**A manufacturer name that can't be trusted is now left off rather than printed.** On the current batch the review sheet's manufacturer column contained websites (`Florencemailboxes.com`), the seller (`WebLife Stores LLC`) and the brand itself — the last of which reads as "Manufactured by Budget Mailboxes | Sold by Budget Mailboxes". Any such value means that document simply gets no attribution line, and the run log counts them up front so you know the size of the gap before an hour-long run rather than after it. `manufacturer_aliases` in `brand.json` is how you correct one.
+
+### Added — Rebranding runs are no longer invisible
+Rebranding and the pipeline work on ordinary folders and never created a job, so once a run finished the app forgot it happened. Since the output now depends on which toggles were set, "what produced this folder" had become a question with no answer.
+
+* The dashboard now lists **Rebrand & Processing Runs** under the ingest jobs, each showing the folder, what it produced, and when.
+* Selecting a run shows the brand kit, the review sheet, how long it took, and **the settings that shaped the output** — which is what tells two runs of the same folder apart.
+* Buttons open the output folder or the review sheet; **Forget** drops a run from the list and touches no files.
+* Each row names the folder together with its parent, because every deduplicated job's masters folder is called `01_Master_Files` and that name alone identifies nothing.
+* Both dashboard lists are now labelled (**Ingest Jobs** / **Rebrand & Processing Runs**) so neither is mistaken for the other.
+
 ## [v146] - 2026-08-05
 ### Added — "Keep the original filenames"
 Rebranded files are renamed to the delivery pattern the Batch 4 brief asks for, `product-asset-type-budget-mailboxes.pdf`. But the Batch 1 and 2 sets — both already signed off — kept every original filename. This is now a checkbox, so either convention is a tick rather than a rebuild.

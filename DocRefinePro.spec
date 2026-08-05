@@ -84,6 +84,8 @@ a = Analysis(
         'docrefine.rebrand',
         'docrefine.classify',
         'docrefine.reviews',
+        'docrefine.stamps',
+        'docrefine.runs',
         'openpyxl',
         'reportlab'
     ] + filtered_hidden_imports,
