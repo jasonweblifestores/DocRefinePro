@@ -233,6 +233,7 @@ class RebrandDialog(QDialog):
         self.kit_path = default_kit or None
         self.plan_path = None
         self.complete_set = bool(CFG.get("rebrand_complete_set"))
+        self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
         self.mode = None  # "analyze" or "apply"
 
         layout = QVBoxLayout(self)
@@ -280,6 +281,13 @@ class RebrandDialog(QDialog):
             "anything else are copied through unchanged alongside the branded PDFs.\n"
             "Off: PDFs only (non-PDF files stay in the source folder).")
         v2.addWidget(self.chk_complete)
+        self.chk_attrib = QCheckBox("Manufacturer line on covers  (“Manufactured by … | Sold by …”)")
+        self.chk_attrib.setChecked(self.show_attribution)
+        self.chk_attrib.setToolTip(
+            "Off: covers show the title only, matching the Batch 1 and 2 sets.\n"
+            "On: adds the attribution line the task brief asks for, taken from\n"
+            "the review sheet's manufacturer column.")
+        v2.addWidget(self.chk_attrib)
         self.btn_apply = QPushButton("Apply Reviewed Sheet")
         self.btn_apply.setStyleSheet("font-weight: bold;")
         self.btn_apply.clicked.connect(self.on_apply)
@@ -350,6 +358,7 @@ class RebrandDialog(QDialog):
                                 "Run Analyze first — its sheet is picked up automatically.")
             return
         self.complete_set = self.chk_complete.isChecked()
+        self.show_attribution = self.chk_attrib.isChecked()
         self.mode = "apply"; self.accept()
 
 class PipelineDialog(QDialog):
@@ -362,6 +371,7 @@ class PipelineDialog(QDialog):
         self.kit_path = default_kit or None
         self.do_flatten = self.do_rebrand = self.do_ocr = False
         self.complete_set = bool(CFG.get("rebrand_complete_set"))
+        self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
 
         layout = QVBoxLayout(self)
         title = QLabel("Process a folder of PDFs")
@@ -400,6 +410,11 @@ class PipelineDialog(QDialog):
             "Off: PDFs only (non-PDF files stay in the source folder).")
         layout.addWidget(self.chk_complete)
 
+        self.chk_attrib = QCheckBox("Manufacturer line on covers  (“Manufactured by … | Sold by …”)")
+        self.chk_attrib.setChecked(self.show_attribution)
+        self.chk_attrib.setToolTip("Off: covers show the title only, matching the Batch 1 and 2 sets.")
+        layout.addWidget(self.chk_attrib)
+
         note = QLabel("Output goes to a “_processed” folder beside the source.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
         layout.addWidget(note)
@@ -432,6 +447,7 @@ class PipelineDialog(QDialog):
         self.do_rebrand = self.chk_rebrand.isChecked()
         self.do_ocr = self.chk_ocr.isChecked()
         self.complete_set = self.chk_complete.isChecked()
+        self.show_attribution = self.chk_attrib.isChecked()
         if not (self.do_flatten or self.do_rebrand or self.do_ocr):
             QMessageBox.warning(self, "No steps selected", "Please select at least one step.")
             return

@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v142"
+    CURRENT_VERSION = "v143"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -123,6 +123,9 @@ class ConfigData(BaseModel):
     last_brand_kit: str = ""
     last_rebrand_source: str = ""
     rebrand_complete_set: bool = True
+    # Batch 1 and 2 covers carry the title alone. The task brief also asks for a
+    # "Manufactured by [X] | Sold by ..." line; this decides which wins.
+    rebrand_show_attribution: bool = False
     last_geometry: str = "1024x700"
     last_tab: int = 0
 

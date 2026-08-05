@@ -922,7 +922,7 @@ class Worker:
             taken.add(str(dst).lower())
             row["_dst"] = str(dst)
 
-    def _apply_one_row(self, row, src, out, kit):
+    def _apply_one_row(self, row, src, out, kit, show_attribution=False):
         """Process one review-sheet row (output path pre-assigned in row['_dst'])."""
         from .rebrand import rebrand_pdf, title_for
         rel = (row.get("file") or "").strip().replace("\\", "/")
@@ -943,7 +943,7 @@ class Worker:
             return "leave"
         title = (row.get("title") or "").strip() or title_for(
             row.get("asset_type"), fallback_stem=pdf.stem, doc_type=row.get("doc_type"))
-        subtitle = kit.subtitle_for(row.get("manufacturer"))
+        subtitle = kit.subtitle_for(row.get("manufacturer")) if show_attribution else None
         stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle)
         if stats["size_mb"] >= 50:
             self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
@@ -1027,11 +1027,14 @@ class Worker:
         res = self._parallel_map(extras, cp, "Copying")
         return sum(1 for r in res if r in ("copied", "skip"))
 
-    def run_rebrand_apply(self, src_dir, kit_dir, plan_csv=None, out_dir=None, complete_set=False):
+    def run_rebrand_apply(self, src_dir, kit_dir, plan_csv=None, out_dir=None, complete_set=False,
+                          show_attribution=False):
         """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is.
 
         With complete_set, every non-PDF file in the source is copied through to
-        the mirrored output too, so the output tree is the whole upload set."""
+        the mirrored output too, so the output tree is the whole upload set.
+        show_attribution adds the "Manufactured by [X] | Sold by ..." line under
+        the cover title."""
         try:
             self.stop_sig = False
             self.resume()
@@ -1082,7 +1085,7 @@ class Worker:
                 if not self.pause_event.is_set():
                     self.pause_event.wait()
                 try:
-                    return self._apply_one_row(row, src, out, kit)
+                    return self._apply_one_row(row, src, out, kit, show_attribution)
                 except Exception as e:
                     self.log(f"Failed: {(row.get('file') or '?')}: {e}", True)
                     return "fail"
@@ -1167,7 +1170,8 @@ class Worker:
 
         self._parallel_map(files, op, label)
 
-    def _folder_rebrand(self, src, plan_src, out, kit, label, complete_set=True):
+    def _folder_rebrand(self, src, plan_src, out, kit, label, complete_set=True,
+                        show_attribution=False):
         """Rebrand every PDF from src into out, honouring a review plan from plan_src if present.
 
         With complete_set, non-PDF files are copied through so the output is the
@@ -1220,7 +1224,8 @@ class Worker:
                 title = ((row.get("title") if row else "") or "").strip() or title_for(
                     row.get("asset_type") if row else None, fallback_stem=p.stem,
                     doc_type=row.get("doc_type") if row else None)
-                subtitle = kit.subtitle_for(row.get("manufacturer") if row else "")
+                subtitle = (kit.subtitle_for(row.get("manufacturer") if row else "")
+                            if show_attribution else None)
                 rebrand_pdf(p, dst, kit, title, subtitle=subtitle)
             except Exception as e:
                 self.log(f"Rebrand failed: {rel}: {e}", True)
@@ -1230,7 +1235,7 @@ class Worker:
         self._parallel_map(files, one, label)
 
     def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300,
-                     out_dir=None, complete_set=True):
+                     out_dir=None, complete_set=True, show_attribution=False):
         """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR.
 
         complete_set carries non-PDF files through every stage into the output."""
@@ -1270,7 +1275,8 @@ class Worker:
             if do_rebrand and not self.stop_sig:
                 step += 1; nxt = work / "2_rebranded"
                 self._folder_rebrand(current, src, nxt, kit, f"[{step}/{n}] Rebrand",
-                                     complete_set=complete_set); current = nxt
+                                     complete_set=complete_set,
+                                     show_attribution=show_attribution); current = nxt
             if do_ocr and not self.stop_sig:
                 step += 1; nxt = work / "3_searchable"
                 self._folder_pdf_op(current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True,

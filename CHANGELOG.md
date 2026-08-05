@@ -1,5 +1,15 @@
 # DocRefine Pro - Changelog
 
+## [v143] - 2026-08-05
+### Changed — The cover attribution line is now optional
+* **New checkbox: "Manufacturer line on covers".** The Batch 1 and 2 sets, both already signed off, carry the document title alone; the task brief additionally asks for a `Manufactured by [X] | Sold by Budget Mailboxes` line. This setting decides which standard applies, and your choice is remembered.
+* **It now defaults to off**, matching the previously approved sets. Tick it to follow the brief.
+* Nothing else about the output changes either way — filenames, page counts, PDF metadata and the document text are identical.
+
+Context: on the current batch the attribution line was wrong on 109 of 874 covers, because the model's `manufacturer` column contained things like `Florencemailboxes.com` (a website), `WebLife Stores LLC` (the seller) and `Budget Mailboxes` itself — which read as "Manufactured by Budget Mailboxes | Sold by Budget Mailboxes". None of those rows were flagged for review, since the classification was confident and only the manufacturer was wrong. Turning the line off removes that whole class of error; if it is ever turned back on, those values need normalising first.
+
+Re-running Apply with the setting changed does **not** require re-running Analyze — the review sheet is unaffected. Delete the existing output folder first, though, since Apply skips files that already exist.
+
 ## [v142] - 2026-08-04
 ### Fixed — Delivery filenames that actually identify the document
 Output names are built as `product-asset-type-budget-mailboxes.pdf`, but the local model leaves the product blank on a large share of documents (40% of the current batch). Every one of those collapsed onto the same name and got a numbered suffix — **255 files would have shipped as `installation-guide-budget-mailboxes.pdf` through `-255.pdf`**. Nothing was ever lost, but the names told a customer nothing and didn't match the delivery pattern.
