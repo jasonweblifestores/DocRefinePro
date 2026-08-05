@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v145"
+    CURRENT_VERSION = "v146"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -126,6 +126,9 @@ class ConfigData(BaseModel):
     # Batch 1 and 2 covers carry the title alone. The task brief also asks for a
     # "Manufactured by [X] | Sold by ..." line; this decides which wins.
     rebrand_show_attribution: bool = False
+    # Batch 1/2 kept every original filename; the Batch 4 brief asks for
+    # <product>-<asset-type>-budget-mailboxes.pdf instead. This picks which.
+    rebrand_keep_original_names: bool = False
     last_geometry: str = "1024x700"
     last_tab: int = 0
 

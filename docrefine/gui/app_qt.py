@@ -215,9 +215,10 @@ class AppController:
                 CFG.set("last_brand_kit", d.kit_path)
                 CFG.set("rebrand_complete_set", d.complete_set)
                 CFG.set("rebrand_show_attribution", d.show_attribution)
+                CFG.set("rebrand_keep_original_names", d.keep_original_names)
                 self.start_process(self.worker.run_rebrand_apply,
                                    (d.source_path, d.kit_path, d.plan_path, None,
-                                    d.complete_set, d.show_attribution),
+                                    d.complete_set, d.show_attribution, d.keep_original_names),
                                    multi_threaded=True)
 
     def _start_analyze(self, source):
@@ -271,9 +272,11 @@ class AppController:
                 CFG.set("last_brand_kit", d.kit_path)
             CFG.set("rebrand_complete_set", d.complete_set)
             CFG.set("rebrand_show_attribution", d.show_attribution)
+            CFG.set("rebrand_keep_original_names", d.keep_original_names)
             self.start_process(self.worker.run_pipeline,
                                (d.source_path, d.do_flatten, d.do_rebrand, d.do_ocr, d.kit_path,
-                                300, None, d.complete_set, d.show_attribution),
+                                300, None, d.complete_set, d.show_attribution,
+                                d.keep_original_names),
                                multi_threaded=True)
 
     def launch_refine(self):

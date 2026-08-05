@@ -1,5 +1,17 @@
 # DocRefine Pro - Changelog
 
+## [v146] - 2026-08-05
+### Added — "Keep the original filenames"
+Rebranded files are renamed to the delivery pattern the Batch 4 brief asks for, `product-asset-type-budget-mailboxes.pdf`. But the Batch 1 and 2 sets — both already signed off — kept every original filename. This is now a checkbox, so either convention is a tick rather than a rebuild.
+
+* **Off (default):** rename to the brief's pattern.
+* **On:** every branded file keeps the exact name it came in with — original casing, spacing and punctuation, no brand suffix added. Files marked *leave* keep their original name either way.
+* Available in **Rebrand a Folder**, **Rebrand Unique Masters** and **Process a Folder**, and your choice is remembered.
+
+Keeping the original name also avoids a side effect of the delivery pattern: when a product name and a long asset type together exceed the 60-character limit, the product is trimmed to fit — `Imperial Street Signs` became `imperial-street`, losing "signs".
+
+Note the previous sets appended a marker to the name (`_REBRANDED`, `-RE-BRANDED`, ` REBRANDED` — inconsistently). This option does not reproduce that: the name is left exactly as it was.
+
 ## [v145] - 2026-08-05
 ### Fixed — A page stored "upside down" no longer loses its content
 A PDF page box is defined by any two opposite corners, so writing it top-down is perfectly legal — but the page then reports a *negative* height. The rebranding engine took that at face value: the document was treated as landscape, the cover was scaled by a negative factor, and **the document's own content was pushed off the page entirely**, leaving a branded but effectively blank file.

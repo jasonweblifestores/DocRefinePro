@@ -234,6 +234,7 @@ class RebrandDialog(QDialog):
         self.plan_path = None
         self.complete_set = bool(CFG.get("rebrand_complete_set"))
         self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
+        self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
         self.mode = None  # "analyze" or "apply"
 
         layout = QVBoxLayout(self)
@@ -288,6 +289,14 @@ class RebrandDialog(QDialog):
             "On: adds the attribution line the task brief asks for, taken from\n"
             "the review sheet's manufacturer column.")
         v2.addWidget(self.chk_attrib)
+        self.chk_keepnames = QCheckBox("Keep the original filenames")
+        self.chk_keepnames.setChecked(self.keep_original_names)
+        self.chk_keepnames.setToolTip(
+            "Off: rename to the brief's pattern,\n"
+            "     product-asset-type-budget-mailboxes.pdf (lowercase, ≤60 chars).\n"
+            "On:  every file keeps the name it came in with, as Batch 1 and 2 did.\n"
+            "Files left as-is always keep their original name either way.")
+        v2.addWidget(self.chk_keepnames)
         self.btn_apply = QPushButton("Apply Reviewed Sheet")
         self.btn_apply.setStyleSheet("font-weight: bold;")
         self.btn_apply.clicked.connect(self.on_apply)
@@ -359,6 +368,7 @@ class RebrandDialog(QDialog):
             return
         self.complete_set = self.chk_complete.isChecked()
         self.show_attribution = self.chk_attrib.isChecked()
+        self.keep_original_names = self.chk_keepnames.isChecked()
         self.mode = "apply"; self.accept()
 
 class PipelineDialog(QDialog):
@@ -372,6 +382,7 @@ class PipelineDialog(QDialog):
         self.do_flatten = self.do_rebrand = self.do_ocr = False
         self.complete_set = bool(CFG.get("rebrand_complete_set"))
         self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
+        self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
 
         layout = QVBoxLayout(self)
         title = QLabel("Process a folder of PDFs")
@@ -415,6 +426,11 @@ class PipelineDialog(QDialog):
         self.chk_attrib.setToolTip("Off: covers show the title only, matching the Batch 1 and 2 sets.")
         layout.addWidget(self.chk_attrib)
 
+        self.chk_keepnames = QCheckBox("Keep the original filenames")
+        self.chk_keepnames.setChecked(self.keep_original_names)
+        self.chk_keepnames.setToolTip("On: files keep the name they came in with, as Batch 1 and 2 did.")
+        layout.addWidget(self.chk_keepnames)
+
         note = QLabel("Output goes to a “_processed” folder beside the source.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
         layout.addWidget(note)
@@ -448,6 +464,7 @@ class PipelineDialog(QDialog):
         self.do_ocr = self.chk_ocr.isChecked()
         self.complete_set = self.chk_complete.isChecked()
         self.show_attribution = self.chk_attrib.isChecked()
+        self.keep_original_names = self.chk_keepnames.isChecked()
         if not (self.do_flatten or self.do_rebrand or self.do_ocr):
             QMessageBox.warning(self, "No steps selected", "Please select at least one step.")
             return

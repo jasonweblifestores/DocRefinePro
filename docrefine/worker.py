@@ -913,13 +913,18 @@ class Worker:
                     self.log(f"{label} error: {e}", True)
         return results
 
-    def _assign_output_names(self, rows, out, kit=None):
+    def _assign_output_names(self, rows, out, kit=None, keep_original_names=False):
         """Assign each row a unique output path up front (single-threaded) so parallel
-        writes never collide, and re-runs stay deterministic (resume-safe)."""
+        writes never collide, and re-runs stay deterministic (resume-safe).
+
+        With keep_original_names, branded files keep the source filename — what
+        Batch 1 and 2 did — instead of the brief's delivery pattern."""
         from .rebrand import delivery_filename, numbered_filename as _numbered
         brand = {"brand_slug": kit.brand_slug} if kit is not None else {}
 
         def preferred(row, rel_path):
+            if keep_original_names:
+                return rel_path.name
             return delivery_filename(rel_path.stem, row.get("product"),
                                      row.get("asset_type"), **brand)
 
@@ -946,9 +951,10 @@ class Worker:
                 dst = out / rel_path  # unbranded, original name/structure
             else:
                 name = preferred(row, rel_path)
-                if wanted.get(name, 0) > 1:
+                if wanted.get(name, 0) > 1 and not keep_original_names:
                     # The source name identifies the document; "-2" tells the
-                    # reader nothing.
+                    # reader nothing. (Original names are already unique, so
+                    # this never applies when keeping them.)
                     name = delivery_filename(rel_path.stem, "", row.get("asset_type"), **brand)
                 dst = out / rel_path.parent / name
             base, n = dst, 1
@@ -1064,7 +1070,7 @@ class Worker:
         return sum(1 for r in res if r in ("copied", "skip"))
 
     def run_rebrand_apply(self, src_dir, kit_dir, plan_csv=None, out_dir=None, complete_set=False,
-                          show_attribution=False):
+                          show_attribution=False, keep_original_names=False):
         """Apply an approved review sheet: rebrand the 'rebrand' rows, copy the rest as-is.
 
         With complete_set, every non-PDF file in the source is copied through to
@@ -1106,7 +1112,7 @@ class Worker:
             start_time = time.time()
 
             # Assign unique output names single-threaded (collision- and resume-safe).
-            self._assign_output_names(rows, out, kit)
+            self._assign_output_names(rows, out, kit, keep_original_names)
 
             # Warm shared state once so the worker threads don't race on it.
             from .rebrand import _ensure_font
@@ -1207,7 +1213,7 @@ class Worker:
         self._parallel_map(files, op, label)
 
     def _folder_rebrand(self, src, plan_src, out, kit, label, complete_set=True,
-                        show_attribution=False):
+                        show_attribution=False, keep_original_names=False):
         """Rebrand every PDF from src into out, honouring a review plan from plan_src if present.
 
         With complete_set, non-PDF files are copied through so the output is the
@@ -1230,7 +1236,7 @@ class Worker:
             rel = p.relative_to(src)
             row = plan.get(str(rel).replace("\\", "/")) or plan.get(p.name)
             is_leave = (row and (row.get("action") or "").strip().lower() == "leave")
-            if p.suffix.lower() != ".pdf" or is_leave:
+            if p.suffix.lower() != ".pdf" or is_leave or keep_original_names:
                 dst = out / rel
             elif row:
                 dst = out / rel.parent / delivery_filename(
@@ -1271,7 +1277,8 @@ class Worker:
         self._parallel_map(files, one, label)
 
     def run_pipeline(self, src_dir, do_flatten, do_rebrand, do_ocr, kit_dir=None, dpi=300,
-                     out_dir=None, complete_set=True, show_attribution=False):
+                     out_dir=None, complete_set=True, show_attribution=False,
+                     keep_original_names=False):
         """Run selected steps over a folder, in the fixed safe order Flatten → Rebrand → OCR.
 
         complete_set carries non-PDF files through every stage into the output."""
@@ -1312,7 +1319,8 @@ class Worker:
                 step += 1; nxt = work / "2_rebranded"
                 self._folder_rebrand(current, src, nxt, kit, f"[{step}/{n}] Rebrand",
                                      complete_set=complete_set,
-                                     show_attribution=show_attribution); current = nxt
+                                     show_attribution=show_attribution,
+                                     keep_original_names=keep_original_names); current = nxt
             if do_ocr and not self.stop_sig:
                 step += 1; nxt = work / "3_searchable"
                 self._folder_pdf_op(current, nxt, "ocr", dpi, f"[{step}/{n}] OCR", only_no_text=True,
