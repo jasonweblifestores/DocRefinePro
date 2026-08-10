@@ -1,5 +1,13 @@
 # DocRefine Pro - Changelog
 
+## [v149] - 2026-08-09
+### Changed — The last-updated line now matches the SOP exactly
+The wording for the page stamps came back confirmed against the SOP, and the version line carries a colon that ours did not: it reads **`Last Updated: August 2026`**, not `Last Updated August 2026`. One character, but it is the difference between matching the standard and approximating it.
+
+The **disclaimer is now centred**, sitting square under the tagline. The attribution and version line pair off to the left and right edges because they belong together as a pair; the two lines that speak for the brand read better as one centred block.
+
+Everything else in that line is unchanged — `Version 1.0` still resets on every file, and the month is still the month you run the rebrand, shared by every file in the batch.
+
 ## [v148] - 2026-08-05
 ### Added — The app now tells you when one manufacturer is credited two ways
 Both findings came from running v147's new attribution stamp over the current batch's real review sheet rather than test data.

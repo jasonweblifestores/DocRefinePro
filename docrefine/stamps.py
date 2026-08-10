@@ -45,7 +45,9 @@ DISCLAIMER_MAX_LINES = 4   # a disclaimer longer than this is truncated, not all
 DEFAULT_INK = (0.12, 0.05, 0.40)   # only used if neither the kit nor its art supplies one
 DEFAULT_ATTRIBUTION = "Manufactured by {manufacturer} | Sold by {brand}"
 DEFAULT_VERSION_LABEL = "Version 1.0"
-UPDATED_PREFIX = "Last Updated"
+# The SOP's format is "Last Updated: [Month Year]" — with the colon (confirmed by
+# Kunchana, 2026-08-09). A kit can still override the whole line via last_updated.
+UPDATED_PREFIX = "Last Updated:"
 SEPARATOR = "  ·  "
 
 # Names that identify the seller or a storefront rather than who made the
@@ -205,13 +207,16 @@ class Stamps:
                 rows.append(("center", size, line))
 
         if self.disclaimer:
+            # Centred, to sit square under the tagline. The attribution and version
+            # are edge-aligned because they pair off left/right; the two lines that
+            # speak for the brand read as one block down the middle.
             size = base * DISCLAIMER_SCALE
             lines = wrap(self.disclaimer, font, size, text_w)
             if len(lines) > DISCLAIMER_MAX_LINES:
                 lines = lines[:DISCLAIMER_MAX_LINES]
                 lines[-1] = lines[-1].rstrip(" ,;") + "…"
             for line in lines:
-                rows.append(("left", size, line))
+                rows.append(("center", size, line))
 
         if not rows:
             out = ([], 0.0)
