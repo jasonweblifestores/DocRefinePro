@@ -9,9 +9,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QMessageBox, QWidget, QTextEdit, QDialogButtonBox,
     QCheckBox
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QFont, QColor, QPalette
 from docrefine.config import CFG, SystemUtils
+from docrefine import power
 
 # --- HELPER: Tesseract ---
 def get_tesseract_langs():
@@ -284,6 +285,90 @@ class StampOptions(QGroupBox):
         }
 
 
+class SleepWhenDone(QCheckBox):
+    """Sleep the computer once the run finishes, the way a torrent client does.
+
+    Shared by both rebranding dialogs, and it applies to whichever step is
+    started — an Analyze with the visual pass on can run for hours longer than
+    an Apply does. Remembered, because someone who wants this at bedtime
+    usually wants it every night.
+
+    The safety rule lives in the controller, not here: a run that was stopped by
+    hand or that failed never sleeps.
+    """
+
+    def __init__(self, parent=None):
+        word = power.describe(CFG.get("sleep_when_done_action") or power.SLEEP)
+        super().__init__(f"Put this computer to {word} when the run finishes", parent)
+        self.setToolTip(
+            f"For overnight runs. When the run finishes on its own you get a\n"
+            f"{power.COUNTDOWN_SECONDS}-second countdown with a “Stay awake” button, then the\n"
+            f"computer goes to {word}.\n\n"
+            f"It will NOT {word} if you press Stop or if the run reports a problem —\n"
+            f"in either case you are meant to see what happened.")
+        if power.available():
+            self.setChecked(bool(CFG.get("sleep_when_done")))
+        else:
+            self.setChecked(False)
+            self.setEnabled(False)
+            self.setToolTip("This computer doesn't expose a way to sleep on command.")
+
+
+class SleepCountdown(QDialog):
+    """The last chance to stay awake.
+
+    Only ever shown after a run that finished on its own. Closing this window,
+    pressing Escape or clicking “Stay awake” all mean stay awake — every exit
+    that isn't a deliberate choice leaves the machine running, which is the
+    recoverable direction.
+    """
+
+    def __init__(self, parent=None, action=power.SLEEP, seconds=None):
+        super().__init__(parent)
+        self.word = power.describe(action)
+        self.remaining = int(power.COUNTDOWN_SECONDS if seconds is None else seconds)
+        self.setWindowTitle("Run finished")
+        self.setMinimumWidth(380)
+
+        v = QVBoxLayout(self)
+        self.lbl = QLabel()
+        self.lbl.setWordWrap(True)
+        v.addWidget(self.lbl)
+
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.btn_now = QPushButton(f"{self.word.capitalize()} now")
+        self.btn_now.clicked.connect(self.accept)
+        self.btn_stay = QPushButton("Stay awake")
+        self.btn_stay.setDefault(True)          # Enter keeps the machine up
+        self.btn_stay.clicked.connect(self.reject)
+        row.addWidget(self.btn_now)
+        row.addWidget(self.btn_stay)
+        v.addLayout(row)
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start(1000)
+        self._paint()
+
+    def _paint(self):
+        s = "" if self.remaining == 1 else "s"
+        self.lbl.setText(f"The run finished.\n\nThis computer will {self.word} in "
+                         f"{self.remaining} second{s}.")
+
+    def _tick(self):
+        self.remaining -= 1
+        if self.remaining <= 0:
+            self._timer.stop()
+            self.accept()
+            return
+        self._paint()
+
+    def reject(self):
+        self._timer.stop()
+        super().reject()
+
+
 class RebrandDialog(QDialog):
     """Two-step rebrand: (1) Analyze a folder into a review sheet, then
     (2) Apply the reviewed sheet to produce the branded PDFs."""
@@ -299,6 +384,7 @@ class RebrandDialog(QDialog):
         self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
         self.stamp_opts = {}
         self.vision_pass = bool(CFG.get("rebrand_vision_pass"))
+        self.sleep_when_done = False
         self.mode = None  # "analyze" or "apply"
 
         layout = QVBoxLayout(self)
@@ -391,6 +477,10 @@ class RebrandDialog(QDialog):
         v2.addWidget(self.btn_apply)
         layout.addWidget(gb2)
 
+        # Outside both steps: it applies to whichever one you start.
+        self.chk_sleep = SleepWhenDone(self)
+        layout.addWidget(self.chk_sleep)
+
         note = QLabel("Output goes to a “_rebranded” folder beside the source, mirroring its structure.\n"
                       "Review sheets (Excel) are saved in Documents\\DocRefinePro_Data\\Rebrand Reviews.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
@@ -445,6 +535,7 @@ class RebrandDialog(QDialog):
             QMessageBox.warning(self, "Missing selection", "Please choose a source folder to analyze.")
             return
         self.vision_pass = self.chk_vision.isChecked()
+        self.sleep_when_done = self.chk_sleep.isChecked()
         self.mode = "analyze"; self.accept()
 
     def on_apply(self):
@@ -459,6 +550,7 @@ class RebrandDialog(QDialog):
         self.show_attribution = self.chk_attrib.isChecked()
         self.keep_original_names = self.chk_keepnames.isChecked()
         self.stamp_opts = self.stamps.values()
+        self.sleep_when_done = self.chk_sleep.isChecked()
         self.mode = "apply"; self.accept()
 
 class PipelineDialog(QDialog):
@@ -474,6 +566,7 @@ class PipelineDialog(QDialog):
         self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
         self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
         self.stamp_opts = {}
+        self.sleep_when_done = False
 
         layout = QVBoxLayout(self)
         title = QLabel("Process a folder of PDFs")
@@ -527,6 +620,9 @@ class PipelineDialog(QDialog):
         self.chk_rebrand.toggled.connect(self.stamps.setEnabled)
         self.stamps.setEnabled(self.chk_rebrand.isChecked())
 
+        self.chk_sleep = SleepWhenDone(self)
+        layout.addWidget(self.chk_sleep)
+
         note = QLabel("Output goes to a “_processed” folder beside the source.")
         note.setStyleSheet("color: #888; font-size: 9pt;")
         layout.addWidget(note)
@@ -562,6 +658,7 @@ class PipelineDialog(QDialog):
         self.show_attribution = self.chk_attrib.isChecked()
         self.keep_original_names = self.chk_keepnames.isChecked()
         self.stamp_opts = self.stamps.values()
+        self.sleep_when_done = self.chk_sleep.isChecked()
         if not (self.do_flatten or self.do_rebrand or self.do_ocr):
             QMessageBox.warning(self, "No steps selected", "Please select at least one step.")
             return

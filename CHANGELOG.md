@@ -1,5 +1,21 @@
 # DocRefine Pro - Changelog
 
+## [v156] - 2026-08-12
+### Added — A long run can put the computer to sleep when it finishes
+Analyzing a few thousand files with the visual pass on runs for hours, so the machine gets left on overnight for work that finished at 2am. There is now a checkbox on both rebranding dialogs, the same offer a torrent client makes: finish the work, then sleep.
+
+**The interesting part is when it refuses.** Sleeping is only ever offered after a run that finished on its own:
+
+* **Stop was pressed** → stays awake. Someone is at the keyboard.
+* **The run reported an error** → stays awake. Whoever comes back to it needs to read what went wrong.
+* **The countdown was cancelled** → stays awake, and says so in the log.
+
+Every one of those says in the run log why the machine was left on, so an overnight run that *didn't* sleep explains itself rather than looking broken. Closing the countdown window, pressing Escape and "Stay awake" all mean stay awake — every exit that isn't a deliberate choice leaves the machine running, because that is the recoverable direction. The countdown is a full minute and "Stay awake" is the default button.
+
+The setting is remembered, it is per-run, and it is reset at the start of every run so a decision can never leak into the next one. Downloading a model doesn't count as the run you asked to sleep after — that one ends by asking you to click Analyze again.
+
+Sleep is the default action; `sleep_when_done_action` can be set to `hibernate` instead. On Windows it goes through `SetSuspendState` and falls back to the shell if that is refused; macOS uses `pmset sleepnow`, Linux `systemctl suspend`. Where the machine offers no way to sleep on command the checkbox is disabled rather than failing at the end of a long run, and macOS is not promised a hibernate it doesn't have.
+
 ## [v155] - 2026-08-12
 ### Added — The classifier can look at a page when there is no text to read
 **Roughly half of a typical batch has no extractable text at all** — 1,043 of 2,174 files on the current one. To a text-only model a scanned installation guide, a dimensioned drawing and a UL certificate are indistinguishable, because all three supply nothing to read. Those files were classified from their filename alone, and the previous two releases were both attempts to squeeze more out of that filename.

@@ -7,7 +7,8 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMessageBox, QFileDialog
 from PySide6.QtCore import Qt
 from .main_window import MainWindow
-from .dialogs import NewJobDialog, SettingsDialog, InternalViewerDialog, RebrandDialog, PipelineDialog
+from .dialogs import (NewJobDialog, SettingsDialog, InternalViewerDialog, RebrandDialog,
+                      PipelineDialog, SleepCountdown)
 from .qt_adapter import DocRefineAdapter
 from .forensic import ForensicDialog
 from docrefine.worker import Worker
@@ -19,6 +20,10 @@ class AppController:
         self.window = MainWindow()
         self.adapter = DocRefineAdapter()
         self.worker = Worker(callback=self.adapter.ingest_event)
+        # Sleep-when-done state for the run currently in flight. Both are reset
+        # by start_process, so a decision can never leak into the next run.
+        self._sleep_when_done = False
+        self._run_had_error = False
         self.setup_signals()
 
     def setup_signals(self):
@@ -27,6 +32,7 @@ class AppController:
         self.adapter.sig_progress_main.connect(self.window.update_progress)
         self.adapter.sig_status.connect(lambda s, m, c: self.window.update_status_label(s, m, c))
         self.adapter.sig_done.connect(self.on_done)
+        self.adapter.sig_error.connect(self.on_run_error)
         self.adapter.sig_job_data.connect(self.on_job_data)
         self.adapter.sig_worker_config.connect(self.window.setup_slots)
         self.adapter.sig_slot_update.connect(self.window.update_slot)
@@ -72,6 +78,47 @@ class AppController:
     def on_done(self):
         self.window.set_processing_state(False)
         self.window.refresh_job_list(self.get_selected_ws())
+        self._maybe_sleep()
+
+    def on_run_error(self, msg):
+        """Remember that this run reported a problem.
+
+        A failed run must not end with the machine asleep — whoever comes back
+        to it needs to read what went wrong.
+        """
+        self._run_had_error = True
+        log_app(f"Run reported an error: {msg}", "ERROR")
+
+    def _maybe_sleep(self):
+        """Offer to sleep, but only after a run that genuinely finished.
+
+        Three things have to be true: the option was ticked for *this* run, the
+        user did not press Stop, and nothing reported an error. Anything else
+        leaves the machine awake, which is the recoverable direction.
+        """
+        if not self._sleep_when_done:
+            return
+        self._sleep_when_done = False        # one run, one offer
+        from docrefine import power
+        from docrefine.config import CFG
+
+        if self.worker.stop_sig:
+            self.worker.log("Run was stopped, so the computer is being left awake.")
+            return
+        if self._run_had_error:
+            self.worker.log("Run reported a problem, so the computer is being left awake.")
+            return
+
+        action = CFG.get("sleep_when_done_action") or power.SLEEP
+        if SleepCountdown(self.window, action=action).exec():
+            self.worker.log(f"Run finished — putting the computer to {power.describe(action)}.")
+            ok, msg = power.suspend(action)
+            if not ok:
+                QMessageBox.warning(self.window, "Could not sleep",
+                                    f"The run finished, but this computer refused to "
+                                    f"{power.describe(action)}:\n\n{msg}")
+        else:
+            self.worker.log("Sleep cancelled — the computer will stay awake.")
 
     def on_job_data(self, path_str):
         self.window.refresh_job_list(auto_select_path=path_str)
@@ -206,7 +253,11 @@ class AppController:
             else:
                 SystemUtils.reveal_file(clean)
 
-    def start_process(self, target, args, multi_threaded=False):
+    def start_process(self, target, args, multi_threaded=False, sleep_when_done=False):
+        from docrefine import power
+        # Fresh state per run: whether this one may sleep, and nothing failed yet.
+        self._run_had_error = False
+        self._sleep_when_done = bool(sleep_when_done) and power.available()
         self.window.set_processing_state(True, multi_threaded=multi_threaded)
         threading.Thread(target=target, args=args, daemon=True).start()
 
@@ -238,9 +289,10 @@ class AppController:
         d = RebrandDialog(self.window, default_kit=CFG.get("last_brand_kit"), default_source=source)
         if d.exec():
             CFG.set("last_rebrand_source", d.source_path or "")
+            CFG.set("sleep_when_done", d.sleep_when_done)
             if d.mode == "analyze":
                 CFG.set("rebrand_vision_pass", d.vision_pass)
-                self._start_analyze(d.source_path, d.vision_pass)
+                self._start_analyze(d.source_path, d.vision_pass, d.sleep_when_done)
             else:
                 CFG.set("last_brand_kit", d.kit_path)
                 CFG.set("rebrand_complete_set", d.complete_set)
@@ -251,7 +303,8 @@ class AppController:
                                    (d.source_path, d.kit_path, d.plan_path, None,
                                     d.complete_set, d.show_attribution,
                                     d.keep_original_names, d.stamp_opts),
-                                   multi_threaded=True)
+                                   multi_threaded=True,
+                                   sleep_when_done=d.sleep_when_done)
 
     @staticmethod
     def _remember_stamps(opts):
@@ -261,8 +314,13 @@ class AppController:
         for key in StampOptions.KEYS:
             CFG.set(f"rebrand_{key}", bool((opts or {}).get(key)))
 
-    def _start_analyze(self, source, vision_pass=False):
-        """Ensure the local AI is usable before analyzing; guide the user if not."""
+    def _start_analyze(self, source, vision_pass=False, sleep_when_done=False):
+        """Ensure the local AI is usable before analyzing; guide the user if not.
+
+        A model download is not the run the user asked to sleep after — it ends
+        by telling them to click Analyze again — so sleep_when_done is only
+        passed to the analyze itself.
+        """
         from docrefine import classify
         status = classify.ollama_status()
         st = status["state"]
@@ -288,7 +346,7 @@ class AppController:
                     return
                 vision_pass = False
             self.start_process(self.worker.run_rebrand_analyze, (source, None, vision_pass),
-                               multi_threaded=False)
+                               multi_threaded=False, sleep_when_done=sleep_when_done)
             return
 
         box = QMessageBox(self.window)
@@ -316,7 +374,7 @@ class AppController:
             # This branch is reached only when Ollama is unusable, so there is no
             # vision model to consult either — say so rather than leaving it to config.
             self.start_process(self.worker.run_rebrand_analyze, (source, None, False),
-                               multi_threaded=False)
+                               multi_threaded=False, sleep_when_done=sleep_when_done)
         elif get_btn is not None and clicked is get_btn:
             if st == "not_installed":
                 import webbrowser
@@ -336,11 +394,13 @@ class AppController:
             CFG.set("rebrand_show_attribution", d.show_attribution)
             CFG.set("rebrand_keep_original_names", d.keep_original_names)
             self._remember_stamps(d.stamp_opts)
+            CFG.set("sleep_when_done", d.sleep_when_done)
             self.start_process(self.worker.run_pipeline,
                                (d.source_path, d.do_flatten, d.do_rebrand, d.do_ocr, d.kit_path,
                                 300, None, d.complete_set, d.show_attribution,
                                 d.keep_original_names, d.stamp_opts),
-                               multi_threaded=True)
+                               multi_threaded=True,
+                               sleep_when_done=d.sleep_when_done)
 
     def launch_refine(self):
         ws = self.get_selected_ws()
