@@ -46,6 +46,20 @@ jobs:
       run: |
         pyinstaller DocRefinePro.spec --noconfirm --clean
 
+    # Prove the PACKAGED app can actually brand a PDF with every page stamp on.
+    # A boot smoke test cannot see a missing hidden import, or a bundled font
+    # that fails to resolve — which silently drops every stamp rather than
+    # erroring. The app builds its own inputs, so there is nothing to check in.
+    - name: Packaged Rebrand Self-Test (Windows)
+      shell: pwsh
+      run: |
+        $p = Start-Process -FilePath dist/DocRefinePro/DocRefinePro.exe `
+             -ArgumentList "--self-test-rebrand","selftest_work" -PassThru -Wait
+        if (Test-Path selftest_work/_self_test_report.txt) {
+          Get-Content selftest_work/_self_test_report.txt
+        }
+        if ($p.ExitCode -ne 0) { throw "packaged rebrand self-test failed" }
+
     - name: Bundle Readme & Changelog
       run: |
         copy README.md dist/DocRefinePro/
@@ -98,6 +112,15 @@ jobs:
         echo "Booting DocRefine Pro headless..."
         ./dist/DocRefinePro.app/Contents/MacOS/DocRefinePro --dry-run
         echo "Smoke test passed. App initialization successful."
+
+    # The same packaged rebrand as the Windows job — the Mac bundle resolves its
+    # assets through a different layout, so it has to be proven separately.
+    - name: Packaged Rebrand Self-Test (macOS)
+      run: |
+        set -e
+        ./dist/DocRefinePro.app/Contents/MacOS/DocRefinePro --self-test-rebrand selftest_work || rc=$?
+        [ -f selftest_work/_self_test_report.txt ] && cat selftest_work/_self_test_report.txt
+        exit ${rc:-0}
 
     - name: Create DMG Installer
       run: |
