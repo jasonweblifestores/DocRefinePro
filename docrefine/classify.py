@@ -255,6 +255,245 @@ def page_shape_suggests_drawing(pdf_path, text=None):
     return (len(text) / area) < DRAWING_MAX_DENSITY
 
 
+# --------------------------------------------------------------------------
+#  Looking at the page
+# --------------------------------------------------------------------------
+# Everything above reasons about a document without ever seeing it, and that is
+# the ceiling on how well it can do. On this corpus 48% of files have no
+# extractable text at all, so their fate was decided by filename alone: 204 were
+# left as-is because the name said nothing, and 130 were branded sight-unseen
+# because the name said "instructions". A drawing, a scanned guide and a UL
+# certificate are all indistinguishable to a text model when there is no text.
+#
+# A local vision model closes that gap by actually looking. It is slower — a few
+# seconds a page instead of a few hundred milliseconds — so it is used as a
+# second opinion where the text pass is blind or hedging, not as a replacement.
+DEFAULT_VISION_MODEL = "qwen2.5vl:7b"
+VISION_DPI = 110               # legible small print without huge images
+VISION_MAX_PAGES = 2
+# Cap the long edge. A 44x34in drawing renders to 4840x3740 at 110dpi, which the
+# model refuses outright — so the very documents this exists to identify were the
+# ones it could not see. Capping also cuts the work: a vision model's cost scales
+# with pixels, so this is both the fix and the speed-up.
+VISION_MAX_PX = 1200
+# The vision model is ~6GB of weights and an 8GB card also has to hold the KV
+# cache. Measured with `ollama ps`, the default context left it at 29% CPU / 71%
+# GPU — partly on the processor, which is several times slower. A smaller context
+# is plenty for one short JSON reply and keeps the whole model on the GPU.
+VISION_NUM_CTX = 2048
+VISION_UNSURE_BELOW = 0.9      # consult vision when the text model hedges
+VISION_TIMEOUT = 300
+
+_VISION_PROMPT = """You are looking at page images from a manufacturer's product PDF.
+Decide what kind of document it is FROM WHAT YOU SEE.
+
+Tell these apart:
+- A DIMENSIONED TECHNICAL DRAWING: line art of a product with measurement arrows
+  and dimension labels, often a title block in a corner listing SCALE, REV,
+  DRAWING NUMBER or DRAWN BY. Usually landscape, mostly white space.
+- An INSTALLATION GUIDE or ASSEMBLY INSTRUCTIONS: numbered steps, exploded
+  diagrams, tools or parts lists, photographs of the work being done.
+- A SPEC SHEET: a table or list of specifications, dimensions and model numbers,
+  often with a product photograph.
+- A MANUAL: many pages of prose with headings.
+- A CERTIFICATION or COMPLIANCE LISTING: a UL or similar certificate, a letter or
+  a seal, naming a standard.
+
+Choose "action":
+- "rebrand" for installation guides, assembly instructions, spec sheets, manuals
+  and similar customer-facing documents.
+- "leave" for dimensioned technical drawings, certifications and compliance
+  listings.
+
+Respond with ONLY a JSON object with these keys:
+- action: "rebrand" or "leave"
+- doc_type: short label of what you SEE (e.g. "installation guide", "cad drawing",
+  "spec sheet", "certification")
+- product: the product name or model number shown, or ""
+- asset_type: hyphenated slug (e.g. "installation-guide", "spec-sheet", "drawing")
+- manufacturer: the company that MADE the product if a logo or name is visible, or ""
+- title: a SHORT cover title of 2-4 words saying what the document IS, in plain
+  language. Never include model, part or drawing numbers. Good: "Installation
+  Manual", "Specification Sheet". Bad: "Drawing No. WEB-1932".
+- confidence: a number from 0 to 1
+- visual_evidence: one short phrase naming what you saw that decided it
+"""
+
+
+def render_pages_b64(pdf_path, pages=VISION_MAX_PAGES, dpi=VISION_DPI):
+    """The first pages as base64 PNGs, for a vision model. [] if unrenderable.
+
+    The resolution is chosen from the page size rather than fixed. A 44x34in
+    drawing at 110dpi is an 18-megapixel render that then has to be thrown away
+    down to 1200px — on the real batch that was 38 seconds a file, nearly all of
+    it spent rasterising pixels we discard. Asking poppler for the size we want
+    costs a fraction of that.
+    """
+    import base64
+    import io
+    from .processing import POPPLER_BIN, convert_from_path
+    try:
+        from .rebrand import page_size
+        w, h = page_size(PdfReader(str(pdf_path)).pages[0])
+        long_pt = max(w, h)
+        if long_pt > 0:
+            dpi = max(40, min(dpi, int(VISION_MAX_PX * 72.0 / long_pt)))
+    except Exception:
+        pass
+    try:
+        imgs = convert_from_path(str(pdf_path), dpi=dpi, first_page=1,
+                                 last_page=pages, poppler_path=POPPLER_BIN)
+    except Exception:
+        return []
+    out = []
+    for im in imgs[:pages]:
+        try:
+            im = im.convert("RGB")
+            if max(im.size) > VISION_MAX_PX:
+                from PIL import Image as _I
+                r = VISION_MAX_PX / max(im.size)
+                im = im.resize((max(1, round(im.width * r)), max(1, round(im.height * r))),
+                               _I.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, "PNG", optimize=True)
+            out.append(base64.b64encode(buf.getvalue()).decode("ascii"))
+        except Exception:
+            continue
+    return out
+
+
+def needs_a_look(info):
+    """True if the text pass could not settle this file, so it is worth looking at.
+
+    Two cases: there was no text to read (the classification came from the
+    filename), or there was text but the model hedged.
+    """
+    src = str((info or {}).get("source", "")).lower()
+    if src == "fallback":
+        return True
+    if src != "llm":
+        return False
+    try:
+        return float(info.get("confidence") or 0) < VISION_UNSURE_BELOW
+    except (TypeError, ValueError):
+        return True
+
+
+def unload_model(model, url=OLLAMA_URL):
+    """Release a model from memory now, instead of waiting for Ollama's timeout.
+
+    Ollama keeps a model resident for minutes after the last request. That is the
+    right default mid-run and the wrong one once a run is over: 6GB of weights sit
+    in VRAM while the user does something else entirely. `keep_alive: 0` asks for
+    it back. Also used between phases, because the text and vision models
+    together want more memory than an 8GB card has — held at once, the larger one
+    gets pushed partly onto the CPU and runs several times slower.
+    """
+    try:
+        payload = json.dumps({"model": model, "keep_alive": 0}).encode()
+        req = urllib.request.Request(url + "/api/generate", data=payload,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+        return True
+    except Exception:
+        return False
+
+
+def loaded_models(url=OLLAMA_HOST):
+    """Models currently held in memory, as [(name, size_bytes)]."""
+    try:
+        with urllib.request.urlopen(url + "/api/ps", timeout=5) as r:
+            data = json.loads(r.read()) or {}
+        return [(m.get("name", ""), int(m.get("size", 0) or 0))
+                for m in (data.get("models") or [])]
+    except Exception:
+        return []
+
+
+# A smaller vision model for machines that cannot hold a 7B one on the GPU.
+SMALL_VISION_MODEL = "granite3.2-vision:2b"
+
+
+def model_placement(model, url=OLLAMA_HOST):
+    """How much of a loaded model is on the GPU: (total_bytes, vram_bytes, pct).
+
+    Returns None if it is not loaded. This is the only honest way to talk about
+    speed, because it depends entirely on the machine: the same model is fully
+    resident on a workstation card, two-thirds resident on an 8GB laptop, and
+    entirely on the CPU on a machine with no usable GPU at all. Rather than assume
+    any of those, ask.
+    """
+    try:
+        with urllib.request.urlopen(url + "/api/ps", timeout=5) as r:
+            data = json.loads(r.read()) or {}
+        for m in (data.get("models") or []):
+            if str(m.get("name", "")) == model:
+                total = int(m.get("size", 0) or 0)
+                vram = int(m.get("size_vram", 0) or 0)
+                if total <= 0:
+                    return None
+                return total, vram, round(100.0 * vram / total)
+    except Exception:
+        pass
+    return None
+
+
+def has_vision_model(model=DEFAULT_VISION_MODEL, url=OLLAMA_HOST):
+    """True if the vision model is downloaded and the server is up."""
+    try:
+        return any(str(m).startswith(model.split(":")[0]) and model in str(m)
+                   for m in list_models(url))
+    except Exception:
+        return False
+
+
+def classify_visually(pdf_path, model=DEFAULT_VISION_MODEL, url=OLLAMA_URL):
+    """Classify by looking at the rendered page. None if it could not be done."""
+    images = render_pages_b64(pdf_path)
+    if not images:
+        return None
+    payload = json.dumps({
+        "model": model,
+        "prompt": _VISION_PROMPT,
+        "images": images,
+        "stream": False,
+        "format": "json",
+        "keep_alive": "15m",          # do not reload 6GB of weights per document
+        # The reply is a short JSON object; without a cap the model can ramble for
+        # thousands of tokens and each one costs wall-clock time.
+        "options": {"temperature": 0.1, "num_predict": 220, "num_ctx": VISION_NUM_CTX},
+    }).encode()
+    try:
+        req = urllib.request.Request(url + "/api/generate", data=payload,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=VISION_TIMEOUT) as resp:
+            raw = json.loads(resp.read())["response"]
+        d = json.loads(raw)
+    except Exception:
+        return None
+    action = str(d.get("action", "")).lower().strip()
+    if action not in ("rebrand", "leave"):
+        return None
+    try:
+        conf = round(float(d.get("confidence", 0) or 0), 2)
+    except (TypeError, ValueError):
+        conf = 0.0
+    from .rebrand import DEFAULT_TITLE
+    seen = str(d.get("visual_evidence", "")).strip()[:80]
+    return {
+        "action": action,
+        "doc_type": str(d.get("doc_type", "")).strip(),
+        "product": str(d.get("product", "")).strip(),
+        "asset_type": str(d.get("asset_type", "")).strip(),
+        "manufacturer": str(d.get("manufacturer", "")).strip(),
+        "title": str(d.get("title", "")).strip() or DEFAULT_TITLE,
+        "confidence": conf,
+        "source": "vision",
+        "notes": (f"read the page: {seen}" if seen else "read the page"),
+    }
+
+
 def _fallback(pdf_path, note=""):
     from .rebrand import DEFAULT_TITLE
     stem = Path(pdf_path).stem
@@ -274,10 +513,25 @@ def _fallback(pdf_path, note=""):
     }
 
 
-def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
-    """Return a dict describing how to handle a PDF (see _PROMPT for keys)."""
+def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL,
+                      vision_model=None):
+    """Return a dict describing how to handle a PDF (see _PROMPT for keys).
+
+    With `vision_model` set, a local vision model is consulted wherever the text
+    pass cannot see: a PDF with no extractable text, or one the text model was
+    unsure about. Where it is consulted its answer stands, because the filename
+    and page-shape rules below exist only to compensate for *not* being able to
+    look — once we can, the proxy is redundant.
+    """
     if text is None:
         text = extract_text(pdf_path)
+
+    if vision_model and len(text) < 15:
+        seen = classify_visually(pdf_path, model=vision_model, url=url)
+        if seen:
+            return seen
+        # fall through to the filename guesses if the model could not answer
+
     if len(text) < 15:
         # No extractable text — likely a drawing or an outlined/scanned page.
         # Default to LEAVE (safer: don't rebrand a cert or CAD drawing sight
@@ -315,6 +569,14 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
             conf = round(float(d.get("confidence", 0) or 0), 2)
         except (TypeError, ValueError):
             conf = 0.0
+        # The text model hedged. Looking at the page beats guessing from the
+        # filename, so ask the vision model and take its answer.
+        if vision_model and conf < VISION_UNSURE_BELOW:
+            seen = classify_visually(pdf_path, model=vision_model, url=url)
+            if seen:
+                seen["notes"] = (f"text model was unsure ({conf}); " + seen["notes"])
+                return seen
+
         note = ""
         # A landscape page with almost no text on it is a drawing, whatever its
         # filename says and whatever the model concluded from the words alone.

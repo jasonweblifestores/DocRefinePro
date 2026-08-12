@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v154"
+    CURRENT_VERSION = "v155"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -136,6 +136,11 @@ class ConfigData(BaseModel):
     rebrand_stamp_tagline: bool = False
     rebrand_stamp_version: bool = False        # "Version 1.0 · Last Updated [Month Year]"
     rebrand_stamp_disclaimer: bool = False
+    # Look at the page with a local vision model wherever the text pass is blind
+    # (no extractable text) or hedging. Slower — seconds per file instead of
+    # milliseconds — so it is opt-in, and it needs the model downloaded.
+    rebrand_vision_pass: bool = False
+    rebrand_vision_model: str = "qwen2.5vl:7b"
     last_geometry: str = "1024x700"
     last_tab: int = 0
 

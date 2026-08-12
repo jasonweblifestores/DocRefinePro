@@ -239,7 +239,8 @@ class AppController:
         if d.exec():
             CFG.set("last_rebrand_source", d.source_path or "")
             if d.mode == "analyze":
-                self._start_analyze(d.source_path)
+                CFG.set("rebrand_vision_pass", d.vision_pass)
+                self._start_analyze(d.source_path, d.vision_pass)
             else:
                 CFG.set("last_brand_kit", d.kit_path)
                 CFG.set("rebrand_complete_set", d.complete_set)
@@ -260,7 +261,7 @@ class AppController:
         for key in StampOptions.KEYS:
             CFG.set(f"rebrand_{key}", bool((opts or {}).get(key)))
 
-    def _start_analyze(self, source):
+    def _start_analyze(self, source, vision_pass=False):
         """Ensure the local AI is usable before analyzing; guide the user if not."""
         from docrefine import classify
         status = classify.ollama_status()
@@ -268,7 +269,26 @@ class AppController:
         if st == "not_running" and classify.start_server():
             st = "ready" if classify.has_model() else "no_model"
         if st == "ready":
-            self.start_process(self.worker.run_rebrand_analyze, (source,), multi_threaded=False)
+            if vision_pass and not classify.has_vision_model():
+                m = classify.DEFAULT_VISION_MODEL
+                box = QMessageBox(self.window)
+                box.setWindowTitle("Visual pass")
+                box.setIcon(QMessageBox.Question)
+                box.setText(f"Looking at pages needs the vision model '{m}', which isn't "
+                            f"downloaded yet (about 6 GB, one time).\n\n"
+                            f"Download it now, or analyze without looking at pages?")
+                get = box.addButton("Download model", QMessageBox.AcceptRole)
+                skip = box.addButton("Analyze without it", QMessageBox.DestructiveRole)
+                box.addButton(QMessageBox.Cancel)
+                box.exec()
+                if box.clickedButton() is get:
+                    self.start_process(self.worker.run_pull_model, (m,), multi_threaded=False)
+                    return
+                if box.clickedButton() is not skip:
+                    return
+                vision_pass = False
+            self.start_process(self.worker.run_rebrand_analyze, (source, None, vision_pass),
+                               multi_threaded=False)
             return
 
         box = QMessageBox(self.window)
@@ -293,7 +313,10 @@ class AppController:
 
         clicked = box.clickedButton()
         if clicked is fb_btn:
-            self.start_process(self.worker.run_rebrand_analyze, (source,), multi_threaded=False)
+            # This branch is reached only when Ollama is unusable, so there is no
+            # vision model to consult either — say so rather than leaving it to config.
+            self.start_process(self.worker.run_rebrand_analyze, (source, None, False),
+                               multi_threaded=False)
         elif get_btn is not None and clicked is get_btn:
             if st == "not_installed":
                 import webbrowser

@@ -1,5 +1,29 @@
 # DocRefine Pro - Changelog
 
+## [v155] - 2026-08-12
+### Added — The classifier can look at a page when there is no text to read
+**Roughly half of a typical batch has no extractable text at all** — 1,043 of 2,174 files on the current one. To a text-only model a scanned installation guide, a dimensioned drawing and a UL certificate are indistinguishable, because all three supply nothing to read. Those files were classified from their filename alone, and the previous two releases were both attempts to squeeze more out of that filename.
+
+A local vision model now *looks* at the page instead. Where it is consulted its answer wins over the filename and page-shape rules, which only ever existed to compensate for not being able to see.
+
+**It is measured against hand-labelled ground truth, not assumed: 14 of 14 correct.** That includes all seven Florence cut sheets, the three drawings the filename rule missed, and `1590-T1V-Spec-Sheet.pdf` — a file *named* like a spec sheet that is actually a drawing, which no filename rule can ever get right. Its stated reasoning was sound every time: "measurement arrows and dimension labels" for a drawing against "numbered steps and exploded diagram" for a guide.
+
+**The two models never run at the same time.** The text model reads everything first and queues what it cannot settle; it is then unloaded, the vision model works through the queue, and it is unloaded at the end. This is not tidiness — it was measured with `ollama ps`:
+
+| | seconds per file |
+|---|---|
+| both models resident (8.5 GB wanted on an 8 GB card, vision pushed onto the CPU) | 14.3 |
+| text model unloaded first | 3.5 |
+
+Four times faster at no cost to accuracy. Ollama also used to hold 6 GB for its keep-alive window after a run had finished and the user had moved on; the models are now released explicitly.
+
+**Speed depends entirely on the machine, so the app measures rather than promises.** The run log reads the model's actual GPU residency and says what *that* computer is doing — "only 73% of `qwen2.5vl:7b` fits in this machine's GPU memory; the rest runs on the CPU" — suggests a smaller model when it does not fit, and reports a measured rate and estimate taken from *after* the first file, which also pays for loading 6 GB of weights and made early estimates several times too pessimistic.
+
+### Fixed — Large-format drawings were the one thing the vision pass could not see
+Rendered at a fixed resolution, a 44x34in drawing became a 4840x3740 image and the model **refused it outright** — so the very files this feature exists to identify were the ones it failed on. The render resolution is now derived from the page size to hit the target directly, which also took a large-format page from **38 seconds to 0.5**.
+
+Off by default, and Analyze offers to download the model if it is missing. You can Stop mid-pass; the text results are kept.
+
 ## [v154] - 2026-08-12
 ### Changed — The classifier can now tell a drawing by its shape, not just its name
 Chasing why 215 CAD drawings were labelled "installation guide" with full confidence turned up the real cause: **a drawing is a visual thing, and the model only ever sees extracted text.** On a Florence cut sheet that text is a few dimension labels plus a note reading *"Designed to mount … For use with front loading modules only"* — a fair description of an installation guide. The model answered the evidence it was given; the evidence was the problem.

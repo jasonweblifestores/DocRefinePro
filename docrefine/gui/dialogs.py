@@ -298,6 +298,7 @@ class RebrandDialog(QDialog):
         self.show_attribution = bool(CFG.get("rebrand_show_attribution"))
         self.keep_original_names = bool(CFG.get("rebrand_keep_original_names"))
         self.stamp_opts = {}
+        self.vision_pass = bool(CFG.get("rebrand_vision_pass"))
         self.mode = None  # "analyze" or "apply"
 
         layout = QVBoxLayout(self)
@@ -317,6 +318,28 @@ class RebrandDialog(QDialog):
         gb1 = QGroupBox("Step 1 — Analyze (creates a review sheet)")
         v1 = QVBoxLayout(gb1)
         v1.addWidget(QLabel("The local model reads each PDF and drafts what to rebrand vs. leave as-is."))
+        self.chk_vision = QCheckBox("Also look at pages that have no readable text (slower)")
+        self.chk_vision.setChecked(bool(CFG.get("rebrand_vision_pass")))
+        self.chk_vision.setToolTip(
+            "Roughly half of a typical batch has no extractable text — a scanned guide,\n"
+            "a drawing and a certificate all look identical to a text-only model, so those\n"
+            "files are otherwise classified from their filename alone.\n\n"
+            "With this on, a local vision model looks at the rendered page for any file the\n"
+            "text pass cannot read or is unsure about, and its answer is used instead.\n\n"
+            "SPEED DEPENDS ENTIRELY ON YOUR MACHINE. The vision model is about 6 GB; if it\n"
+            "fits in your graphics memory expect a few seconds per file, and if it does not\n"
+            "it runs partly or wholly on the processor and can be many times slower.\n"
+            "The run measures your machine after a few files and logs an estimate, and you\n"
+            "can Stop at any point — the text results are kept either way.")
+        v1.addWidget(self.chk_vision)
+        self.lbl_vision_note = QLabel(
+            "Looking at pages is much slower than reading text, and how much slower "
+            "depends on your graphics memory. The run logs a measured estimate early on.")
+        self.lbl_vision_note.setStyleSheet("color: #888; font-size: 9pt;")
+        self.lbl_vision_note.setWordWrap(True)
+        self.lbl_vision_note.setVisible(self.chk_vision.isChecked())
+        self.chk_vision.toggled.connect(self.lbl_vision_note.setVisible)
+        v1.addWidget(self.lbl_vision_note)
         self.btn_analyze = QPushButton("Analyze → Create Review Sheet")
         self.btn_analyze.clicked.connect(self.on_analyze)
         v1.addWidget(self.btn_analyze)
@@ -421,6 +444,7 @@ class RebrandDialog(QDialog):
         if not self.source_path:
             QMessageBox.warning(self, "Missing selection", "Please choose a source folder to analyze.")
             return
+        self.vision_pass = self.chk_vision.isChecked()
         self.mode = "analyze"; self.accept()
 
     def on_apply(self):
