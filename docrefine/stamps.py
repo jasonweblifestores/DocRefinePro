@@ -188,6 +188,10 @@ class Stamps:
             # One line carries both: who made it (left) and how current it is (right).
             # If they cannot share a line, the version drops to its own row so the
             # attribution is never clipped.
+            # Each keeps its own edge even when the other is absent. Attribution is
+            # left, version is right — always. Otherwise a set where some files have
+            # an attribution and some don't ends up with two different footer
+            # layouts, which reads as a mistake rather than a rule.
             left, right = self.attribution, self.version_line
             if left and right:
                 together = (pdfmetrics.stringWidth(left, font, base)
@@ -195,11 +199,13 @@ class Stamps:
                             + pdfmetrics.stringWidth(SEPARATOR, font, base))
                 if together > text_w:
                     rows.append(("left", base, left))
-                    rows.append(("left", base, right))
+                    rows.append(("right", base, right))
                 else:
                     rows.append(("pair", base, (left, right)))
+            elif left:
+                rows.append(("left", base, left))
             else:
-                rows.append(("left", base, left or right))
+                rows.append(("right", base, right))
 
         if self.tagline:
             size = base * TAGLINE_SCALE
@@ -251,6 +257,8 @@ class Stamps:
                 c.drawRightString(page_w - margin, baseline, right)
             elif kind == "center":
                 c.drawCentredString(page_w / 2, baseline, payload)
+            elif kind == "right":
+                c.drawRightString(page_w - margin, baseline, payload)
             else:
                 c.drawString(margin, baseline, payload)
         return h

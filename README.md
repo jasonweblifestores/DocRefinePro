@@ -1,4 +1,4 @@
-# DocRefine Pro v149
+# DocRefine Pro v150
 
 **Enterprise-Grade Document Processing & Organization Tool**
 
@@ -17,14 +17,14 @@
 ## 📥 Installation Instructions
 
 ### 🪟 Windows
-1.  Download `DocRefinePro_Win_v149.zip`.
+1.  Download `DocRefinePro_Win_v150.zip`.
 2.  Right-click the zip file -> **Extract All**.
 3.  Open the extracted folder.
 4.  Double-click **DocRefine Pro.exe**.
     * *Note: If Windows SmartScreen appears, click "More Info" -> "Run Anyway".*
 
 ### 🍎 macOS
-1.  Download `DocRefinePro_Mac_v149.dmg`.
+1.  Download `DocRefinePro_Mac_v150.dmg`.
 2.  Double-click the `.dmg` file to mount it.
 3.  **Drag the DocRefine Pro app** into your **Applications** folder.
     * *Note: The application size is larger (~230MB) due to the inclusion of the complete Qt6 Framework for native performance.*

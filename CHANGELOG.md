@@ -1,5 +1,11 @@
 # DocRefine Pro - Changelog
 
+## [v150] - 2026-08-12
+### Fixed — The page footer keeps its shape when a document has no manufacturer
+Found in a trial run over real files, not in testing: when a document had no usable manufacturer, the version and last-updated line slid across to the **left** of the footer, because it was the only thing on that row. Every other file had it on the right, beside the attribution.
+
+On the current batch that is 343 of 874 files — so a set delivered this way would have carried two different footer layouts, which reads as a mistake rather than a rule. The attribution now always sits left and the version always sits right, whether or not the other one is there.
+
 ## [v149] - 2026-08-09
 ### Changed — The last-updated line now matches the SOP exactly
 The wording for the page stamps came back confirmed against the SOP, and the version line carries a colon that ours did not: it reads **`Last Updated: August 2026`**, not `Last Updated August 2026`. One character, but it is the difference between matching the standard and approximating it.
