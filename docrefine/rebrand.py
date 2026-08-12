@@ -20,6 +20,7 @@ import tempfile
 from pathlib import Path
 from PIL import Image
 from pypdf import PdfReader, PdfWriter, Transformation
+from pypdf.generic import NameObject
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
@@ -424,6 +425,76 @@ def _draw_overlay(c, readers, page_w, page_h, stamps=None):
     return hh, fh, sh
 
 
+def _carry_over_navigation(writer, reader, offset=1):
+    """Bring the source document's bookmarks and form registration across.
+
+    Widget and link annotations survive the page merge on their own, but two
+    document-level things do not, and both are content the reader paid for:
+
+    * the **outline** (bookmarks) — a long installation manual arrives with an
+      empty navigation pane without it;
+    * the **/AcroForm** catalog entry — without it the widget annotations that
+      *did* come across are orphaned and the fields stop working.
+
+    Bookmarks point at page numbers, which all shift by `offset` because we add a
+    front cover. Never raises: losing a bookmark must not lose the document.
+    """
+    try:
+        acro = reader.trailer.get("/Root", {}).get("/AcroForm")
+        if acro is not None:
+            writer._root_object[NameObject("/AcroForm")] = acro.clone(writer).indirect_reference
+    except Exception:
+        pass
+
+    def add(items, parent=None):
+        for item in items:
+            if isinstance(item, list):
+                add(item, parent)            # children of the item just added
+                continue
+            try:
+                page_no = reader.get_destination_page_number(item)
+                title = str(item.get("/Title", "") or "").strip()
+            except Exception:
+                continue
+            if page_no is None or not title:
+                continue
+            target = page_no + offset
+            if not (0 <= target < len(writer.pages)):
+                continue
+            try:
+                parent = writer.add_outline_item(title, target, parent=parent)
+            except Exception:
+                continue
+
+    try:
+        outline = reader.outline
+    except Exception:
+        return
+    if not outline:
+        return
+    try:
+        # Top level only carries a parent of None; nested lists inherit the item
+        # added immediately before them, which is how pypdf models the tree.
+        last = None
+        for item in outline:
+            if isinstance(item, list):
+                add(item, last)
+            else:
+                try:
+                    pn = reader.get_destination_page_number(item)
+                    t = str(item.get("/Title", "") or "").strip()
+                except Exception:
+                    continue
+                if pn is None or not t or not (0 <= pn + offset < len(writer.pages)):
+                    continue
+                try:
+                    last = writer.add_outline_item(t, pn + offset)
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+
 def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None, stamps=None):
     """Rebrand a single PDF. Returns a small dict of stats. Raises on hard failure.
 
@@ -478,6 +549,10 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None, s
         # place the original page UNDER the overlay, lifted clear of the footer
         # strip AND the stamp band so nothing is ever drawn over the document
         target.merge_transformed_page(src, Transformation().translate(0, fh + sh), over=False)
+
+    # The document's own bookmarks and form registration, which the page merge
+    # does not carry. Pages shift by one because of the front cover.
+    _carry_over_navigation(writer, reader, offset=1)
 
     writer.add_metadata({
         "/Author": author,

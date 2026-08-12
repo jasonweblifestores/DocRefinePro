@@ -1,5 +1,14 @@
 # DocRefine Pro - Changelog
 
+## [v152] - 2026-08-12
+### Fixed — Bookmarks and form fields now survive rebranding
+A rebranded file kept its text, its links and its layout, but quietly lost two things the reader had paid for:
+
+* **Bookmarks.** A long installation manual arrived with an empty navigation pane. On the current batch that is **109 files**. Bookmarks are now carried across, with every destination shifted by one page to account for the front cover.
+* **Form fields.** The interactive fields themselves came across, but the catalog entry that registers them as a form did not — so they were orphaned and stopped working. **379 files** carry that entry, 85 of them with real interactive fields. It is now preserved.
+
+Neither loss was visible in the output's text, its page count or its file size, which is why nothing had flagged it.
+
 ## [v151] - 2026-08-12
 ### Fixed — Landscape pages that are stored rotated are no longer squeezed into portrait
 A PDF page can be stored as a portrait box with a `/Rotate` instruction telling the reader to turn it. Everyone who opens the file sees a landscape page; the stored box still says portrait. The rebranding engine read the box and believed it — so those documents were given **portrait covers, portrait header and footer strips, and their own content was compressed into a portrait frame and cropped at the edge**.
