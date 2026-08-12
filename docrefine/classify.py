@@ -196,12 +196,12 @@ def filename_suggests_instructions(name):
 
 
 # The mirror of the rule above. These names are how the manufacturers label
-# dimensional drawings, and the brief says to leave drawings alone. Used only to
-# break a tie when the model is unsure — a confident read of the text still wins.
+# dimensional drawings, and the brief says to leave drawings alone. This now
+# decides the action outright rather than only breaking a tie: on the real batch
+# the model called 213 of these "installation guide" with full confidence, and a
+# sample of six turned out to be six CAD drawings.
 _DRAWING_NAME_RE = re.compile(
     r"^tech[-_]|drawing|elevation|cut[-_]?sheet|[-_]cs$|bolt[-_]pattern|foundation|pad[-_]spec", re.I)
-
-DRAWING_TIEBREAK_BELOW = 0.9
 
 
 def filename_suggests_drawing(name):
@@ -273,12 +273,22 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
         except (TypeError, ValueError):
             conf = 0.0
         note = ""
-        if (action == "rebrand" and conf < DRAWING_TIEBREAK_BELOW
-                and filename_suggests_drawing(pdf_path)):
-            # Unsure, and the filename says drawing — the brief leaves drawings
-            # alone, and that is the reversible choice. Say so in the sheet.
+        if action == "rebrand" and filename_suggests_drawing(pdf_path):
+            # The brief leaves CAD drawings alone, and the filename is the more
+            # reliable signal here than the model's own label.
+            #
+            # This used to fire only when the model was unsure (below
+            # DRAWING_TIEBREAK_BELOW). On the real batch that let 213 dimensioned
+            # CAD drawings through, because the model called them "installation
+            # guide" with confidence 1.0 — sampling six of them found six
+            # drawings and no guides. Confidence measured how sure the model was,
+            # not whether it was right.
+            #
+            # Leaving is also the reversible direction: the original ships
+            # untouched, and the row is flagged so a human can send it back.
             action = "leave"
-            note = "filename says drawing and the model was unsure — confirm if it should be branded"
+            note = ("filename says technical drawing — the brief leaves these as-is; "
+                    "flip to rebrand if this one is really a guide or spec sheet")
         return {
             "action": action,
             "doc_type": str(d.get("doc_type", "")).strip(),

@@ -1,5 +1,16 @@
 # DocRefine Pro - Changelog
 
+## [v153] - 2026-08-12
+### Changed — Technical drawings are left alone even when the model is certain
+The brief says to leave CAD drawings as-is, and filenames like `tech-54368` or `4c06d-02-sm_cutsheet` are how manufacturers label them. That rule previously only applied when the local model was *unsure* — a confident call still won.
+
+On the current batch that let **215 dimensioned CAD drawings** through as things to brand, because the model labelled them "installation guide" with full confidence. A sample of six turned out to be six drawings and no guides. Confidence measures how sure the model is, not whether it is right.
+
+The filename now decides outright, and **every row it overrides is flagged for review**, so the decision is visible rather than silent. Leaving is also the reversible direction: the original file ships untouched, and one cell in the sheet sends it back to be branded.
+
+### Fixed — Operating-system clutter never reaches a delivery set
+`desktop.ini`, `Thumbs.db` and `.DS_Store` are skipped when copying a complete set. A `desktop.ini` was found sitting in the shipped Batch 4 output.
+
 ## [v152] - 2026-08-12
 ### Fixed — Bookmarks and form fields now survive rebranding
 A rebranded file kept its text, its links and its layout, but quietly lost two things the reader had paid for:

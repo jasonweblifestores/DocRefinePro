@@ -1087,12 +1087,17 @@ class Worker:
         return (f"Brand kit is unusable — {detail}. Each orientation folder needs at "
                 f"least a cover and a back-cover PNG.")
 
+    # Files the operating system leaves lying about. They are not documents and
+    # must never reach a delivery set — `desktop.ini` was found sitting in the
+    # shipped Batch 4 output.
+    _OS_JUNK = {"desktop.ini", "thumbs.db", ".ds_store", "icon\r", ".localized"}
+
     def _copy_extras(self, src, out, rows):
         """Complete set: copy every non-PDF source file into the mirrored output.
 
         PDFs are the review sheet's business; everything else (images, Office
         docs, spreadsheets) is copied through unchanged so the output tree is the
-        whole upload set. Review sheets themselves are never copied."""
+        whole upload set. Review sheets and OS clutter are never copied."""
         from .reviews import is_plan_file
         planned = {(r.get("file") or "").strip().replace("\\", "/").lower() for r in rows}
         try:
@@ -1117,7 +1122,7 @@ class Worker:
                     if rel not in planned:
                         unplanned_pdfs += 1
                     continue
-                if is_plan_file(name):
+                if is_plan_file(name) or name.lower() in self._OS_JUNK:
                     continue
                 extras.append(p)
 
