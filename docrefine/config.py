@@ -33,7 +33,7 @@ class SystemUtils:
     # ---------------------------------------------------------
     # VERSION SYNC: Keep in step with CHANGELOG.md
     # ---------------------------------------------------------
-    CURRENT_VERSION = "v155"
+    CURRENT_VERSION = "v156"
     UPDATE_MANIFEST_URL = "https://gist.githubusercontent.com/jasonweblifestores/53752cda3c39550673fc5dafb96c4bed/raw/docrefine_version.json"
 
     @staticmethod
@@ -141,6 +141,10 @@ class ConfigData(BaseModel):
     # milliseconds — so it is opt-in, and it needs the model downloaded.
     rebrand_vision_pass: bool = False
     rebrand_vision_model: str = "qwen2.5vl:7b"
+    # Sleep the machine once a long run finishes on its own. Per-run in the
+    # dialog, remembered here. Never applied to a run that was stopped or failed.
+    sleep_when_done: bool = False
+    sleep_when_done_action: str = "sleep"      # "sleep" or "hibernate"
     last_geometry: str = "1024x700"
     last_tab: int = 0
 

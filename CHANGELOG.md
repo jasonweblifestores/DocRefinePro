@@ -1,5 +1,34 @@
 # DocRefine Pro - Changelog
 
+## [v156] - 2026-08-12
+### Added — A long run can put the computer to sleep when it finishes
+Analyzing a few thousand files with the visual pass on runs for hours, so the machine gets left on overnight for work that finished at 2am. There is now a checkbox on both rebranding dialogs, the same offer a torrent client makes: finish the work, then sleep.
+
+**The interesting part is when it refuses.** Sleeping is only ever offered after a run that finished on its own:
+
+* **Stop was pressed** → stays awake. Someone is at the keyboard.
+* **The run reported an error** → stays awake. Whoever comes back to it needs to read what went wrong.
+* **The countdown was cancelled** → stays awake, and says so in the log.
+
+Every one of those says in the run log why the machine was left on, so an overnight run that *didn't* sleep explains itself rather than looking broken. Closing the countdown window, pressing Escape and "Stay awake" all mean stay awake — every exit that isn't a deliberate choice leaves the machine running, because that is the recoverable direction. The countdown is a full minute and "Stay awake" is the default button.
+
+The setting is remembered, it is per-run, and it is reset at the start of every run so a decision can never leak into the next one. Downloading a model doesn't count as the run you asked to sleep after — that one ends by asking you to click Analyze again.
+
+Sleep is the default action; `sleep_when_done_action` can be set to `hibernate` instead. On Windows it goes through `SetSuspendState` and falls back to the shell if that is refused; macOS uses `pmset sleepnow`, Linux `systemctl suspend`. Where the machine offers no way to sleep on command the checkbox is disabled rather than failing at the end of a long run, and macOS is not promised a hibernate it doesn't have.
+
+### Added — The packaged app can now prove it actually rebrands
+Every release so far was checked by "it compiled" and "it opens a window". That left the thing that matters untested: whether a **packaged** build can brand a PDF at all. The failures hiding in that gap are all invisible from outside —
+
+* a hidden import missing from the spec, so `reportlab` or `openpyxl` isn't in the bundle;
+* the bundled Poppins failing to resolve under `sys._MEIPASS`, which makes `_ensure_font()` return False and **silently drops every page stamp** — no error, no warning, just a delivery set with no attribution, tagline, version or disclaimer on it;
+* poppler or the brand art not shipping.
+
+The app now tests itself: `DocRefinePro --self-test-rebrand <workdir>` generates its own source PDFs *and* its own brand kit, brands them with all four stamps on, and inspects the result — covers added, original text intact, every stamp present, the font embedded, under the size cap. Because it builds its own inputs there is nothing to check in, so **both CI jobs now run it on the real packaged build** rather than only booting it.
+
+A windowed build has no console to print to, so the verdict travels two ways: a `_self_test_report.txt` beside the work directory, and the process exit code.
+
+First run on a frozen Windows build: 43/43. It earned its keep immediately — it caught a `brand.json` where `last_updated` was filled in with a bare month, which the engine treats as an override of the whole suffix and so quietly printed `Version 1.0 · August 2026` with the SOP's `Last Updated:` label missing. The assertion now checks for the label, colon included.
+
 ## [v155] - 2026-08-12
 ### Added — The classifier can look at a page when there is no text to read
 **Roughly half of a typical batch has no extractable text at all** — 1,043 of 2,174 files on the current one. To a text-only model a scanned installation guide, a dimensioned drawing and a UL certificate are indistinguishable, because all three supply nothing to read. Those files were classified from their filename alone, and the previous two releases were both attempts to squeeze more out of that filename.
