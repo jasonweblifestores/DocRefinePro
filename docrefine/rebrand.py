@@ -70,17 +70,37 @@ def _orientation(w, h):
     return "landscape" if w > h else "portrait"
 
 
-def page_size(page):
-    """A page's width and height, however its box happens to be stored.
+def page_rotation(page):
+    """The page's /Rotate value normalised to 0/90/180/270."""
+    try:
+        return int(page.get("/Rotate") or 0) % 360
+    except (TypeError, ValueError):
+        return 0
 
-    A PDF rectangle is defined by any two opposite corners, so a perfectly legal
-    page box can be written top-down — [0, 792, 612, 0] — and pypdf then reports
-    the height as -792. Viewers normalise this; we did not, and the negative
-    value flipped the page to "landscape", inverted the cover scale and pushed
-    the document's own content off the page entirely.
+
+def page_size(page):
+    """A page's width and height **as a reader sees them**.
+
+    Two things have to be normalised, and both have bitten us:
+
+    * A PDF rectangle is defined by any two opposite corners, so a perfectly
+      legal page box can be written top-down — [0, 792, 612, 0] — and pypdf then
+      reports the height as -792. Taken literally that flipped the page to
+      "landscape", inverted the cover scale and pushed the content off the page.
+    * /Rotate turns the page when it is displayed. A 612x792 box with /Rotate 270
+      is a *landscape* page to everyone who opens it. Reading the raw box called
+      it portrait, so it was given portrait covers and strips and its content was
+      squeezed into a portrait frame and cropped — on a quarter of the current
+      batch.
+
+    Returning display dimensions keeps orientation, cover sizing and the page
+    strips all agreeing with what the document actually looks like.
     """
     box = page.mediabox
-    return abs(float(box.width)), abs(float(box.height))
+    w, h = abs(float(box.width)), abs(float(box.height))
+    if page_rotation(page) in (90, 270):
+        w, h = h, w
+    return w, h
 
 
 def _load_asset(path, max_px=None, opaque=False):

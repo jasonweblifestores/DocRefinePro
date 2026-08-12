@@ -1,5 +1,17 @@
 # DocRefine Pro - Changelog
 
+## [v151] - 2026-08-12
+### Fixed — Landscape pages that are stored rotated are no longer squeezed into portrait
+A PDF page can be stored as a portrait box with a `/Rotate` instruction telling the reader to turn it. Everyone who opens the file sees a landscape page; the stored box still says portrait. The rebranding engine read the box and believed it — so those documents were given **portrait covers, portrait header and footer strips, and their own content was compressed into a portrait frame and cropped at the edge**.
+
+On the current batch that is **217 of the 874 files being branded** — a quarter of the set, mostly the Florence cut-sheet drawings. The title block on the right-hand side of those drawings was being cut off entirely.
+
+Page dimensions are now read the way a reader sees them, so orientation, cover sizing and the page strips all agree with what the document actually looks like. Those files now get the landscape template and keep their full width.
+
+**This affects output produced by earlier versions.** Any set rebranded before v151 should be re-run if it contains rotated pages.
+
+Worth noting how it hid: the text of a cropped page still extracts perfectly, so every automated check passed. It was only visible on a rendered page — the same blind spot that hid the v145 defect.
+
 ## [v150] - 2026-08-12
 ### Fixed — The page footer keeps its shape when a document has no manufacturer
 Found in a trial run over real files, not in testing: when a document had no usable manufacturer, the version and last-updated line slid across to the **left** of the footer, because it was the only thing on that row. Every other file had it on the right, beside the attribution.
