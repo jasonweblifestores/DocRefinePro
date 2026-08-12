@@ -1,5 +1,20 @@
 # DocRefine Pro - Changelog
 
+## [v154] - 2026-08-12
+### Changed — The classifier can now tell a drawing by its shape, not just its name
+Chasing why 215 CAD drawings were labelled "installation guide" with full confidence turned up the real cause: **a drawing is a visual thing, and the model only ever sees extracted text.** On a Florence cut sheet that text is a few dimension labels plus a note reading *"Designed to mount … For use with front loading modules only"* — a fair description of an installation guide. The model answered the evidence it was given; the evidence was the problem.
+
+Two measurements supply what was missing, taken from the real batch:
+
+| | drawings | documents |
+|---|---|---|
+| text per square inch of page | 4.6 | 24.4 |
+| landscape | 99% | 6% |
+
+A landscape page carrying almost no text is a drawing. Together with the filename rule this separates 244 drawings out of 874, and **29 of them the filename never caught** — including the `1570-*-BM` cut sheets, which were doubly wrong to brand because they already carry Budget Mailboxes branding.
+
+It costs nothing to run: no rendering, no model call, and the review sheet can explain its reasoning in a sentence. A filename that names itself as instructions still wins, so a sparse landscape mounting template stays a guide.
+
 ## [v153] - 2026-08-12
 ### Changed — Technical drawings are left alone even when the model is certain
 The brief says to leave CAD drawings as-is, and filenames like `tech-54368` or `4c06d-02-sm_cutsheet` are how manufacturers label them. That rule previously only applied when the local model was *unsure* — a confident call still won.

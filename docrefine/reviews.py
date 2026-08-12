@@ -129,7 +129,8 @@ def needs_review(row):
     action = (row.get("action") or "").strip().lower()
     # A row where we overrode the model's own call always deserves a look,
     # however sure the model was — that is the whole point of overriding it.
-    if "filename says technical drawing" in (row.get("notes") or "").lower():
+    notes = (row.get("notes") or "").lower()
+    if "filename says technical drawing" in notes or "looks like a dimensioned drawing" in notes:
         return True
     if (row.get("source") or "").strip().lower() != "llm":
         return action == "rebrand"

@@ -212,6 +212,49 @@ def filename_suggests_drawing(name):
     return bool(_DRAWING_NAME_RE.search(stem))
 
 
+# A dimensioned drawing is a *visual* artifact, and the model only ever sees
+# extracted text. That is the root of the misreads: on a Florence cut sheet the
+# extractable text is dimension labels plus a note reading "Designed to mount …
+# For use with front loading modules only", which is a fair description of an
+# installation guide. The model answered the evidence it was given.
+#
+# These two numbers are that missing evidence, measured on the real batch:
+#
+#   text density (characters per square inch of page)
+#       drawings  median  4.6   (90th percentile 4.6)
+#       documents median 24.4   (10th percentile 4.6)
+#   orientation
+#       drawings  99% landscape
+#       documents  6% landscape
+#
+# Together they separate 211 of 215 known drawings while touching 4 of 111
+# documents — and on inspection 3 of those 4 were drawings the filename missed.
+DRAWING_MAX_DENSITY = 10.0     # chars per square inch
+
+
+def page_shape_suggests_drawing(pdf_path, text=None):
+    """Structural evidence that a PDF is a dimensioned drawing, not a document.
+
+    A landscape page carrying almost no text is a drawing; a document that reads
+    like prose is not. Cheap — no rendering, no inference — and deterministic, so
+    the review sheet can explain itself.
+    """
+    from .rebrand import page_size
+    try:
+        rd = PdfReader(str(pdf_path))
+        w, h = page_size(rd.pages[0])
+    except Exception:
+        return False
+    if not (w > h):
+        return False
+    area = (w * h) / (72.0 * 72.0)
+    if area <= 0:
+        return False
+    if text is None:
+        text = extract_text(pdf_path)
+    return (len(text) / area) < DRAWING_MAX_DENSITY
+
+
 def _fallback(pdf_path, note=""):
     from .rebrand import DEFAULT_TITLE
     stem = Path(pdf_path).stem
@@ -273,6 +316,15 @@ def classify_document(pdf_path, text=None, model=DEFAULT_MODEL, url=OLLAMA_URL):
         except (TypeError, ValueError):
             conf = 0.0
         note = ""
+        # A landscape page with almost no text on it is a drawing, whatever its
+        # filename says and whatever the model concluded from the words alone.
+        # The instructions rule still wins: a sparse landscape mounting template
+        # that names itself as instructions is a guide.
+        if (action == "rebrand" and not filename_suggests_instructions(pdf_path)
+                and page_shape_suggests_drawing(pdf_path, text)):
+            action = "leave"
+            note = ("looks like a dimensioned drawing — landscape page with very little "
+                    "text; the brief leaves these as-is. Flip to rebrand if it is a document")
         if action == "rebrand" and filename_suggests_drawing(pdf_path):
             # The brief leaves CAD drawings alone, and the filename is the more
             # reliable signal here than the model's own label.
