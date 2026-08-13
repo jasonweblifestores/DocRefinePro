@@ -802,9 +802,15 @@ class Worker:
             if pct < 95:
                 self.log(f"If that is too slow, a smaller vision model fits more easily: "
                          f"ollama pull {SMALL_VISION_MODEL}  (then set it in Settings).")
+        # Be exact about what Stop costs. This line used to promise the text pass
+        # results were "already in", which was not true: stopping wrote nothing
+        # at all. Progress is now saved per file, but a stop still writes no
+        # review sheet, and saying so is the difference between a reassurance and
+        # a misleading one.
         self.log(f"Measured {per_file:.1f}s per file on this machine — about {human} "
-                 f"for the remaining {remaining}. You can Stop at any point; the text "
-                 f"pass results are already in.")
+                 f"for the remaining {remaining}. You can Stop at any point: every file "
+                 f"classified so far is saved, and running Analyze again carries on from "
+                 f"there. A stopped run writes no review sheet.")
 
     def run_rebrand_analyze(self, src_dir, out_csv=None, vision_pass=None):
         """Read every PDF in a folder with the local model and write a review sheet.
@@ -865,6 +871,18 @@ class Worker:
                     self.log(f"Visual pass requested but '{want}' is not downloaded — "
                              f"continuing without it. Run: ollama pull {want}", True)
 
+            # Progress from an interrupted earlier run, if there is any. Written
+            # as we go so a stop, a crash or a forced restart costs one file
+            # rather than the whole pass.
+            from . import checkpoint as cp
+            cp_path = cp.path_for(plan)
+            done_before = cp.load(cp_path)
+            cp_writer = cp.Writer(cp_path)
+            if done_before:
+                self.log(f"Found saved progress from an interrupted run "
+                         f"({len(done_before)} files already classified) — continuing from there. "
+                         f"Delete {cp_path.name} to start over.")
+
             self.log(f"Analyzing {len(pdfs)} PDFs for the review sheet")
             self.emit(AppEvent(EventType.WORKER_CONFIG, 1))
 
@@ -890,6 +908,7 @@ class Worker:
             # times faster for no loss of accuracy.
             rows = [None] * len(pdfs)
             n_seen = 0
+            n_resumed = 0
             pending = []
             for i, pdf in enumerate(pdfs):
                 if self.stop_sig: break
@@ -900,10 +919,27 @@ class Worker:
                                f"Reading {i + 1}/{len(pdfs)}")
                 self.emit(AppEvent(EventType.SLOT_UPDATE, {"tid": threading.get_ident(), "text": pdf.name, "percent": None}))
 
+                rel = str(pdf.relative_to(src))
+                prev = done_before.get(rel)
+                if cp.usable(prev, pdf):
+                    # Already classified in an earlier run and the file hasn't
+                    # changed since — don't pay for it twice.
+                    rows[i] = prev["row"]
+                    n_resumed += 1
+                    if vision_model and prev.get("needs_look") and not prev.get("vision_done"):
+                        pending.append((i, pdf))
+                    continue
+
                 info = classify_document(pdf)          # text only in this pass
                 rows[i] = row_for(pdf, info)
-                if vision_model and needs_a_look(info):
+                look = bool(vision_model and needs_a_look(info))
+                # A file the text pass settled is finished; one awaiting a look
+                # is not, and resuming must be able to tell them apart.
+                cp_writer.add(rel, pdf, rows[i], needs_look=look, vision_done=not look)
+                if look:
                     pending.append((i, pdf))
+            if n_resumed:
+                self.log(f"Reused {n_resumed} classifications from the interrupted run.")
 
             # ---- Pass 2: look at what the text could not settle --------------
             if vision_model and pending and not self.stop_sig:
@@ -927,6 +963,10 @@ class Worker:
                     if seen:
                         rows[i] = row_for(pdf, seen)
                         n_seen += 1
+                    # Recorded either way: a file the model declined to answer on
+                    # has still had its look, and shouldn't be paid for again.
+                    cp_writer.add(str(pdf.relative_to(src)), pdf, rows[i],
+                                  needs_look=True, vision_done=True)
                     if warm_start is None:
                         warm_start = time.time()      # model is loaded from here on
                         continue
@@ -942,7 +982,14 @@ class Worker:
 
             rows = [r for r in rows if r]
             if self.stop_sig:
-                self.log("Analysis stopped by user.")
+                # Keep the progress file and leave any existing sheet alone. The
+                # work is not lost, and an incomplete classification must never
+                # quietly replace a sheet someone has already reviewed.
+                cp_writer.close()
+                classified = len(rows)
+                self.log(f"Analysis stopped by user after {classified} of {len(pdfs)} files. "
+                         f"Progress is saved — run Analyze on this folder again to carry on "
+                         f"from here. No review sheet was written.")
                 self.emit(AppEvent(EventType.DONE)); return
 
             # Never silently discard a sheet someone already reviewed.
@@ -966,6 +1013,14 @@ class Worker:
                 self.log(f"Could not write the Excel sheet ({e}); wrote CSV instead.", True)
                 write_plan(plan, rows, self.REBRAND_PLAN_COLUMNS)
 
+            # The sheet is written, so the progress file has done its job. It has
+            # to go: left behind, the NEXT analyze of this folder would find every
+            # file "already classified", skip both passes and hand back these same
+            # rows — a deliberate re-analyze would silently return a stale sheet
+            # while looking like it had worked.
+            cp_writer.close()
+            cp.clear(cp_path)
+
             n_reb = sum(1 for r in rows if r["action"] == "rebrand")
             n_leave = len(rows) - n_reb
             if vision_model:
@@ -983,6 +1038,12 @@ class Worker:
                 "open_path": str(plan)}))
         except Exception as e:
             self.log(f"Analyze error: {e}", True)
+            # Close but do NOT clear: whatever was classified before the error is
+            # still good, and the next run should carry on from it.
+            try:
+                cp_writer.close()
+            except Exception:
+                pass
             self.emit(AppEvent(EventType.DONE))
 
     def _auto_workers(self):
@@ -1157,6 +1218,53 @@ class Worker:
                      f"files: {shown}{more}. Add these to \"manufacturer_aliases\" in "
                      f"brand.json to settle on one form.", True)
 
+    def _fallback_deliver(self, pdf, dst, rel, exc, rebrand=None):
+        """A document we cannot brand must still reach the delivery.
+
+        Both rebrand paths need this rule and they had already drifted apart
+        once: the pipeline copied the original through, while the delivery path
+        returned and left a hole in the set that nothing but a log line
+        explained. Two files went missing from a 2,174-file delivery that way.
+        One implementation, so the next divergence cannot happen quietly.
+
+        Given a `rebrand` callable, one rescue is attempted first: a PDF with
+        malformed encryption is unreadable to our library but fine to poppler, so
+        it is rewritten and branded from the rewrite — but only if the rewrite
+        verifiably keeps its pages and text. Failing that, the original ships
+        unbranded, which is what the previous delivery did for these files.
+
+        Returns "repaired", "unbranded", or None if nothing could be delivered.
+        """
+        self.log(f"Rebrand failed: {rel}: {exc}", True)
+        pdf, dst = Path(pdf), Path(dst)
+
+        if rebrand is not None:
+            try:
+                from .processing import repair_unreadable_pdf
+                tmpdir = Path(tempfile.mkdtemp(prefix="drp_repair_"))
+                try:
+                    fixed = tmpdir / pdf.name
+                    if repair_unreadable_pdf(pdf, fixed):
+                        rebrand(fixed)
+                        self.log(f"   {pdf.name} was rewritten with poppler and branded from "
+                                 f"that — pages and text checked against the original.")
+                        return "repaired"
+                finally:
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+            except Exception as e3:
+                self.log(f"   rescue attempt did not work either: {e3}", True)
+
+        try:
+            if pdf.is_file() and not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                _atomic_copy(pdf, dst)
+                self.log(f"   delivered {pdf.name} unbranded instead — the set stays complete.",
+                         True)
+                return "unbranded"
+        except Exception as e2:
+            self.log(f"   and it could not be copied through either: {e2}", True)
+        return None
+
     def _apply_one_row(self, row, src, out, kit, show_attribution=False,
                        stamp_opts=None, today=None):
         """Process one review-sheet row (output path pre-assigned in row['_dst'])."""
@@ -1180,9 +1288,27 @@ class Worker:
         title = (row.get("title") or "").strip() or title_for(
             row.get("asset_type"), fallback_stem=pdf.stem, doc_type=row.get("doc_type"))
         subtitle = kit.subtitle_for(row.get("manufacturer")) if show_attribution else None
-        stats = rebrand_pdf(pdf, dst, kit, title, subtitle=subtitle,
-                            stamps=self._stamps_for(kit, row.get("manufacturer"),
-                                                    stamp_opts, today))
+        st = self._stamps_for(kit, row.get("manufacturer"), stamp_opts, today)
+        got = {}
+
+        def brand(source):
+            got["stats"] = rebrand_pdf(source, dst, kit, title, subtitle=subtitle, stamps=st)
+
+        try:
+            brand(pdf)
+        except Exception as e:
+            # One rescue attempt on an unreadable file, then the original rather
+            # than nothing at all.
+            if self._fallback_deliver(pdf, dst, rel, e, rebrand=brand) != "repaired":
+                return "fail"
+        stats = got["stats"]
+        if stats.get("trimmed_pages"):
+            try:
+                self.log(f"NOTE: {rel} has {stats['trimmed_pages']} page(s) whose author "
+                         f"trimmed a margin (CropBox inside MediaBox). The branded copy "
+                         f"shows that margin. Nothing is cropped or lost.")
+            except Exception:
+                pass
         if stats["size_mb"] >= 50:
             # The status must not depend on the log sink succeeding. A cp1252
             # stdout once raised here, the exception was caught as a generic
@@ -1344,21 +1470,11 @@ class Worker:
                     return self._apply_one_row(row, src, out, kit, show_attribution,
                                                stamp_opts, today)
                 except Exception as e:
-                    self.log(f"Failed: {(row.get('file') or '?')}: {e}", True)
-                    # A file we cannot brand must still be DELIVERED. Dropping it
-                    # leaves a hole in the set that only a log line explains, and
-                    # a delivery is checked by count long before anyone reads the
-                    # log. Copying the original through is what the pipeline path
-                    # already did; this one used to just lose the file.
-                    try:
-                        dst = row.get("_dst")
-                        pdf = src / (row.get("file") or "").strip().replace("\\", "/")
-                        if dst and pdf.is_file() and not Path(dst).exists():
-                            Path(dst).parent.mkdir(parents=True, exist_ok=True)
-                            _atomic_copy(pdf, Path(dst))
-                            self.log(f"   delivered {pdf.name} unbranded instead.", True)
-                    except Exception as e2:
-                        self.log(f"   and could not copy it through either: {e2}", True)
+                    rel = (row.get("file") or "?").strip().replace("\\", "/")
+                    if row.get("_dst"):
+                        self._fallback_deliver(src / rel, row["_dst"], rel, e)
+                    else:
+                        self.log(f"Rebrand failed: {rel}: {e}", True)
                     return "fail"
 
             statuses = self._parallel_map(rows, apply_row, "Applying")
@@ -1507,6 +1623,7 @@ class Worker:
             row = plan.get(str(rel).replace("\\", "/")) or plan.get(p.name)
             is_leave = (row and (row.get("action") or "").strip().lower() == "leave")
             dst = dsts[p]; dst.parent.mkdir(parents=True, exist_ok=True)
+            brand = None          # so the handler below is safe if we fail early
             try:
                 if p.suffix.lower() != ".pdf":
                     _atomic_copy(p, dst); return "copied"
@@ -1517,15 +1634,19 @@ class Worker:
                     doc_type=row.get("doc_type") if row else None)
                 subtitle = (kit.subtitle_for(row.get("manufacturer") if row else "")
                             if show_attribution else None)
-                rebrand_pdf(p, dst, kit, title, subtitle=subtitle,
-                            stamps=self._stamps_for(
-                                kit, row.get("manufacturer") if row else "",
-                                stamp_opts, today))
+                st = self._stamps_for(kit, row.get("manufacturer") if row else "",
+                                      stamp_opts, today)
+
+                def brand(source):
+                    rebrand_pdf(source, dst, kit, title, subtitle=subtitle, stamps=st)
+
+                brand(p)
                 return "rebranded"
             except Exception as e:
-                self.log(f"Rebrand failed: {rel}: {e}", True)
-                try: _atomic_copy(p, dst)
-                except Exception: pass
+                # Same rule and the same rescue as the delivery path — see
+                # _fallback_deliver. These two used to disagree.
+                if self._fallback_deliver(p, dst, rel, e, rebrand=brand) == "repaired":
+                    return "rebranded"
                 return "failed"
 
         results = self._parallel_map(files, one, label)

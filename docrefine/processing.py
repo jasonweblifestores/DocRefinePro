@@ -2,6 +2,7 @@ import sys
 import shutil
 import gc
 import os
+import subprocess
 import tempfile
 import zipfile
 import re
@@ -63,6 +64,82 @@ POPPLER_BIN = str(Path(poppler_bin_file).parent) if poppler_bin_file else None
 
 tesseract_bin_file = SystemUtils.find_binary("tesseract" + bin_ext)
 HAS_TESSERACT = bool(tesseract_bin_file)
+
+
+def _poppler(tool, *args, timeout=240):
+    """Run a bundled poppler tool. Returns (rc, stdout, stderr) as text.
+
+    Output is decoded from bytes with errors replaced rather than read as text:
+    poppler emits whatever encoding a PDF happens to carry, and letting Python
+    decode it as the console codepage raises UnicodeDecodeError on perfectly
+    ordinary files.
+    """
+    if not POPPLER_BIN:
+        return 1, "", "poppler not available"
+    exe = Path(POPPLER_BIN) / (tool + bin_ext)
+    try:
+        r = subprocess.run([str(exe), *[str(a) for a in args]], capture_output=True,
+                           timeout=timeout, startupinfo=get_hidden_startupinfo())
+        return (r.returncode,
+                (r.stdout or b"").decode("utf-8", "replace"),
+                (r.stderr or b"").decode("utf-8", "replace"))
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def repair_unreadable_pdf(pdf, out_path):
+    """Rewrite a PDF our library cannot open, using poppler, and verify the result.
+
+    Some PDFs carry malformed encryption — a 104-bit RC4 key, for instance — that
+    pypdf rejects outright while poppler reads them without complaint. Left alone
+    those documents ship unbranded, so it is worth one attempt to rescue them.
+
+    The rewrite is only accepted if it is demonstrably as good as the original:
+    it must open, carry the same number of pages, and retain essentially all of
+    the text. A silently rasterised or truncated result is worse than shipping
+    the original untouched, so it is rejected rather than used.
+
+    Returns True only when out_path holds a verified, usable rewrite.
+    """
+    pdf, out_path = Path(pdf), Path(out_path)
+    rc, info, _ = _poppler("pdfinfo", pdf)
+    if rc != 0:
+        return False                     # poppler can't read it either
+    want_pages = 0
+    for line in info.splitlines():
+        if line.startswith("Pages:"):
+            try:
+                want_pages = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+    _, before_text, _ = _poppler("pdftotext", pdf, "-")
+    before = len("".join(before_text.split()))
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    rc, _, err = _poppler("pdftocairo", "-pdf", pdf, out_path)
+    if rc != 0 or not out_path.is_file() or out_path.stat().st_size == 0:
+        log_app(f"Could not rewrite {pdf.name}: {err.strip()[:120]}", "WARN")
+        return False
+
+    try:
+        from pypdf import PdfReader
+        rd = PdfReader(str(out_path))
+        pages = len(rd.pages)
+        after = len("".join(" ".join((p.extract_text() or "") for p in rd.pages).split()))
+    except Exception as e:
+        log_app(f"Rewrite of {pdf.name} is still unreadable: {e}", "WARN")
+        out_path.unlink(missing_ok=True)
+        return False
+
+    if want_pages and pages != want_pages:
+        log_app(f"Rewrite of {pdf.name} has {pages} pages, not {want_pages} — rejected.", "WARN")
+        out_path.unlink(missing_ok=True)
+        return False
+    if before and after < before * 0.9:
+        log_app(f"Rewrite of {pdf.name} kept {after} of {before} characters — rejected.", "WARN")
+        out_path.unlink(missing_ok=True)
+        return False
+    return True
 
 if HAS_TESSERACT:
     pytesseract.pytesseract.tesseract_cmd = tesseract_bin_file

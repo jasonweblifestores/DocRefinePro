@@ -576,8 +576,25 @@ def rebrand_pdf(input_pdf, output_pdf, kit, title, subtitle=None, author=None, s
             except OSError: pass
 
     size_mb = output_pdf.stat().st_size / 1e6
+    # Pages whose author trimmed a margin via the CropBox. Readers show that
+    # trim; we brand the full MediaBox, so the branded copy reveals the hidden
+    # border. Nothing is lost or cropped, and it is one page in ~1,800 documents
+    # measured across two corpora — so it is reported rather than fixed, because
+    # branding the CropBox instead would move cover sizing, strip placement and
+    # the content transform for everything. If this ever shows up in volume, the
+    # count is here to say so.
+    trimmed = 0
+    for p in pages:
+        try:
+            mb, cb = p.mediabox, p.cropbox
+            if (abs(float(mb.width)) - abs(float(cb.width)) > 1
+                    or abs(float(mb.height)) - abs(float(cb.height)) > 1):
+                trimmed += 1
+        except Exception:
+            pass
     return {"orientation": doc_or, "source_pages": len(pages),
-            "output_pages": len(pages) + 2, "size_mb": round(size_mb, 2)}
+            "output_pages": len(pages) + 2, "size_mb": round(size_mb, 2),
+            "trimmed_pages": trimmed}
 
 
 # --- Naming helpers ---

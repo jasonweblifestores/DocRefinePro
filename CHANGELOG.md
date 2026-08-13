@@ -1,5 +1,34 @@
 # DocRefine Pro - Changelog
 
+## [v157] - 2026-08-14
+### Added — An interrupted classification run no longer starts from nothing
+The review sheet used to be written only once **both** passes had finished, and stopping returned without writing anything at all. A ten-hour run that was stopped, crashed, or met a forced Windows restart at hour nine threw away every one of those hours — including the completed text pass, which had nothing to do with the interruption.
+
+Progress is now saved **as each file is classified**, to an append-only file beside the review sheet. Run Analyze on the same folder again and it carries on from where it stopped, reusing what it already knows and paying only for what is left.
+
+Some deliberate choices in how it behaves:
+
+* **A record is only reused while the file is unchanged.** Size and modification time are checked, so an edited or replaced document is classified again rather than answered from a stale note. Not a hash — hashing thousands of PDFs to decide whether to skip them would spend the time this exists to save.
+* **A power cut costs one line, not the run.** Each record is written and flushed on its own, and reading tolerates a half-written final record, because that is exactly what a power cut leaves behind.
+* **The visual pass supersedes the text pass** — later records win — and a file that has already been looked at is never looked at twice, even if the model declined to answer.
+* **A stopped run writes no review sheet, and now says so.** An incomplete classification must never quietly replace a sheet someone has already reviewed. The old message claimed the text results were "already in" when stopping in fact discarded them; that was untrue when it was written, and it is now both true and precisely stated.
+* **The progress file is deleted once its sheet exists.** Left behind, the *next* analyze would find every file already classified, skip both passes and hand back the same rows — a deliberate re-analysis silently returning a stale sheet while looking like it had worked.
+
+### Added — A PDF our library cannot open gets one chance to be rescued
+Some documents carry malformed encryption — a 104-bit RC4 key, for instance — that `pypdf` rejects outright while poppler reads them without complaint. Two files in the last delivery were in that state and shipped unbranded.
+
+Such a file is now rewritten with poppler and branded from the rewrite. The rewrite is only accepted if it is **provably as good as the original**: it must open, carry the same number of pages, and keep essentially all of its text. A silently rasterised or truncated result is worse than the untouched original, so it is rejected and the original ships instead. Both files from the last delivery now brand correctly, with their text intact.
+
+### Changed — One rule for a document that cannot be branded
+The two rebranding paths each had their own failure handling and had already drifted apart: the pipeline copied the original through, while the delivery path returned and left a hole in the set that nothing but a log line explained. That is how two files went missing from a 2,174-file delivery.
+
+Both now go through a single method, so the rule — **a document we cannot brand must still be delivered** — exists in one place and the next divergence cannot happen quietly.
+
+### Changed — A trimmed page margin is now reported rather than merely happening
+Where an author trimmed a margin via the CropBox, readers show the trim while branding works on the full page, so the branded copy reveals the hidden border. Nothing is lost or cropped.
+
+Branding the trimmed box instead would move cover sizing, strip placement and the content transform for **every** document, and this is **one page in roughly 1,800** measured across two real corpora — none at all in the second. So it is counted and named in the run log, which turns an invisible difference into a reported one. If it ever appears in volume, the count will say so.
+
 ## [v156] - 2026-08-13
 ### Added — A long run can put the computer to sleep when it finishes
 Analyzing a few thousand files with the visual pass on runs for hours, so the machine gets left on overnight for work that finished at 2am. There is now a checkbox on both rebranding dialogs, the same offer a torrent client makes: finish the work, then sleep.
