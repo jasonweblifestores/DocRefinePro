@@ -339,7 +339,7 @@ class Worker:
                 try:
                     h, method = self.get_hash(f, ingest_mode)
                     if not h:
-                        self.log(f"⚠️ Quarantine: {f.name}", True)
+                        self.log(f"WARNING: Quarantine: {f.name}", True)
                         q_name = f"{uuid.uuid4()}_{sanitize_filename(f.name)}"
                         shutil.copy2(f, ws/Constants.DIR_QUARANTINE/q_name)
                         quarantined += 1
@@ -1121,7 +1121,7 @@ class Worker:
             tagline=bool(stamp_opts.get("stamp_tagline")),
             disclaimer=bool(stamp_opts.get("stamp_disclaimer")))
         if gaps:
-            self.log(f"⚠️ No {' or '.join(gaps)} wording in this brand kit — add it to "
+            self.log(f"WARNING: No {' or '.join(gaps)} wording in this brand kit — add it to "
                      f"brand.json in {kit.root.name} or that stamp prints nothing.", True)
         if not stamp_opts.get("footer_attribution"):
             return
@@ -1140,15 +1140,22 @@ class Worker:
                      f"{blank} with no manufacturer recorded, {unusable} where the value "
                      f"names a website, the seller or the brand itself.")
         # The same company spelled two ways credits it two ways in one delivery set.
-        variants = stamps_mod.spelling_variants(
-            r.get("manufacturer") for r in rows
-            if (r.get("action") or "").strip().lower() == "rebrand")
+        # Measured on the names as they will actually PRINT, not on the raw sheet
+        # values: reporting the raw ones meant the warning still fired in full
+        # after aliases had resolved every case, which trains people to ignore it.
+        aliases = kit.brand.get("manufacturer_aliases")
+        printed = [n for n in (
+            stamps_mod.clean_manufacturer(r.get("manufacturer"), kit.brand_name, aliases)
+            for r in rows
+            if (r.get("action") or "").strip().lower() == "rebrand") if n]
+        variants = stamps_mod.spelling_variants(printed)
         if variants:
             shown = "; ".join(" / ".join(g) for g in variants[:3])
             more = " …" if len(variants) > 3 else ""
-            self.log(f"{len(variants)} manufacturer(s) are spelled more than one way, so the "
-                     f"attribution will read differently between files: {shown}{more}. Add "
-                     f"\"manufacturer_aliases\" to brand.json to settle on one form.", True)
+            self.log(f"{len(variants)} manufacturer(s) would still be credited more than one "
+                     f"way after aliases, so the attribution will read differently between "
+                     f"files: {shown}{more}. Add these to \"manufacturer_aliases\" in "
+                     f"brand.json to settle on one form.", True)
 
     def _apply_one_row(self, row, src, out, kit, show_attribution=False,
                        stamp_opts=None, today=None):
@@ -1177,7 +1184,14 @@ class Worker:
                             stamps=self._stamps_for(kit, row.get("manufacturer"),
                                                     stamp_opts, today))
         if stats["size_mb"] >= 50:
-            self.log(f"⚠️ {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
+            # The status must not depend on the log sink succeeding. A cp1252
+            # stdout once raised here, the exception was caught as a generic
+            # failure upstream, and a real breach of the 50 MB limit vanished —
+            # the file shipped oversize with nothing to show for it.
+            try:
+                self.log(f"WARNING: {dst.name} is {stats['size_mb']} MB (over 50 MB)", True)
+            except Exception:
+                pass
             return "oversize"
         return "done"
 
@@ -1331,6 +1345,20 @@ class Worker:
                                                stamp_opts, today)
                 except Exception as e:
                     self.log(f"Failed: {(row.get('file') or '?')}: {e}", True)
+                    # A file we cannot brand must still be DELIVERED. Dropping it
+                    # leaves a hole in the set that only a log line explains, and
+                    # a delivery is checked by count long before anyone reads the
+                    # log. Copying the original through is what the pipeline path
+                    # already did; this one used to just lose the file.
+                    try:
+                        dst = row.get("_dst")
+                        pdf = src / (row.get("file") or "").strip().replace("\\", "/")
+                        if dst and pdf.is_file() and not Path(dst).exists():
+                            Path(dst).parent.mkdir(parents=True, exist_ok=True)
+                            _atomic_copy(pdf, Path(dst))
+                            self.log(f"   delivered {pdf.name} unbranded instead.", True)
+                    except Exception as e2:
+                        self.log(f"   and could not copy it through either: {e2}", True)
                     return "fail"
 
             statuses = self._parallel_map(rows, apply_row, "Applying")

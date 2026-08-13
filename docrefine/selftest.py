@@ -73,6 +73,26 @@ def _make_source_pdfs(src: Path):
             c.showPage()
         c.save()
         made.append((name, pages))
+
+    # An AES-encrypted PDF. pypdf reaches for `cryptography` only when it meets
+    # one, so a build that omits it looks perfectly healthy until a real batch
+    # arrives — and then the rebrand fails and the file is copied through
+    # UNBRANDED, which is silent apart from a log line. 13 files in one real
+    # batch were encrypted, so this is not a hypothetical.
+    try:
+        from pypdf import PdfReader, PdfWriter
+        plain = src / "portrait-guide.pdf"
+        enc = src / "encrypted-guide.pdf"
+        w = PdfWriter()
+        for pg in PdfReader(str(plain)).pages:
+            w.add_page(pg)
+        w.encrypt("", algorithm="AES-128")     # owner password only; opens freely
+        with open(enc, "wb") as fh:
+            w.write(fh)
+        made.append(("encrypted-guide.pdf", 1))
+    except Exception:
+        # Older pypdf without AES writing: skip rather than fail the whole test.
+        pass
     return made
 
 

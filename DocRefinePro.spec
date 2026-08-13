@@ -89,7 +89,10 @@ a = Analysis(
         'docrefine.power',
         'docrefine.selftest',
         'openpyxl',
-        'reportlab'
+        'reportlab',
+        # pypdf reaches for this only when it meets an AES-encrypted PDF, so it
+        # is invisible to a static scan and has to be named explicitly.
+        'cryptography'
     ] + filtered_hidden_imports,
     hookspath=[],
     hooksconfig={},

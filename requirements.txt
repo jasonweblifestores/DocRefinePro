@@ -2,6 +2,11 @@ pillow
 pytesseract
 pdf2image
 pypdf
+# pypdf needs this to read AES-encrypted PDFs. Without it such a file raises
+# DependencyError and the rebrand falls back to copying the original through
+# unbranded — which is silent apart from one log line. 13 files in the current
+# Batch 4 set are encrypted.
+cryptography
 psutil
 pyinstaller
 PySide6

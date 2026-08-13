@@ -1,6 +1,6 @@
 # DocRefine Pro - Changelog
 
-## [v156] - 2026-08-12
+## [v156] - 2026-08-13
 ### Added — A long run can put the computer to sleep when it finishes
 Analyzing a few thousand files with the visual pass on runs for hours, so the machine gets left on overnight for work that finished at 2am. There is now a checkbox on both rebranding dialogs, the same offer a torrent client makes: finish the work, then sleep.
 
@@ -28,6 +28,17 @@ The app now tests itself: `DocRefinePro --self-test-rebrand <workdir>` generates
 A windowed build has no console to print to, so the verdict travels two ways: a `_self_test_report.txt` beside the work directory, and the process exit code.
 
 First run on a frozen Windows build: 43/43. It earned its keep immediately — it caught a `brand.json` where `last_updated` was filled in with a bare month, which the engine treats as an override of the whole suffix and so quietly printed `Version 1.0 · August 2026` with the SOP's `Last Updated:` label missing. The assertion now checks for the label, colon included.
+
+### Fixed — Four defects found by running a real 2,174-file delivery
+Every one of these was invisible to the test suite, which was green throughout, and every one was found by inspecting the actual output. That is now the fourth release in a row where that has been true.
+
+**A file that failed to brand was dropped from the delivery.** `run_rebrand_apply` logged the failure and returned, with no fallback — so the file simply wasn't there. Two files went missing from a 2,174-file set and the only evidence was one line in a log, which nobody reads before checking a count. The pipeline path had always copied the original through in this situation; the delivery path now does the same and says so explicitly. **A document we cannot brand still has to be delivered.**
+
+**An emoji in a log message hid a real breach of the 50 MB limit.** `⚠️` cannot be encoded by Windows' cp1252, so on a redirected stdout the logging call itself raised, was caught upstream as a generic file failure, and the warning vanished — a 59.4 MB file shipped with nothing said about it. The emoji are gone from log strings, and the oversize result no longer depends on the log sink succeeding. **A failure to report something must never be mistaken for a failure to do it.**
+
+**AES-encrypted PDFs could not be read at all.** `pypdf` needs `cryptography` for them and it was in neither `requirements.txt` nor the bundle, so 9 files raised `DependencyError` and would have shipped unbranded. It is now a declared dependency, and the packaged self-test generates an encrypted PDF and brands it, so a build that omits it fails in CI rather than in a delivery.
+
+**The spelling-variant warning cried wolf.** It measured the raw review-sheet values, so it kept reporting every group at full volume after `manufacturer_aliases` had already resolved them — and a warning that fires when nothing is wrong is one people learn to skip past. It now measures the names as they will actually print, and reports only what the aliases leave unresolved.
 
 ## [v155] - 2026-08-12
 ### Added — The classifier can look at a page when there is no text to read
