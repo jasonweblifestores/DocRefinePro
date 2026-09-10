@@ -1,0 +1,2635 @@
+{
+  "title_changes": [
+    {
+      "file": "2417_installation_instructions.pdf",
+      "old": "Mounting Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2562_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2596-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2682-wall_mount_mailbox.pdf",
+      "old": "Wall Mount Mailbox Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2B-CE1S-SD3-01.pdf",
+      "old": "Installation Manual",
+      "new": "Dimensioned Drawing",
+      "confidence": 0.95,
+      "asset_type": "drawing"
+    },
+    {
+      "file": "2B-Global-Door-ID-System.pdf",
+      "old": "Installation Manual",
+      "new": "Number Plates for All Door Finishes",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "2B-Global-Product-Catalog.pdf",
+      "old": "Installation Manual",
+      "new": "Dimensioned Technical Drawing",
+      "confidence": 1.0,
+      "asset_type": "drawing"
+    },
+    {
+      "file": "3001-Anchor-Bolt-Specifications.pdf",
+      "old": "Installation Manual",
+      "new": "Recommended Anchor Bolt Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "3001-package-installation-instructions-updated.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "3001-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "30815-lock-change.pdf",
+      "old": "Installation Manual",
+      "new": "Change Combination Code",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "3500-vertical-mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4001-fixture-spec-sheet.pdf",
+      "old": "Fixture Specifications",
+      "new": "Specifications Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4001-Package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4002-fixture-spec-sheet.pdf",
+      "old": "Fixture Specifications",
+      "new": "Product Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4002-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4002-package-installation-instructions__19e76f.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4003-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4003-package-installation-instructions__e758e5.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4004-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4004-package-installation-instructions__e59cb4.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4005-2-fixture-spec-sheet.pdf",
+      "old": "Fixture Specifications",
+      "new": "Product Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4005-2b-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4005-2b-package-installation-instructions__6f07da.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4006-fixture-spec-sheet.pdf",
+      "old": "Specification Sheet",
+      "new": "Product Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4006-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4007-2-fixture-spec-sheet.pdf",
+      "old": "Fixture Specifications",
+      "new": "Specifications Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4007-fixture-spec-sheet.pdf",
+      "old": "Fixture Specifications",
+      "new": "Product Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4007-package-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4007-package-installation-instructions__06d43f.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4035-4045-mail-slot.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4B-Standard-Horizontal-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "4C10S-HOPCS.pdf",
+      "old": "Installation Manual",
+      "new": "Dimensioned Technical Drawing",
+      "confidence": 0.95,
+      "asset_type": "drawing"
+    },
+    {
+      "file": "4C11S-HOPCS.pdf",
+      "old": "Installation Manual",
+      "new": "Dimensioned Technical Drawing",
+      "confidence": 0.95,
+      "asset_type": "drawing"
+    },
+    {
+      "file": "5500_warranty_document.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "5560_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "6-Post-Mounting-Instructions_Revised.pdf",
+      "old": "Installing Mailbox on #6 Post",
+      "new": "Mounting Mailbox",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "6300_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Mounting Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "6300_warranty_document.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "7510-10-installation_instructions_1.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "7510b-10-warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "7511_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "7517_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "7540_Assembly_Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "7980_-_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "8000_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "9-ft-tapered-pole-spec-sheet.pdf",
+      "old": "Specifications",
+      "new": "9-ft-tapered-pole",
+      "confidence": 0.95,
+      "asset_type": "drawing"
+    },
+    {
+      "file": "950020_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "A-Series-SPEC-SHEET.pdf",
+      "old": "Aluminum Pole Specs",
+      "new": "Product Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Address-Plaque-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AF-Security-Upgrade-kits.pdf",
+      "old": "Easy to Follow Instructions Are Included!",
+      "new": "Security Upgrade Kits",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "AF-vario-EXPRESS-install.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AF-vario-express-main-catalog.pdf",
+      "old": "Centralized Mail Delivery With a Sense of Style",
+      "new": "Centralized Mail Delivery",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "AF-vogue-cbu-accessories-main.pdf",
+      "old": "Installation Manual",
+      "new": "Cluster Box Accessories",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Allux-mailbox-flyer.pdf",
+      "old": "Installation Manual",
+      "new": "Allux Series Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "aluminum-data-dealer.pdf",
+      "old": "Data Distribution System Specification Sheet",
+      "new": "Aluminum Boxes - Data Distribution System",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "ALUMINUM-MAILBOXES.PDF",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "aluminum-rack.pdf",
+      "old": "Installation Manual",
+      "new": "Aluminum Mailboxes - Rack Ladder System",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Antique-Brass-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Antique Brass Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Antique-Rural-Mailboxes-Deluxe-Rura-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Antique Rural Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Assembly-Instructions.pdf",
+      "old": "Assembly Instructions for Mail Safe Mailbox",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW1072_capitol_tape_instructions_SP073020_1_.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW340_Capitol-Mailbox-Assembly_R092820.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW378_Quad_MB_Instructions_R110614.pdf",
+      "old": "Installation Manual",
+      "new": "Quad or Triple Mount Mailbox Post Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW_1074_Wall_Mailbox_3page_instruction_sheet%20073020_1_.pdf",
+      "old": "Installation Manual",
+      "new": "Locking Wall Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "B-Series-SPEC-SHEET.pdf",
+      "old": "Specification Sheet",
+      "new": "Product Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Balmoral-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "bobi-round-stand.pdf",
+      "old": "Installing a Mailbox",
+      "new": "Installation on BOBI ROUND stand",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Bolt-Mounted-4800.pdf",
+      "old": "Installing Mailbox on a Standard Mailbox Post",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Bolt-Mounted-Posts-4750.pdf",
+      "old": "Mail Houses \u2013 Post Mounting Installation Instructions",
+      "new": "Mail House Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Bracket-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox & Bracket Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "brass.pdf",
+      "old": "Installation Manual",
+      "new": "Brass Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "cast-brass-house-numers-mounting-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "catalog-special-lite.pdf",
+      "old": "Outdoor Lighting Mailboxes Site Furnishing s Residential Lighting Street and Area Lighting LED Bulbs Curbside Mailboxes Wall Mount Mailboxes Cluster Box Units (CBU\u2019s) Address Plaques Message Boards Bollards",
+      "new": "Product Catalog",
+      "confidence": 0.95,
+      "asset_type": "product-manual"
+    },
+    {
+      "file": "cbu-accessory-overview.pdf",
+      "old": "Installation Manual",
+      "new": "Decorative CBU Option",
+      "confidence": 0.9,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "cbu-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Cluster Box Units",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "cbus-regency-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Regency Decorative CBU's",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "claremont-oval-cast.pdf",
+      "old": "Installation Manual",
+      "new": "Address Plaque Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Classic-Mailbox-Posts.pdf",
+      "old": "Installing Mailbox on a Classic Mailbox Post",
+      "new": "Mailbox Post Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "collection-boxes-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Pedestal Collection Boxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "colonial_mailbox_instruction_sheet_sp_update.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Column-Mailboxes-Antique-Brass-Column-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Column Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Commercial-Section-Dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Cluster Box Units",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Courier-Boxes-4975.pdf",
+      "old": "Courier Box Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "courier_boxes_dealer.pdf",
+      "old": "Courier Box Specification Sheet",
+      "new": "Courier Boxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "data-distribution.pdf",
+      "old": "Installation Manual",
+      "new": "Data Distribution System Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "decorative-front-mount-mounting-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation and Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Decorative-Mailbox-Posts-4800.pdf",
+      "old": "Installing Decorative Mailbox Post",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "decorative-side-mount-mounting-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation and Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Decorative-Surface-Mounted-4415-4425.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Deluxe-Mailbox-Posts.pdf",
+      "old": "Assembly Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Deluxe-Style-4075.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "designer-2-spreader.pdf",
+      "old": "Installing Roadside Mailbox on a 2-Wide Spreader",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "designer-3-spreader.pdf",
+      "old": "3-Wide Spreader Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "designer-bolt-ped.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "designer-deluxe-post.pdf",
+      "old": "Deluxe Arm Post Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "designer-newspaper-holders.pdf",
+      "old": "Installing Newspaper Holder under Mailbox",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Designer-Roadside-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Designer Roadside Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "directories-dealer.pdf",
+      "old": "Directory Specifications",
+      "new": "Directories",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "drop-boxes-dealer.pdf",
+      "old": "Pedestal Drop Box Specification Sheet",
+      "new": "Pedestal Drop Boxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "duo-mount-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "dvcs0015_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guidelines",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "dvcs0020_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guidelines",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "dvcs0023_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "dvcs0030_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "dvu0050_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E10-spec.pdf",
+      "old": "Installation Manual",
+      "new": "Product Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "E2MBK-spec.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E4-Galvanized-Steel-Spec-Sheet-E4BK-E4BZ.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E4-spec.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E5-Galvanized-Steel-Spec-Sheet-E5BK-E5BZ.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E7-spec.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.9,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E8-spec.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "eagle-rural-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Eagle Rural Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "eagle-rural.pdf",
+      "old": "Specification Sheet",
+      "new": "Eagle Rural Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "elephantrunk-6900-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "European-Home-mailbox-install-inst.pdf",
+      "old": "Mounting Instructions",
+      "new": "Mailbox Mounting Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "FAQ-Address-Signs.pdf",
+      "old": "Address Sign Guarantee Policy",
+      "new": "Frequently Asked Questions",
+      "confidence": 0.95,
+      "asset_type": "faq"
+    },
+    {
+      "file": "faq-lamp-posts.pdf",
+      "old": "Lamp Post Guarantee Policy",
+      "new": "Frequently Asked Questions",
+      "confidence": 0.95,
+      "asset_type": "faq"
+    },
+    {
+      "file": "FAQ-Patio-Planters.pdf",
+      "old": "Product Warranty",
+      "new": "Installation Manual",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "FAQ-Rain-Catcher.pdf",
+      "old": "Rain Catcher FAQs",
+      "new": "Frequently Asked Questions",
+      "confidence": 0.95,
+      "asset_type": "faq"
+    },
+    {
+      "file": "FAQ-Storage-Bins.pdf",
+      "old": "Storage Bin FAQs",
+      "new": "Frequently Asked Questions",
+      "confidence": 0.95,
+      "asset_type": "faq"
+    },
+    {
+      "file": "FAQ-Window-Boxes.pdf",
+      "old": "Window Box Guarantee Policy",
+      "new": "Window Box Maintenance",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "free-standing-instal.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Free-Standing-Mail-Centers.pdf",
+      "old": "Specification Sheet",
+      "new": "Free-Standing Mail Centers",
+      "confidence": 0.9,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "free-standing-roll-about.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "front-loading-3600.pdf",
+      "old": "Installation Manual for Salsbury 4B+ Horizontal Mailboxes - 3600 Series",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "front-loading-3700.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "heavy-duty-mailbox-install.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "heavy-duty-milbox.pdf",
+      "old": "Installation Manual",
+      "new": "Heavy Duty Rural Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "horizontals-3700options-dealer.pdf",
+      "old": "4C Horizontal Mailbox Specifications & Options",
+      "new": "Mailbox Specifications & Options",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "horizontals-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "4B+ Standard Horizontal Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "HP-installation-instructions-no-dig-pipe-support-system.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Imperial-Street-Sign-Brochure.pdf",
+      "old": "Specification Sheet",
+      "new": "Imperial Sign System",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "In-Ground-Mounted-4800.pdf",
+      "old": "Installing Mailbox on a Standard Mailbox Post",
+      "new": "Mailbox Post Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "In-Ground-Mounted-Posts-4750.pdf",
+      "old": "Mail Houses Installation Instructions",
+      "new": "Mail House Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-18widelockers-1tier-18-51000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Single Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-18widelockers-4tier-18-54000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Four Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-antiquerurals.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox Post Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-combinationlocks.pdf",
+      "old": "Combination Locks - Operation & Change Instructions",
+      "new": "Combination Locks Operation & Change Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-designerlockers-30000-31000-32000-33000-34000-35000-36000-37000-series.pdf",
+      "old": "Designer Lockers Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-eaglerurals.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-enclosures-freestanding.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-enclosures-surfacemounted.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-extrawide-designerlockers-20000-21000-22000-23000-24000-27000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-horizontal-4Bdoor.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-horizontals-3400.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-horizontals-3700front.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-horizontals-3700rear.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-lockers-extrawide-heavyduty-plastic-15-4000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-mailpackagedrops-bolt.pdf",
+      "old": "Installing the Bolt Mounted Pedestal",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-openaccessdesignerlockers-30000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-parcellockers-pedestal.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-pedestal-collectionboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-pedestaldropboxes.pdf",
+      "old": "Pedestal Drop Boxes Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-plastic-lockers-10tier-90000-series.pdf",
+      "old": "Ten Tier Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-plastic-lockers-8tier-98000-series.pdf",
+      "old": "Eight Tier Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-roadside-deluxe.pdf",
+      "old": "Assembly Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-rurals.pdf",
+      "old": "Installation Manual",
+      "new": "Installing Mailbox on a Decorative Mailbox Post",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-see-through-2tier-S-62000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-see-through-3tier-S-63000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Triple Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-see-through-4tier-S-64000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-see-through-box-S-65000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-see-through-box-S-66000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-see-through-bridge-S-66000-series.pdf",
+      "old": "Box Style Bridge Installation Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-solidoakexecutive-10000-11000-12000-13000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-stainless-dec-4515-4525.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardgearlockers-71000-72000-series.pdf",
+      "old": "Assembly Instructions for 24\" Wide Standard Gear Lockers",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardlockers-1tier-61000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Standard Lockers Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardlockers-2tier-62000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Standard Lockers Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardlockers-3tier-63000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Standard Lockers Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardlockers-box-65000-66000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Standard Lockers Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardlockers-bridge-66000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-standardopenaccesslockers-70000-series.pdf",
+      "old": "Open Access Standard Locker Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-ventedlockers-1tier-71000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-ventedlockers-2tier-72000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-ventedlockers-3tier-73000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Triple Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-ventedlockers-4tier-74000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-ventedlockers-box-75000-76000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Box Style Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-ventedlockers-box-76000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-vertical-4bdoor.pdf",
+      "old": "Installation Manual for 7-Door Vertical Mailbox Security Upgrade Kit",
+      "new": "Installation Instructions for Vertical Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-widelockers-4tier-54000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Four Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Inst-widelockers-see-through-1tier-S-51000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Inst-widelockers-see-through-2tier-S-52000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Double Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Inst-widelockers-see-through-3tier-S-53000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Triple Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Inst-widelockers-see-through-4tier-S-54000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-widelockers-std-51000-52000-53000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-widelockers-vent-81000-82000-83000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Installation-Instruction-lawnPlaques.pdf",
+      "old": "Lawn Stake Assembly & Installation Instructions",
+      "new": "Assembly & Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "installation_instructions_1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "installation_instructions_2.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "install_classic.pdf",
+      "old": "Installation Manual",
+      "new": "Classic Mailbox Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "install_housemark_os.pdf",
+      "old": "Installation Manual",
+      "new": "Address Plaque Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "install_housemark_rl.pdf",
+      "old": "Installation Manual",
+      "new": "Drilling Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "install_keystone_deluxe.pdf",
+      "old": "Installation Manual",
+      "new": "Installation and Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "install_keystone_post_cuff.pdf",
+      "old": "Decorative Post Cuff",
+      "new": "Keystone Series Decorative Post Cuff",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "install_keystone_std.pdf",
+      "old": "Installation Manual",
+      "new": "Installation and Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "instruction-installation-receptacles.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "instructioninstall2255.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst_18widelockers_2tier.pdf",
+      "old": "Installation Manual",
+      "new": "Double Tier Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst_designerlockers-18-20000-21000-22000-23000-24000-27000series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst_lockers_cellphonelockers-19000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst_see-through-1tier-S-61000-series.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Janzer-Double-Mount-Post-Assembly.pdf",
+      "old": "Installation Manual",
+      "new": "Installation & Assembly",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "janzer_mailbox_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "The Janzer Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "janzer_post_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation & Assembly",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "JAY-front-access-commercial-collection-brochure.pdf",
+      "old": "Specification Sheet",
+      "new": "Front Access Commercial Boxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "JAY-letter-locker-installation.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "JAY-vinyl-customization.pdf",
+      "old": "Custom Vinyl Lettering Options",
+      "new": "Custom Vinyl Lettering",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "keystone-signature-mailbox.pdf",
+      "old": "Signature Keystone Series Mailbox Specification Sheet",
+      "new": "Signature Keystone Series Mailbox",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "ladder-install.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Large-Hinge-Assembly-Instructions_Revised.pdf",
+      "old": "Installation Manual",
+      "new": "Large Hinge Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Large-Mail-Slot-Installation-Sheet.pdf",
+      "old": "Installation Manual",
+      "new": "Large Mail Slot Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Limited-Warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Limited Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "lockers-heavy-duty-plastic.pdf",
+      "old": "Heavy Duty Plastic Lockers - Single Tier, Double Tier, Triple Tier and Six Tier Box Style",
+      "new": "Heavy Duty Plastic Lockers",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_15-wide_1-2tier_dealer.pdf",
+      "old": "Standard Lockers Specification Sheet",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_18-wide_1-2tier_dealer.pdf",
+      "old": "Standard Lockers Specification Sheet",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_aluminum_benches_dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Aluminum Locker Benches",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_cellphone_dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Cell Phone Lockers",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_designer_3tier_dealer.pdf",
+      "old": "Designer Locker Options",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_designer_benches_dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Designer Wood Locker Benches",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_designer_S_dealer.pdf",
+      "old": "Designer Locker Options",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_plastic_2-3tier_dealer.pdf",
+      "old": "Specification Sheet for Water Resistant Plastic Lockers",
+      "new": "Plastic Lockers",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_plastic_4-5tier_dealer.pdf",
+      "old": "Specification Sheet",
+      "new": "Plastic Lockers",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_plastic_8-10tier_dealer.pdf",
+      "old": "Specification Sheet",
+      "new": "Plastic Lockers",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_see-through_box_dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_standard_1tier_dealer.pdf",
+      "old": "Specification Sheet",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_standard_3tier_dealer.pdf",
+      "old": "Metal Locker Options",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_standard_box_dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Lockers Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_standard_gear_dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Standard Gear Locker Features",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "lockers_vented_box_dealer.pdf",
+      "old": "Metal Locker Options",
+      "new": "Lockers Catalog",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "mail-chest-2-spread.pdf",
+      "old": "Installing 4350 Mail Chests",
+      "new": "Mail Chests Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "mail-chest-3-spreader.pdf",
+      "old": "Installing 4350 Mail Chests on a 3-Wide Spreader",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "mail-chest-install.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "mail-chest-newspaper-install.pdf",
+      "old": "Installing Newspaper Holder under Mail Chest",
+      "new": "Mail Chests Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Mail-Drops-Receptacles.pdf",
+      "old": "Mail Drops",
+      "new": "Mail Drops / Receptacles",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Mail-Houses.pdf",
+      "old": "Installation Manual",
+      "new": "Mail House Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Mail-Package-Drops-4375.pdf",
+      "old": "Installing Mail Package Drops",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Mail-Package-Drops.pdf",
+      "old": "Installation Manual",
+      "new": "Mail Package Drops",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "MIS009-LampPostInstructions.pdf",
+      "old": "Lamp Post Assembly Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Modern-Mailboxes-4150.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "multi-mailbox-post-assembly-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "MyPackageConcierge-Product_Overview-042019.pdf",
+      "old": "Installation Manual",
+      "new": "MyPackageConcierge Specification Sheet",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Newspaper-Holders.pdf",
+      "old": "Installing Newspaper Holder under Mailbox",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "olympus_locking_security_drop_box_installation_instructions_1_.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PackageMaster-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "package_mail_manager_ro_mailbox_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "parkview-stucco-cap-painted-cbu.pdf",
+      "old": "Installation Manual",
+      "new": "Parkview Stucco CBU Cap & Pedestal",
+      "confidence": 0.9,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "PB-Retrobox-Locking-Package-Dropbox.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "pedestal-drop-box.pdf",
+      "old": "Pedestal Drop Boxes Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Personalized-plaque-installtion-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Post-Style-Townhouse-Mailboxes-4550.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PP-Curb-Planter.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Template",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PP-Large-mailbox.pdf",
+      "old": "Installation Manual",
+      "new": "Metal Mailbox Post Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PP-Large-Plaque.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Template",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PP-Mailbox-wood-door.pdf",
+      "old": "Installation Manual",
+      "new": "Metal Mailbox Post Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PP-Post-mounted-Mailbox.pdf",
+      "old": "Installation Manual",
+      "new": "Metal Mailbox Post Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "product-details-sals-vertical-mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Vertical Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Qarc-Allux-mailbox-flyer.pdf",
+      "old": "Product Specifications",
+      "new": "Allux Series Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "QARC-main-flyer.pdf",
+      "old": "Address Plaque Specification Sheet",
+      "new": "Address Plaque Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Quad-Imperial-Series-Assembly-Instructions_Revised.pdf",
+      "old": "Quad System Assembly Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "QualArc-Catalog-4-2013.pdf",
+      "old": "Kutstone Composite Site & Patio Amenities Specification Sheet",
+      "new": "Kutstone Composite Site & Patio Amenities",
+      "confidence": 0.9,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "RadiantLight-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Stake Mounted Option Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "rear-loading-3700.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Recessed-Mounted-4140.pdf",
+      "old": "Column Mailbox Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Recessed-Mounted-4145.pdf",
+      "old": "Column Mailbox Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Recessed-Mounted-4440.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "REPLACEMENT-LED-LAMP.pdf",
+      "old": "Installation Manual",
+      "new": "LED Lamp Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Residential-Section-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Roadside Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "RetroBox-Install-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "roadside-mailboxes-4325.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Roadside-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Roadside Mailboxes",
+      "confidence": 0.9,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Roller-Catch-Assembly-Instructions_2018.pdf",
+      "old": "Installation Manual",
+      "new": "Roller Catch Assembly Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Roller-Catch-Assembly-Instructions_Revised.pdf",
+      "old": "Installation Manual",
+      "new": "Roller Catch Assembly Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "rural-mailbox-newspaper.pdf",
+      "old": "Installing Newspaper Holder under Mailbox",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "rurals-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Heavy Duty Rural Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "sals-installation-plaques-budget.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "sals-installation-signature-hanging-plaques.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "sals-keys-brochure-budget.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox Locks / Key Blanks",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "sals-numbers-letters-brochure-budget.pdf",
+      "old": "Installation Manual",
+      "new": "Custom Numbers / Letters",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "sals-plaques-brochure-budget.pdf",
+      "old": "Installation Manual",
+      "new": "Cast Aluminum Plaques",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "sals-vertical-mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Vertical Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Signage-Section-dealer.pdf",
+      "old": "Installation Manual",
+      "new": "Signature Series Plaques",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Small-Hinge-Assembly-Instructions_Revised.pdf",
+      "old": "Installation Manual",
+      "new": "Small Hinge Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Small-Mail-Slot-Installation-Sheet.pdf",
+      "old": "Installation Manual",
+      "new": "Mail Slot Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Special-Lite-Lighting-Catalog-2016-LR.pdf",
+      "old": "Installation Manual",
+      "new": "Residential & Commercial Outdoor Lighting",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "Special-Lite-Mailbox-Catalog.pdf",
+      "old": "Installation Manual",
+      "new": "Product Catalog",
+      "confidence": 0.95,
+      "asset_type": "product-catalog"
+    },
+    {
+      "file": "SpecialLiteMailboxCatalog.pdf",
+      "old": "Installation Manual",
+      "new": "Product Catalog",
+      "confidence": 0.95,
+      "asset_type": "product-catalog"
+    },
+    {
+      "file": "spk590_post.pdf",
+      "old": "Installing Your Mailbox with Wrap Around Post Kit",
+      "new": "Wrap Around Base Mailbox Post Kit",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "spreaders.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Stainless-Steel-Mailboxes.pdf",
+      "old": "Stainless Steel Mailboxes - Standard and Decorative",
+      "new": "Stainless Steel Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Stainless-Steel-Standard-Mailboxes-4510-4520.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "standard-2240-2245.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Standard-Mailbox-Posts.pdf",
+      "old": "Installation Manual",
+      "new": "Standard Mailbox Posts",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Standard-Surface-Mounted-4410-4420.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Standing_Tall_Planter.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Template",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "STD4BMailboxes-Accessories.pdf",
+      "old": "Installation Manual",
+      "new": "Product Overview",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "std4bmailboxes-accessories_2.pdf",
+      "old": "Installation Manual",
+      "new": "Product Overview",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "Surface-Mounted-Townhouse-Mailboxes-4560.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Top-Mount-Post-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Townhouse-Mailboxes-Post-Style.pdf",
+      "old": "Installation Manual",
+      "new": "Townhouse Mailboxes",
+      "confidence": 0.9,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Traditional-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Traditional Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Traditional-Standard-Mailboxes-4610-4620.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Twin-Imperial-Series-Assembly-Instructions_Revised.pdf",
+      "old": "Twin System Assembly Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "universal-replacement-lock-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "UptownBox-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Venia-Products-LLC-Street-Light-Pole-Limited-Warranty-2024.pdf",
+      "old": "Limited Warranty",
+      "new": "Installation Manual",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "venia-products-llc-street-light-pole-limited-warranty2024.pdf",
+      "old": "Limited Warranty",
+      "new": "Installation Manual",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "venice_wall_mount_mailbox.pdf",
+      "old": "Wall Mount Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "versatile-4C-053014.pdf",
+      "old": "Installation Manual",
+      "new": "Versatile 4C Mailbox Suites",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "Vertical-Style.pdf",
+      "old": "Vertical Mail Slot Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Victorian-Mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "vl-14703-d130.pdf",
+      "old": "Product Specifications",
+      "new": "Fiberglass Park Bollard",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14707-d170.pdf",
+      "old": "Modern Design - Configure Color and Wattage",
+      "new": "Steel Square Bollard Modern Design",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14708-d3100.pdf",
+      "old": "Configure Color and Wattage",
+      "new": "Steel Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14709-d3200.pdf",
+      "old": "Cast Aluminum Bollard for Cities and Parks",
+      "new": "Cast Aluminum Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "VL-14711-d3400.pdf",
+      "old": "Cast Aluminum Bollard - Configure Color and Wattage",
+      "new": "Cast Aluminum Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14714-d470.pdf",
+      "old": "Product Specifications",
+      "new": "Cast Aluminum Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14716-d500.pdf",
+      "old": "Product Specifications",
+      "new": "Steel Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14717-d800.pdf",
+      "old": "Product Specification Sheet",
+      "new": "Cast Aluminum Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14718-d850.pdf",
+      "old": "Cast Aluminum Bollard Specification Sheet",
+      "new": "Cast Aluminum Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-14945.pdf",
+      "old": "Modern Post Light Fixture Specification Sheet",
+      "new": "Modern Post Light Fixture",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-15035.pdf",
+      "old": "Specification Sheet",
+      "new": "Triple Cast Aluminum Victorian Style Post Light",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-15250-d3390.pdf",
+      "old": "Bollard Specifications",
+      "new": "Cast Aluminum Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-15275.pdf",
+      "old": "Product Specification Sheet",
+      "new": "Dark Sky Drop Light Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "vl-2913-d700-ss316.pdf",
+      "old": "Configure Color and Wattage",
+      "new": "Stainless Steel Bollard Specification",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Wall-Mount-Mailbox-and-Plaque-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Locking Wall Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "wallmount_marina_na_document_installation-instructions_1.pdf",
+      "old": "Mounting Instructions",
+      "new": "Wall Mount Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Wall_Mount_instructions.pdf",
+      "old": "Installation Instructions",
+      "new": "Wall Mailbox Personalized Plaque Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "warranty_7900.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_document.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_documents.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "Whitehall-5-Year-Warranty-Plaques.pdf",
+      "old": "Product Warranty",
+      "new": "5 Year Limited Coating Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "whitehall-capitol-and-balmoral-installation-instruction.pdf",
+      "old": "Mailbox Wall Plaque Install Instruction Sheet",
+      "new": "Plaque Install Instruction Sheet",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "whitehall-capitol-and-balmoral-installation-instruction__e94977.pdf",
+      "old": "Installation Manual",
+      "new": "Plaque Install Instruction Sheet",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Whitehall-Floating-Standoff-Numbers-instruction-sheet.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Whitehall-Mailbox-Installation-instruction.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "whitehall-mailbox-warranty-aw1165.pdf",
+      "old": "5-Year Warranty",
+      "new": "Warranty Coverage",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "whitehall-mailbox-warranty_3.pdf",
+      "old": "Mailbox Warranty Registration",
+      "new": "Lifetime Limited Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "whitehall-plaques-warranty.pdf",
+      "old": "Product Warranty",
+      "new": "5 Year Limited Coating Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "Whitehall-Warranty-Registration.pdf",
+      "old": "Mailbox Warranty Registration",
+      "new": "Lifetime Limited Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "whitehall_duo_post.pdf",
+      "old": "Duo Mount Mailbox Post Assembly Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    }
+  ],
+  "action_changes": [
+    {
+      "file": "2B-CE1S-SD3-01.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Dimensioned Drawing"
+      }
+    },
+    {
+      "file": "2B-Global-Product-Catalog.pdf",
+      "confidence": 1.0,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Dimensioned Technical Drawing"
+      }
+    },
+    {
+      "file": "4001-fixture-spec-sheet.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec-sheet",
+        "asset_type": "spec-sheet",
+        "title": "Specifications Sheet"
+      }
+    },
+    {
+      "file": "4002-fixture-spec-sheet.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec sheet",
+        "asset_type": "spec-sheet",
+        "title": "Product Specifications"
+      }
+    },
+    {
+      "file": "4005-2-fixture-spec-sheet.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec sheet",
+        "asset_type": "spec-sheet",
+        "title": "Product Specification"
+      }
+    },
+    {
+      "file": "4007-2-fixture-spec-sheet.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec-sheet",
+        "asset_type": "spec-sheet",
+        "title": "Specifications Sheet"
+      }
+    },
+    {
+      "file": "4007-fixture-spec-sheet.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec-sheet",
+        "asset_type": "spec-sheet",
+        "title": "Product Specifications"
+      }
+    },
+    {
+      "file": "4C10S-HOPCS.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Dimensioned Technical Drawing"
+      }
+    },
+    {
+      "file": "4C11S-HOPCS.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Dimensioned Technical Drawing"
+      }
+    },
+    {
+      "file": "5500_warranty_document.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "5560_warranty.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "manual",
+        "title": "Warranty"
+      }
+    },
+    {
+      "file": "6300_warranty_document.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty"
+      }
+    },
+    {
+      "file": "7510b-10-warranty.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty"
+      }
+    },
+    {
+      "file": "7517_warranty.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "7980_-_warranty.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "9-ft-tapered-pole-spec-sheet.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "9-ft-tapered-pole"
+      }
+    },
+    {
+      "file": "950020_warranty.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "EH-Mail-Slot-Dimensions.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Mail Slot Dimensions"
+      }
+    },
+    {
+      "file": "vl-15250-d3390.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec sheet",
+        "asset_type": "spec-sheet",
+        "title": "Cast Aluminum Bollard Specification"
+      }
+    },
+    {
+      "file": "warranty_7900.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "warranty_document.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty"
+      }
+    },
+    {
+      "file": "warranty_documents.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty"
+      }
+    }
+  ],
+  "failed": []
+}

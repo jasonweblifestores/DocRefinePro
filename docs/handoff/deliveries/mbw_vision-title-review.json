@@ -1,0 +1,1888 @@
+{
+  "title_changes": [
+    {
+      "file": "1570-cbu-maintenance-manual_1-1.pdf",
+      "old": "Installation Manual",
+      "new": "Maintenance Manual",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "2417_installation_instructions.pdf",
+      "old": "Mounting Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2507_wallmount_regent_na_document_installationinstructions_1__1-1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2550_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2562_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2572_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2576-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2580-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2594-installation-instructions_1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2596-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2598-installation-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "2682-wall_mount_mailbox.pdf",
+      "old": "Wall Mount Mailbox Installation",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4035-4045-mail-slot-1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4035-4045-mail-slot.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "4B-Replacement-Mailbox-Information-1-1.pdf",
+      "old": "Replacement Mailbox Products",
+      "new": "Replacement Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "4c-mailbox-suite-maintenance-manual.pdf",
+      "old": "Installation Manual",
+      "new": "Maintenance Manual",
+      "confidence": 0.95,
+      "asset_type": "maintenance-manual"
+    },
+    {
+      "file": "5500_warranty_document-1.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "5500_warranty_document.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "5560.pdf",
+      "old": "Post Mount Mailbox Installation",
+      "new": "Mounting Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "5560_warranty-2.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "5560_warranty-3.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "5560_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "6300_warranty_document-1.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "6300_warranty_document.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "7900_installation_instructions-2.pdf",
+      "old": "Post Mount Mailbox Installation",
+      "new": "Mounting Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "7980_-_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "8000_warranty-1.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "8000_warranty-2.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "8000_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "950020_warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "AF-vogue-cbu-accessories-main.pdf",
+      "old": "Product Specifications",
+      "new": "Cluster Box Accessories",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "AW1072_capitol_tape_instructions_SP0730201.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "aw1143_mailvault-1-1.pdf",
+      "old": "Installing Mail Vault",
+      "new": "Mail Vault Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "aw1143_mailvault-1.pdf",
+      "old": "Installing Mail Vault",
+      "new": "Mail Vault Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "aw1143_mailvault-3.pdf",
+      "old": "Installing Mail Vault",
+      "new": "Mail Vault Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "aw1143_mailvault.pdf",
+      "old": "Installing Mail Vault",
+      "new": "Mail Vault Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW340_Capitol-Mailbox-Assembly_R092820.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW_1048_Colonial_Mailbox_Instruction_Sheet_SP_UPDATE.pdf",
+      "old": "Installation Manual",
+      "new": "Colonial Wall Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW_1074_Wall_Mailbox_3page_instruction_sheet-0730201.pdf",
+      "old": "Installation Manual",
+      "new": "Locking Wall Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "AW_957_Plaque-Mounting-Inst_111015_R2-1.pdf",
+      "old": "Installation Manual",
+      "new": "Wall Plaque Mounting Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Balmoral-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "balmoral-mailbox-deluxe-post-assembly-instructions-NEW-NUMBER.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "balmoral-mailbox-deluxe-post-assembly-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "bobi-round-stand.pdf",
+      "old": "Installing BOBI ROUND stand",
+      "new": "Installation on BOBI ROUND stand",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "bordeaux_wall_mount_mailboxes.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Bracket-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox & Bracket Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised-1.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised-12.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised-3.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised-6.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised-7.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised-8.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Brass-Numbers-Assembly-Instructions_Revised.pdf",
+      "old": "Installing Brass Numbers",
+      "new": "Brass Numbers Install Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "care-cleaning1-1.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "care-cleaning1-2.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "care-cleaning1-3.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "care-cleaning1.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "care_and_use-1-1.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-1.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-10.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-11.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-12.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-13.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-14.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-15.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-16.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-17.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-18.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-19.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-2.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-3.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-4.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-5.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-6.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-maintenance"
+    },
+    {
+      "file": "care_and_use-7.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-8.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use-9.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "care_and_use.pdf",
+      "old": "Care and Maintenance Instructions",
+      "new": "Care and Maintenance",
+      "confidence": 0.95,
+      "asset_type": "care-and-maintenance"
+    },
+    {
+      "file": "catalog-special-lite.pdf",
+      "old": "Outdoor Lighting Mailboxes Site Furnishing s Residential Lighting",
+      "new": "Product Catalog",
+      "confidence": 0.95,
+      "asset_type": "product-manual"
+    },
+    {
+      "file": "cbu-mailboxes-guide1.pdf",
+      "old": "2019 Product Catalog",
+      "new": "Cluster Box Units & Outdoor Parcel Lockers",
+      "confidence": 0.95,
+      "asset_type": "product-catalog"
+    },
+    {
+      "file": "duo-mount-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E4-Galvanized-Steel-Spec-Sheet-E4BK-E4BZ.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "E5-Galvanized-Steel-Spec-Sheet-E5BK-E5BZ.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "ecco-7-installation1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-10.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-11.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-12.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-13.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-14.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-15.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-16.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-17.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-18.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-19.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-20.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-21.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-22.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-23.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-24.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-25.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-26.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-27.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-28.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-29.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-3.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-30.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-31.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-32.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-33.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-34.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-35.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-36.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-37.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-38.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-39.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-40.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-41.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-42.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-43.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-44.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-45.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-47.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-48.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-49.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-50.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-7.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-8.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024-9.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning-2024.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "product-care-and-cleaning"
+    },
+    {
+      "file": "Florence-Care-Cleaning.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Care & Cleaning",
+      "confidence": 0.95,
+      "asset_type": "care-cleaning"
+    },
+    {
+      "file": "florence-centralized-mail-delivery_1.pdf",
+      "old": "Installation Manual",
+      "new": "Centralized Mail Delivery",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "florence-corp-limited-warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Florence-Corp.-Limited-Warranty.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "florence-powdercoat-referencechart-brochure-032021-1-1.pdf",
+      "old": "Powder Coat Finish Reference Color",
+      "new": "Finish / Product Reference",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "florence-powdercoat-referencechart-brochure-color-options.pdf",
+      "old": "Powder Coat Finish Reference Color",
+      "new": "Powder Coat Finish Reference",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "florence_4ccbu_mail_slot_plug_kit_installation_instructions-1-1.pdf",
+      "old": "Installing Mail Slot Plug",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "gaines-classic-installation1.pdf",
+      "old": "Installation Manual",
+      "new": "Classic Mailbox Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "inst-parcellockers-pedestal.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Installation-Instruction-lawnPlaques.pdf",
+      "old": "Lawn Stake Assembly & Installation Instructions",
+      "new": "Assembly & Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "installation_instructions_1-1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "installation_instructions_2.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "install_keystone_multimounts.pdf",
+      "old": "Triple Mount Mailbox System Specification Sheet",
+      "new": "Mailbox System Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "janzer_mailbox_installation_instructions.pdf",
+      "old": "Installation Manual",
+      "new": "The Janzer Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "janzer_post_installation_instructions.pdf",
+      "old": "Post Installation & Assembly",
+      "new": "Installation & Assembly",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Keystone-Deluxe-Post.pdf",
+      "old": "Installation Manual",
+      "new": "Installation and Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "keystone-signature-mailbox.pdf",
+      "old": "Signature Mailbox Specification",
+      "new": "Signature Keystone Series Mailbox",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "mail-slot-plug-install_1.pdf",
+      "old": "Installing Mail Slot Plug",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "mail-slot-plug-install_1_1.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "multi-mailbox-post-assembly-instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Newspaper-Holder-6-Assembly-Instructions_Revised-2.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Newspaper-Holder-6-Assembly-Instructions_Revised-4.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Newspaper-Holder-6-Assembly-Instructions_Revised-5.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "olympus_locking_security_drop_box_installation_instructions_1_.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Guide",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PB-Retrobox-Locking-Package-Dropbox.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "PP-Mailbox-wood-door.pdf",
+      "old": "Metal Mailbox Post Installation Instructions",
+      "new": "Metal Mailbox Post Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Qarc-Allux-mailbox-flyer.pdf",
+      "old": "Allux Ellipse Mailbox Specification Sheet",
+      "new": "Allux Series Mailboxes",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "QARC-main-flyer-2.pdf",
+      "old": "Address Plaque System",
+      "new": "Address Plaque Specifications",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Quad-Imperial-Series-Assembly-Instructions_Revised.pdf",
+      "old": "Quad System Assembly Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "RadiantLight-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Stake Mounted Option Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "regularmaintenance.pdf",
+      "old": "Product Care & Cleaning",
+      "new": "Maintenance Guide",
+      "confidence": 0.95,
+      "asset_type": "maintenance-guide"
+    },
+    {
+      "file": "RetroBox-Install-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "sals-mail-slots-budget-1.pdf",
+      "old": "Installation Manual",
+      "new": "Mail Slots",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "sals-mail-slots-budget.pdf",
+      "old": "Installation Manual",
+      "new": "Mail Slots",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "salsbury-vertical-mailbox-installation-instructions.pdf",
+      "old": "Product Specification Sheet",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Site-Prep-Pedestal-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Concrete Foundation Preparation",
+      "confidence": 0.95,
+      "asset_type": "drawing"
+    },
+    {
+      "file": "SpecialLiteMailboxCatalog.pdf",
+      "old": "Installation Manual",
+      "new": "Product Catalog",
+      "confidence": 0.95,
+      "asset_type": "product-catalog"
+    },
+    {
+      "file": "Stakes.pdf",
+      "old": "Lawn Stake Assembly & Installation Instructions",
+      "new": "Assembly & Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "streetscape-mailbox-installation.pdf",
+      "old": "Installing Mailboxes",
+      "new": "Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Sustainability-2024-44.pdf",
+      "old": "Sustainability",
+      "new": "Sustainability Commitment",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "Sustainability-2024-49.pdf",
+      "old": "Sustainability",
+      "new": "Sustainability Commitment",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "town-country-pro-series-bracket-installation_1_.pdf",
+      "old": "Installation Manual",
+      "new": "Mailbox & Bracket Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Twin-Imperial-Series-Assembly-Instructions_Revised.pdf",
+      "old": "Twin System Assembly Instructions",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "UptownBox-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "venice_wall_mount_mailbox.pdf",
+      "old": "Wall Mount Mailbox Installation Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Wall-Mount-Address-Plaque-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Wall-Mount-Mailbox-and-Plaque-Installation.pdf",
+      "old": "Installation Manual",
+      "new": "Locking Wall Mailbox Installation",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Wall-Plaque-Installation-Instructions.pdf",
+      "old": "Installation Manual",
+      "new": "Wall Plaque Mounting Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Wall_Mount_instructions.pdf",
+      "old": "Wall Mailbox Installation Instructions",
+      "new": "Wall Mailbox Personalized Plaque Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Warranty-2024-10.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-11.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-12.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-13.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-14.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-15.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-16.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-18.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-19.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-20.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-21.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-22.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-23.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-24.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-25.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-26.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-27.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-28.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-29.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-3.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-30.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-31.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-32.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-33.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-34.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-35.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-36.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-37.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-38.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-39.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-40.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-41.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-42.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-43.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-44.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-45.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-46.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-47.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-48.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-49.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-50.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-51.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-7.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024-9.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "Warranty-2024.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "warranty1-1.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "warranty1.pdf",
+      "old": "Product Warranty",
+      "new": "Five Year Product Warranty",
+      "confidence": 0.95,
+      "asset_type": "product-warranty"
+    },
+    {
+      "file": "warranty_7900-1.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_7900-2.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_7900-3.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_7900.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_document-3.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_document-5.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_document-6.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_document.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_documents_1.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "warranty_document_2-2.pdf",
+      "old": "Product Warranty",
+      "new": "Warranty Manual",
+      "confidence": 0.95,
+      "asset_type": "warranty-manual"
+    },
+    {
+      "file": "wayland_wall_mount_mailbox.pdf",
+      "old": "Wall Mount Mailbox Installation",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Whitehall-Capitol-and-Balmoral-Installation-Instruction-1.pdf",
+      "old": "Mailbox Wall Plaque Install Instruction Sheet",
+      "new": "Plaque Install Instruction Sheet",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Whitehall-Capitol-and-Balmoral-Installation-Instruction.pdf",
+      "old": "Mailbox Wall Plaque Install Instruction Sheet",
+      "new": "Plaque Install Instruction Sheet",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Whitehall-Floating-Standoff-Numbers-instruction-sheet.pdf",
+      "old": "Flush & Float Install Instructions",
+      "new": "Installation Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "Whitehall-Floating-Standoff-Plaques.pdf",
+      "old": "Installation Manual",
+      "new": "Modern Standoff Address Signs",
+      "confidence": 0.95,
+      "asset_type": "spec-sheet"
+    },
+    {
+      "file": "Whitehall-Mailbox-Installation-instruction.pdf",
+      "old": "Installation Manual",
+      "new": "Assembly Instructions",
+      "confidence": 0.95,
+      "asset_type": "installation-guide"
+    },
+    {
+      "file": "whitehall-mailbox-warranty.pdf",
+      "old": "Mailbox Warranty Registration",
+      "new": "Lifetime Limited Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    },
+    {
+      "file": "whitehall-plaques-warranty.pdf",
+      "old": "Whitehall Products, LLC Limited Warranty",
+      "new": "5 Year Limited Coating Warranty",
+      "confidence": 0.95,
+      "asset_type": "manual"
+    }
+  ],
+  "action_changes": [
+    {
+      "file": "1570-cbu-maintenance-manual_1-1.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec sheet",
+        "asset_type": "spec-sheet",
+        "title": "Maintenance Manual"
+      }
+    },
+    {
+      "file": "1590-opl-maintenance-manual.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "maintenance-manual",
+        "asset_type": "maintenance-manual",
+        "title": "Maintenance Manual"
+      }
+    },
+    {
+      "file": "5500_warranty_document-1.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "5500_warranty_document.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "5560_warranty-2.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "6300_warranty_document-1.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty"
+      }
+    },
+    {
+      "file": "6300_warranty_document.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "8000_warranty-1.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "8000_warranty-2.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "950020_warranty.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "manual",
+        "title": "Warranty"
+      }
+    },
+    {
+      "file": "grande-s-round.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Dimensioned Technical Drawing"
+      }
+    },
+    {
+      "file": "install_keystone_multimounts.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "spec-sheet",
+        "asset_type": "spec-sheet",
+        "title": "Mailbox System Specifications"
+      }
+    },
+    {
+      "file": "Site-Prep-Pedestal-Installation.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "dimensioned-technical-drawing",
+        "asset_type": "drawing",
+        "title": "Concrete Foundation Preparation"
+      }
+    },
+    {
+      "file": "warranty_7900-2.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "warranty_7900.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "warranty_document-3.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "warranty_document-5.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    },
+    {
+      "file": "warranty_documents_1.pdf",
+      "confidence": 0.95,
+      "vision": {
+        "action": "leave",
+        "doc_type": "manual",
+        "asset_type": "warranty-manual",
+        "title": "Warranty Manual"
+      }
+    }
+  ],
+  "failed": []
+}
