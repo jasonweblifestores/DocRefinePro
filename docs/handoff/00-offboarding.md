@@ -3,25 +3,31 @@
 Written 2026-09-10, about a departure expected around October 2026. Each item says who has to act, because
 none of these can be fixed from inside this repo by whoever inherits it.
 
-## 1. This repo belongs to a personal GitHub account — ACTION REQUIRED
+## 1. Repository ownership — transfer to the Task Agency account
 
-`origin` is **https://github.com/jasonweblifestores/DocRefinePro.git**. That is the user account
-`jasonweblifestores`, not an organisation — Jason belonged to **no GitHub orgs**, so there is no WebLife-owned
-GitHub for it to fall back to. The repo is **public**, which is why you can still clone it after he goes, but:
+The repo was built under Jason's **personal** GitHub account, `jasonweblifestores`, and pushed public. Before
+he left he confirmed that **WebLife has a separate Task Agency GitHub account**, and the plan of record is to
+**transfer the repository to it** rather than leave it on a personal account or re-push it somewhere new.
 
-- Nobody at WebLife can administer it — no settings, no secrets, no releases, no CI reruns.
-- If the account is ever deleted or renamed, the clone URL dies with it.
-- Every open PR, issue and release asset is attached to that account.
+**If you are reading this and `origin` still points at `jasonweblifestores/DocRefinePro`, the transfer did not
+happen — chase it.** Nobody at WebLife can administer the repo while it lives there: no settings, no Actions
+secrets, no releases, no CI reruns.
 
-**Action:** someone at WebLife needs to create an org (or nominate an owner account) and have Jason
-**transfer the repository** before his GitHub access ends. A transfer preserves history, tags, releases and
-the clone redirect; a fresh push does not. Do this before anything else on this list — several other items
-depend on it.
+**What a GitHub transfer does and does not carry over** — this matters for the item below:
+
+- **Carried:** full commit history, branches, tags, releases and their assets, issues, PRs, stars and watchers.
+  GitHub also leaves a redirect at the old URL, so existing clones and any link in these docs keep working.
+- **NOT carried: Actions secrets.** They are scoped to the repository *in its old owner's context* and do not
+  survive the move. The `CLICKUP_API_TOKEN` secret will be gone after the transfer and must be re-added by the
+  new owner. See item 2.
+- Also worth checking after the move: branch protection rules, and that the Actions workflows are enabled at
+  all — a transferred repo can land with Actions disabled until an owner turns them on.
 
 **Note on visibility.** Jason's explicit decision (2026-09-10) was to keep the repo public and put the full
-handoff in it, so that anyone can clone it later without needing access to anything. That is why internal
-delivery counts, ClickUp task IDs and vendor addresses appear in these docs. It was a deliberate trade for
-continuity. The one thing deliberately excluded is credentials — see item 2.
+handoff in it, so that anyone could clone it later without needing access to anything else. That is why
+internal delivery counts, ClickUp task IDs and vendor addresses appear in these docs. It was a deliberate
+trade for continuity. The new owner is free to flip it private — everything here works the same either way —
+but be aware that anything already pushed while it was public is already public.
 
 ## 2. CI's ClickUp integration runs on Jason's personal API token — IT WILL BREAK
 
@@ -34,7 +40,8 @@ The job is written to fail loudly-ish rather than silently — it writes a warni
 token is not visible — but a revoked-but-present token may behave differently from a missing one. **Test it on
 the first release after the handover.**
 
-**Action:** after the repo transfer, whoever owns releases generates their own ClickUp personal API token
+**Action:** after the repo transfer — which wipes the secret outright, see item 1 — whoever owns releases
+generates their own ClickUp personal API token
 (ClickUp → avatar → Settings → Apps → API Token) and replaces the repo secret. **No token is stored anywhere
 in this repo, by design.** Do not commit one.
 

@@ -28,7 +28,7 @@ they set precedents that conflict with the written SOP — see the playbook.
 
 | # | Document | Why you need it |
 |---|---|---|
-| 1 | [00-offboarding.md](00-offboarding.md) | **What breaks when Jason's accounts are disabled, and who has to fix it.** Includes the repo-ownership problem. |
+| 1 | [00-offboarding.md](00-offboarding.md) | **What breaks when Jason's accounts are disabled, and who has to fix it.** Includes the repo transfer to the Task Agency account, and the CI token that does not survive it. |
 | 2 | [01-clickup-map.md](01-clickup-map.md) | Every ClickUp task, brief, SOP and comment ID referenced anywhere in this pack, with links. |
 | 3 | [02-sustainable-hearth.md](02-sustainable-hearth.md) | The one open job. If "European Home → Sustainable Hearth PDFs" comes back, this is the runbook. |
 | 4 | [knowledge/project-setup.md](knowledge/project-setup.md) | How to get the app running and verified on a new machine. |
