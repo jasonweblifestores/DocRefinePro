@@ -84,7 +84,7 @@ drive. Confirm they are still there before Jason's Drive access ends.
 ## 5. Google Drive — verified intact 2026-09-23, and access arrives with the next batch
 
 Checked on the mapped `G:` drive before handover. Everything is where it should be, under
-`G:\Shared drives\[VP] Venia Products KMS\Shared_Services\DP\DP_CONT_Operational\Operational - Task Related Docs & Sheets\`:
+`G:\Shared drives\[VP] Venia Products KMS\Shared_Services\DP\DP_CONT\04_Operational\Operational - Task Related Docs & Sheets\`:
 
 | Location | State |
 |---|---|
