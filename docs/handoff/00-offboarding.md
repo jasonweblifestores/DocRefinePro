@@ -81,12 +81,37 @@ If the delivered output trees themselves matter to anyone (`Batch 4\_unique-to-r
 uploaded to Google Drive at delivery; the MBW deliverables live *inside* the source folder on the shared
 drive. Confirm they are still there before Jason's Drive access ends.
 
-## 5. Google Drive access
+## 5. Google Drive — verified intact 2026-09-23, and access arrives with the next batch
 
-Source corpora, brand-kit artwork and the delivery destinations are all on Drive shares
-(`G:\Shared drives\[VP] Venia Products KMS\...`). The paths are recorded in the playbook, but permissions were
-Jason's. **Action:** whoever takes over needs those shares granted, and needs the brand-kit **artwork** (the
-Portrait/Landscape PNG sets) re-downloaded — this repo carries the `brand.json` decisions, not the images.
+Checked on the mapped `G:` drive before handover. Everything is where it should be, under
+`G:\Shared drives\[VP] Venia Products KMS\Shared_Services\DP\DP_CONT_Operational\Operational - Task Related Docs & Sheets\`:
+
+| Location | State |
+|---|---|
+| `BM Downloadable re-branding\Batch 4\_unique-to-rebrand_rebranded` | **2,174 delivered files present** (matches local exactly) |
+| `BM Downloadable re-branding\Batch 4\Template` | Kit artwork present — Portrait + `Landscaape` (their spelling), 5 PNGs each |
+| `MBW Downloadable re-branding\_unique-to-rebrand_rebranded` | **970 delivered files present** (matches local exactly) |
+| `MBW Downloadable re-branding\_rebrand-templates` | Kit artwork present — Portrait, Landscape, `_psd-masters`, `_preview.html` |
+| `MBW Downloadable re-branding\_delivery-manifests` | `README.txt`, `filename-aliases.csv`, `manifests` |
+
+Also on Drive in that same folder: **`Budget Mailboxes Downloadable Asset Rebranding SOP.gdoc`** — the SOP as a
+Google Doc, alongside the `designer-sidekick` path the playbook cites.
+
+**Access is not a blocker.** Kunchana Godahewa shares the Drive link with each new batch, so a successor picks
+up access the next time a batch is handed over, and **the brand kit is built per batch anyway** — it is not a
+standing asset that has to be inherited.
+
+### The trap when you pull a kit from Drive
+
+**The MBW kit on Drive has no `brand.json`** — only the artwork folders. So does the next kit Kunchana shares,
+most likely. A kit with artwork but no `brand.json` **does not fail**: `BrandKit` silently falls back to
+defaults, which means zero manufacturer aliases, no tagline, no disclaimer, and the brand name resolves to
+*Budget Mailboxes* — on a MailboxWorks job, or any other. It looks like it worked and prints raw,
+inconsistent manufacturer names.
+
+The approved naming decisions for the two delivered brands are in this repo at **`brandkits/`**. When you
+build a kit for a new batch, author its `brand.json` — starting from `docrefine/assets/brand.example.json` —
+and **save it beside the artwork under that literal filename**. Any other name is ignored.
 
 ## 6. Open ClickUp work assigned to Jason
 
