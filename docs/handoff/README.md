@@ -32,7 +32,7 @@ they set precedents that conflict with the written SOP — see the playbook.
 | 2 | [01-clickup-map.md](01-clickup-map.md) | Every ClickUp task, brief, SOP and comment ID referenced anywhere in this pack, with links. |
 | 3 | [02-sustainable-hearth.md](02-sustainable-hearth.md) | The one open job. If "European Home → Sustainable Hearth PDFs" comes back, this is the runbook. |
 | 4 | [03-running-headless.md](03-running-headless.md) | **How to run a delivery from Claude Code without the GUI** — the recommended way, and the way both shipped batches were actually produced. |
-| 6 | [knowledge/project-setup.md](knowledge/project-setup.md) | How to get the app running and verified on a new machine. |
+| 5 | [knowledge/project-setup.md](knowledge/project-setup.md) | How to get the app running and verified on a new machine. |
 | 6 | [knowledge/rebrand-playbook.md](knowledge/rebrand-playbook.md) | **The big one (74KB).** Design decisions, every release v136–v158, both delivered batches, and every defect found by QA'ing real output. |
 | 7 | [knowledge/release-protocol.md](knowledge/release-protocol.md) | The ordered release checklist. ClickUp updates itself — do not post manually. |
 | 8 | [knowledge/vision-pass.md](knowledge/vision-pass.md) | Local vision classification: the two-pass design and the 8GB-VRAM measurements that constrain it. |
