@@ -1,13 +1,23 @@
 # What breaks when Jason's accounts are disabled
 
-Written 2026-09-10, about a departure expected around October 2026. Each item says who has to act, because
-none of these can be fixed from inside this repo by whoever inherits it.
+Written 2026-09-10, updated 2026-09-23. About a departure expected around October 2026. Each item says who
+has to act, because none of these can be fixed from inside this repo by whoever inherits it.
+
+**Who is taking this over: Atul Joshi** (ClickUp user `113594290`). Pronouns not recorded — use they/them
+unless they say otherwise. If you are Atul: read this file, then
+[03-running-headless.md](03-running-headless.md), then the runbook for the one open job. The rest can wait
+until you need it.
 
 ## 1. Repository ownership — transfer to the Task Agency account
 
 The repo was built under Jason's **personal** GitHub account, `jasonweblifestores`, and pushed public. Before
-he left he confirmed that **WebLife has a separate Task Agency GitHub account**, and the plan of record is to
-**transfer the repository to it** rather than leave it on a personal account or re-push it somewhere new.
+he left he confirmed the destination: the GitHub organisation **`weblife-task-agency`** (display name
+"Task Agency", created 2026-08-20). The plan of record is to **transfer this repository into that org** rather
+than leave it on a personal account or re-push it somewhere new. After the transfer it becomes
+`weblife-task-agency/DocRefinePro`, with a redirect from the old URL.
+
+**Transferring into an org needs repository-creation permission in that org** — write access to one of its
+repos is not enough. If the transfer stalls, that is the likely reason, and an org Owner has to grant it.
 
 **If you are reading this and `origin` still points at `jasonweblifestores/DocRefinePro`, the transfer did not
 happen — chase it.** Nobody at WebLife can administer the repo while it lives there: no settings, no Actions
@@ -23,7 +33,12 @@ secrets, no releases, no CI reruns.
 - Also worth checking after the move: branch protection rules, and that the Actions workflows are enabled at
   all — a transferred repo can land with Actions disabled until an owner turns them on.
 
-**Note on visibility.** Jason's explicit decision (2026-09-10) was to keep the repo public and put the full
+**Visibility after the move.** A transfer preserves visibility, so this lands in the org still **public**.
+The org's other repositories are private, so if that is the house norm, an owner can flip it after the
+transfer — nothing in this pack depends on it being public. Be aware that anything pushed while it was public
+is already public regardless.
+
+**Note on the original decision.** Jason's explicit decision (2026-09-10) was to keep the repo public and put the full
 handoff in it, so that anyone could clone it later without needing access to anything else. That is why
 internal delivery counts, ClickUp task IDs and vendor addresses appear in these docs. It was a deliberate
 trade for continuity. The new owner is free to flip it private — everything here works the same either way —

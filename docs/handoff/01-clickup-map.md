@@ -74,6 +74,7 @@ mention that notifies — see [knowledge/clickup-api-quirks.md](knowledge/clicku
 | Sean | — | TA lead on the MBW brief. |
 | Nouman Khan | `89486906` | Subtask assignee (BM/BPITU site updates). |
 | Hammad Rafique | `89486907` | Subtask assignee (MBW site updates). |
+| Atul Joshi | `113594290` | **Taking this project over from Jason.** Pronouns not recorded — they/them until stated. |
 | Jason Diaz | `101512919` | Built the app, ran both deliveries. Left October 2026. |
 
 **Name lookups:** `clickup_find_member_by_name` needs the **full** name — "Kunchana" returns null, "Kunchana
