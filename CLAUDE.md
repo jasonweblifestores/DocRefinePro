@@ -60,6 +60,11 @@ QT_QPA_PLATFORM=offscreen .venv/Scripts/python.exe main.py --dry-run
 
 Full setup detail in [docs/handoff/knowledge/project-setup.md](docs/handoff/knowledge/project-setup.md).
 
+**For rebranding work, skip the GUI.** Both shipped deliveries were produced by calling
+`docrefine.worker.Worker` directly, not through the interface, and that is the recommended way to run this —
+see [docs/handoff/03-running-headless.md](docs/handoff/03-running-headless.md). Copy `verify/trial_run.py` or
+`verify/apply_batch4.py` rather than starting from scratch.
+
 ## Known landmines
 
 `docs/handoff/knowledge/known-issues.md` and `clickup-api-quirks.md` exist specifically because these things
